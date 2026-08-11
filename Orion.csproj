@@ -1,0 +1,96 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Orion\Sharp\orion-app.ico</ApplicationIcon>
+    <AssemblyName>Orion</AssemblyName>
+    <RootNamespace>OrbitAvalonia</RootNamespace>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>none</DebugType>
+    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.0.1" />
+    <PackageReference Include="Avalonia.Svg.Skia" Version="11.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Reference Include="Bunifu_UI_v1.5.3">
+      <HintPath>Assets\Legacy\Krnl\Bunifu_UI_v1.5.3.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Include="*.axaml" />
+    <AvaloniaResource Include="Assets\orbit-logo-hq.png" />
+    <AvaloniaResource Include="Assets\fluent--plug-connected-20-filled.svg" />
+    <AvaloniaResource Include="Assets\Xeno\**\*" />
+    <AvaloniaResource Include="Assets\Synapse\**\*" />
+    <AvaloniaResource Include="Assets\SynapseX\**\*" />
+    <AvaloniaResource Include="Assets\Calamari\**\*" />
+    <AvaloniaResource Include="Assets\Orion\Sharp\**\*" />
+    <AvaloniaResource Include="Assets\Orion\Nav\**\*" />
+    <AvaloniaResource Include="Assets\Orion\Fonts\**\*" />
+    <AvaloniaResource Include="Assets\Orion\UiSelection\**\*" />
+    <AvaloniaResource Include="Assets\Orion\Bridge\**\*" />
+    <AvaloniaResource Include="Assets\AWP\**\*" />
+    <AvaloniaResource Include="Assets\rect200.png" />
+    <AvaloniaResource Include="Assets\rect204.png" />
+    <AvaloniaResource Include="Assets\rect205.png" />
+    <AvaloniaResource Include="Assets\rect206.png" />
+    <AvaloniaResource Include="Assets\rect208.png" />
+    <AvaloniaResource Include="Assets\rect211.png" />
+    <AvaloniaResource Include="Assets\rect212.png" />
+    <AvaloniaResource Include="Assets\rect213.png" />
+    <EmbeddedResource Include="Assets\Legacy\RC7\*.bmp"
+                      Link="RC7Assets\%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Legacy\RC7\rc7_nKh_icon.ico"
+                      Link="RC7Assets\rc7_nKh_icon.ico" />
+    <EmbeddedResource Include="Assets\Legacy\Krnl\krnl.resx"
+                      Link="KrnlAssets\krnl.resx"
+                      LogicalName="OrbitAvalonia.KrnlSource.xml"
+                      Type="Non-Resx"
+                      WithCulture="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="MonacoPreview\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+    <Content Include="Scripts\**\*"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest"
+             ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+  <Target Name="RemoveOrionPublishSymbols" AfterTargets="Publish">
+    <ItemGroup>
+      <OrionPublishSymbol Include="$(PublishDir)*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(OrionPublishSymbol)" />
+  </Target>
+
+</Project>

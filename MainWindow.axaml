@@ -1,0 +1,620 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:OrbitAvalonia"
+        xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="OrbitAvalonia.MainWindow"
+        Title="Orion"
+        Width="860"
+        Height="540"
+        MinWidth="860"
+        MinHeight="540"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        CanResize="True"
+        ShowInTaskbar="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        UseLayoutRounding="True"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter">
+
+  <Window.Resources>
+    <SolidColorBrush x:Key="OrionBgBrush" Color="#08090A" />
+    <SolidColorBrush x:Key="OrionCardBg" Color="#07080A" />
+    <SolidColorBrush x:Key="OrionBorderBrush" Color="#303235" />
+    <SolidColorBrush x:Key="OrionSubtextBrush" Color="#7D7D80" />
+  </Window.Resources>
+
+  <Window.Styles>
+    <!-- Window control buttons -->
+    <Style Selector="Button.window-control">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" CornerRadius="4">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                               HorizontalContentAlignment="Center"
+                               VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.window-control:pointerover">
+      <Setter Property="Background" Value="#22FFFFFF" />
+    </Style>
+
+    <!-- Top nav tab buttons -->
+    <Style Selector="Button.top-nav-btn">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" CornerRadius="6">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                               HorizontalContentAlignment="Center"
+                               VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.top-nav-btn:pointerover">
+      <Setter Property="Background" Value="#25FFFFFF" />
+    </Style>
+
+    <!-- Interactive card buttons -->
+    <Style Selector="Button.card-button">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.card-button:pointerover Border">
+      <Setter Property="BorderBrush" Value="#A0A0A5" />
+    </Style>
+
+    <!-- Action buttons (execute, save, open, clear) -->
+    <Style Selector="Button.action-btn">
+      <Setter Property="Background" Value="#07080A" />
+      <Setter Property="BorderBrush" Value="#525558" />
+      <Setter Property="BorderThickness" Value="0.5" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                               HorizontalContentAlignment="Center"
+                               VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.action-btn:pointerover">
+      <Setter Property="Background" Value="#15171A" />
+      <Setter Property="BorderBrush" Value="#80858A" />
+    </Style>
+  </Window.Styles>
+
+  <Grid>
+    <!-- Opaque shell for close animation backdrop -->
+    <Border x:Name="CloseAnimationBackdrop"
+            IsVisible="False"
+            Background="#08090A"
+            CornerRadius="15" />
+
+    <!-- Main Interface -->
+    <Grid x:Name="MainInterface"
+          Panel.ZIndex="1"
+          IsVisible="True"
+          Opacity="1">
+      <Viewbox x:Name="MainDesignViewbox" Stretch="Uniform">
+        <Border x:Name="MainWindowChrome"
+                Width="860" Height="540"
+                CornerRadius="15"
+                BorderThickness="1"
+                ClipToBounds="True">
+          <Border.BorderBrush>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+              <GradientStop Color="#6B6E70" Offset="0"/>
+              <GradientStop Color="#303235" Offset="1"/>
+            </LinearGradientBrush>
+          </Border.BorderBrush>
+          <Border.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0.82,1">
+              <GradientStop Color="#181A1B" Offset="0"/>
+              <GradientStop Color="#08090A" Offset="0.37"/>
+            </LinearGradientBrush>
+          </Border.Background>
+
+          <Canvas x:Name="MainDesignCanvas" Width="860" Height="540">
+
+            <!-- Title Bar Drag Handle Region -->
+            <Border Canvas.Left="0" Canvas.Top="0" Width="860" Height="70"
+                    Background="Transparent"
+                    PointerPressed="TitleBar_PointerPressed"/>
+
+            <!-- Orion Logo (Top-Left) -->
+            <Border Canvas.Left="16" Canvas.Top="15" Width="107" Height="35" ClipToBounds="True">
+              <Image Source="avares://Orion/Assets/logo.png" Stretch="Uniform"/>
+            </Border>
+
+            <!-- Window Controls (Top-Right) -->
+            <StackPanel Canvas.Left="704" Canvas.Top="25" Orientation="Horizontal" Spacing="12">
+              <!-- Minimize -->
+              <Button x:Name="MinimizeButton" Classes="window-control" Width="30" Height="24" Click="Minimize_Click">
+                <Rectangle Width="17" Height="3" Fill="#C8C7CC"/>
+              </Button>
+              <!-- Maximize / Restore -->
+              <Button x:Name="MaximizeButton" Classes="window-control" Width="24" Height="24" Click="Maximize_Click">
+                <Viewbox Width="14" Height="14">
+                  <Path Width="14" Height="14" Stroke="#C8C7CC" StrokeThickness="1.2"
+                        Data="M1,1 H13 V13 H1 Z"/>
+                </Viewbox>
+              </Button>
+              <!-- Close X -->
+              <Button x:Name="CloseButton" Classes="window-control" Width="24" Height="24" Click="Close_Click">
+                <Path Width="14" Height="14" Stroke="#C8C7CC" StrokeThickness="1.5" StrokeLineCap="Round"
+                      Data="M0,0 L14,14 M14,0 L0,14"/>
+              </Button>
+            </StackPanel>
+
+            <!-- ═════════════════════════════════════════════════════════ -->
+            <!-- TOP NAVIGATION NOTCH HEADER                              -->
+            <!-- ═════════════════════════════════════════════════════════ -->
+            <Canvas x:Name="NavigationRailLayer" Canvas.Left="0" Canvas.Top="0" Width="860" Height="70">
+              <Border x:Name="TopNavNotch" Canvas.Left="252" Canvas.Top="0" Width="355" Height="57"
+                      CornerRadius="0,0,12,12"
+                      BorderBrush="#535659" BorderThickness="0.5"
+                      ClipToBounds="True">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1.65">
+                    <GradientStop Color="#17191A" Offset="0"/>
+                    <GradientStop Color="#090A0B" Offset="1"/>
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Grid ColumnDefinitions="*,*,*,*,*">
+                  <!-- Nav Icon 1: UI Selection / Plugins (puzzle piece) -->
+                  <Button x:Name="NavUiSelectionButton" Grid.Column="0" Classes="top-nav-btn" Click="NavUiSelection_Click">
+                    <Viewbox Width="20" Height="20">
+                      <svg:Svg Path="/Assets/Icons/74_16.svg" Width="20" Height="20" />
+                    </Viewbox>
+                  </Button>
+
+                  <!-- Nav Icon 2: Settings (gear/cog) -->
+                  <Button x:Name="NavSettingsButton" Grid.Column="1" Classes="top-nav-btn" Click="NavSettings_Click">
+                    <Viewbox Width="20" Height="20">
+                      <svg:Svg Path="/Assets/Icons/74_17.svg" Width="20" Height="20" />
+                    </Viewbox>
+                  </Button>
+
+                  <!-- Nav Icon 3: Editor (code brackets <>) -->
+                  <Button x:Name="NavEditorButton" Grid.Column="2" Classes="top-nav-btn" Click="NavEditor_Click">
+                    <Viewbox Width="22" Height="18">
+                      <svg:Svg Path="/Assets/Icons/74_18.svg" Width="22" Height="18" />
+                    </Viewbox>
+                  </Button>
+
+                  <!-- Nav Icon 4: Theme Studio (paint brush / palette) -->
+                  <Button x:Name="NavThemeStudioButton" Grid.Column="3" Classes="top-nav-btn" Click="NavThemes_Click">
+                    <Viewbox Width="20" Height="20">
+                      <svg:Svg Path="/Assets/Icons/74_19.svg" Width="20" Height="20" />
+                    </Viewbox>
+                  </Button>
+
+                  <!-- Nav Icon 5: Script Hub (document/scroll) -->
+                  <Button x:Name="NavScriptHubButton" Grid.Column="4" Classes="top-nav-btn" Click="NavScriptHub_Click">
+                    <Viewbox Width="17" Height="20">
+                      <svg:Svg Path="/Assets/Icons/74_12.svg" Width="17" Height="20" />
+                    </Viewbox>
+                  </Button>
+                </Grid>
+              </Border>
+
+              <!-- Center Nav Active Indicator Arrow (pointing down below notch) -->
+              <Path x:Name="TopNavIndicator" Canvas.Left="415" Canvas.Top="57" Width="10" Height="10" Fill="#8B8B8B"
+                    Data="M0 0 L10 0 L5 8 Z"/>
+            </Canvas>
+
+            <!-- ═════════════════════════════════════════════════════════ -->
+            <!-- MAIN PAGE CONTAINER                                      -->
+            <!-- ═════════════════════════════════════════════════════════ -->
+            <Border Canvas.Left="11" Canvas.Top="81" Width="838" Height="448"
+                    CornerRadius="15" BorderBrush="#303235" BorderThickness="0.5"
+                    Background="Transparent"/>
+
+            <!-- ───────────────────────────────────────────────────────── -->
+            <!-- PAGE 1: EDITOR PAGE (AppPage.Editor)                      -->
+            <!-- ───────────────────────────────────────────────────────── -->
+            <Canvas x:Name="EditorPage" Canvas.Left="0" Canvas.Top="0" Width="860" Height="540" IsVisible="True">
+
+              <!-- Tab Bar (Top=89, Left=22) -->
+              <StackPanel x:Name="EditorTabsPanel" Canvas.Left="22" Canvas.Top="89" Orientation="Horizontal" Spacing="4">
+                <!-- Active Script 1 Tab -->
+                <Border Width="162" Height="43" CornerRadius="7,7,0,0"
+                        BorderBrush="#171A1D" BorderThickness="1" Background="#940E1011">
+                  <Grid ColumnDefinitions="28,*,24">
+                    <Path Grid.Column="0" Width="12" Height="13" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Data="M1 0 L8 0 L12 4 L12 13 L1 13 Z M8 0 L8 4 L12 4"/>
+                    <TextBlock Grid.Column="1" Text="Script 1" Foreground="White" FontSize="12" VerticalAlignment="Center"/>
+                    <Button Grid.Column="2" Width="16" Height="16" Background="Transparent" BorderThickness="0" Padding="0" Click="CloseTab_Click">
+                      <Ellipse Width="8" Height="8" Fill="#595C5F"/>
+                    </Button>
+                  </Grid>
+                </Border>
+
+                <!-- New Tab "+" Button -->
+                <Button Classes="top-nav-btn" Width="30" Height="30" Margin="4,6,0,0" Click="NewTab_Click">
+                  <Path Width="12" Height="13" Fill="#A1A3A2" Data="M6 0 V13 M0 6.5 H12"/>
+                </Button>
+              </StackPanel>
+
+              <!-- Native Code Text Editor Panel -->
+              <Border Canvas.Left="11" Canvas.Top="133" Width="838" Height="345"
+                      BorderBrush="#303235" BorderThickness="0.5" Background="#101112">
+                <TextBox x:Name="NativeEditorTextBox"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="NoWrap"
+                         FontFamily="Cascadia Code, Consolas, Courier New, monospace"
+                         FontSize="13"
+                         Foreground="#C8C7CC"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="12,10"
+                         CaretBrush="White"
+                         SelectionBrush="#374D64"
+                         PlaceholderText="-- Write or paste your Lua script here..."
+                         TextChanged="EditorTextBox_TextChanged"/>
+              </Border>
+
+              <!-- Bottom Utility Box (Left icons) -->
+              <Border Canvas.Left="11" Canvas.Top="478" Width="223.18" Height="51"
+                      CornerRadius="0,0,0,15" BorderBrush="#303235" BorderThickness="0.5" Background="#B207080A">
+                <StackPanel Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <!-- Connection Dot -->
+                  <Ellipse x:Name="BridgeConnectionDot" Width="12" Height="12" Fill="#7D7D80" ToolTip.Tip="Bridge Status"/>
+                  <!-- Console/Terminal Icon >_ -->
+                  <Viewbox Width="16" Height="16">
+                    <Path Width="16" Height="16" Stroke="#7D7D80" StrokeThickness="1.5" StrokeLineCap="Round"
+                          Data="M1,12 L5,8 L1,4 M8,12 L14,12"/>
+                  </Viewbox>
+                  <!-- Robot Icon (leads to AI Chat) -->
+                  <Button Classes="top-nav-btn" Width="20" Height="20" Click="NavAgent_Click" ToolTip.Tip="AI Agent">
+                    <Viewbox Width="16" Height="16">
+                      <Path Width="16" Height="16" Fill="#7D7D80"
+                            Data="M8,0 C6.9,0 6,0.9 6,2 L3,2 C1.9,2 1,2.9 1,4 L1,10 C1,11.1 1.9,12 3,12 L5,12 L5,14 C5,15.1 5.9,16 7,16 L9,16 C10.1,16 11,15.1 11,14 L11,12 L13,12 C14.1,12 15,11.1 15,10 L15,4 C15,2.9 14.1,2 13,2 L10,2 C10,0.9 9.1,0 8,0 Z M5,7 A1.5,1.5 0 1 1 5,10 A1.5,1.5 0 1 1 5,7 Z M11,7 A1.5,1.5 0 1 1 11,10 A1.5,1.5 0 1 1 11,7 Z"/>
+                    </Viewbox>
+                  </Button>
+                  <!-- Search/Magnifier Icon -->
+                  <Viewbox Width="16" Height="16">
+                    <Path Width="16" Height="16" Stroke="#7D7D80" StrokeThickness="1.5" Fill="Transparent"
+                          Data="M6.5,1 A5.5,5.5 0 1 0 6.5,12 A5.5,5.5 0 1 0 6.5,1 Z M11,11 L15,15"/>
+                  </Viewbox>
+                </StackPanel>
+              </Border>
+
+              <!-- Bottom Status Bar Info Box -->
+              <Border Canvas.Left="234.18" Canvas.Top="478" Width="614.82" Height="51"
+                      CornerRadius="0,0,15,0" BorderBrush="#303235" BorderThickness="0.5" Background="#B207080A">
+                <Canvas>
+                  <TextBlock x:Name="CursorPositionText" Canvas.Left="420" Canvas.Top="18"
+                             Text="Ln 1, Col 1" Foreground="#A9A9AB" FontSize="13"/>
+                  <TextBlock Canvas.Left="550" Canvas.Top="18"
+                             Text="Lua" Foreground="#A9A9AB" FontSize="13"/>
+                </Canvas>
+              </Border>
+
+              <!-- Action Buttons Row -->
+              <StackPanel Canvas.Left="243" Canvas.Top="488" Orientation="Horizontal" Spacing="10">
+                <!-- Execute Button -->
+                <Button Classes="action-btn" Width="100" Height="32" Click="Execute_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <svg:Svg Path="/Assets/Icons/76_132.svg" Width="12" Height="12" VerticalAlignment="Center"/>
+                    <TextBlock Text="run" Foreground="#7D7D80" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Save File Button -->
+                <Button Classes="action-btn" Width="100" Height="32" Click="SaveFile_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <svg:Svg Path="/Assets/Icons/76_149.svg" Width="12" Height="12" VerticalAlignment="Center"/>
+                    <TextBlock Text="save" Foreground="#7D7D80" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Open File Button -->
+                <Button Classes="action-btn" Width="100" Height="32" Click="OpenFile_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <svg:Svg Path="/Assets/Icons/76_158.svg" Width="12" Height="12" VerticalAlignment="Center"/>
+                    <TextBlock Text="open" Foreground="#7D7D80" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Clear Button -->
+                <Button Classes="action-btn" Width="80" Height="32" Click="Clear_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <svg:Svg Path="/Assets/Icons/76_165.svg" Width="12" Height="12" VerticalAlignment="Center"/>
+                    <TextBlock Text="clear" Foreground="#7D7D80" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Canvas>
+
+            <!-- ───────────────────────────────────────────────────────── -->
+            <!-- PAGE 2: SETTINGS PAGE (AppPage.Settings)                 -->
+            <!-- ───────────────────────────────────────────────────────── -->
+            <Canvas x:Name="SettingsPage" Canvas.Left="0" Canvas.Top="0" Width="860" Height="540" IsVisible="False">
+              <!-- Title -->
+              <TextBlock Canvas.Left="76" Canvas.Top="121" Text="Settings" Foreground="White" FontSize="20" FontWeight="Bold"/>
+
+              <!-- ROW 1 CARDS (Top=164, Width=268, Height=153) -->
+              <!-- Card: Globals -->
+              <Button Classes="card-button" Canvas.Left="79" Canvas.Top="164" Width="200" Height="120" CornerRadius="15">
+                <Border Width="200" Height="120" CornerRadius="15" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect200.png" Stretch="UniformToFill" Opacity="0.21"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="79" Canvas.Top="264" Width="200" Height="20" CornerRadius="0,0,15,15" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Globals" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Card: General -->
+              <Button Classes="card-button" Canvas.Left="330" Canvas.Top="164" Width="200" Height="120" CornerRadius="15">
+                <Border Width="200" Height="120" CornerRadius="15" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect206.png" Stretch="UniformToFill" Opacity="0.21"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="330" Canvas.Top="264" Width="200" Height="20" CornerRadius="0,0,15,15" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="General" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Card: UI Selection -->
+              <Button Classes="card-button" Canvas.Left="581" Canvas.Top="164" Width="200" Height="120" CornerRadius="15" Click="NavUiSelection_Click">
+                <Border Width="200" Height="120" CornerRadius="15" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect213.png" Stretch="UniformToFill" Opacity="0.21"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="581" Canvas.Top="264" Width="200" Height="20" CornerRadius="0,0,15,15" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="UI Selection" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- ROW 2 CARDS (Top=335) -->
+              <!-- Card: Bridge Settings -->
+              <Button Classes="card-button" Canvas.Left="79" Canvas.Top="335" Width="200" Height="120" CornerRadius="15" Click="BridgeSettings_Click">
+                <Border Width="200" Height="120" CornerRadius="15" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect206.png" Stretch="UniformToFill" Opacity="0.21"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="79" Canvas.Top="435" Width="200" Height="20" CornerRadius="0,0,15,15" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Bridge Settings" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Card: Back To Setup -->
+              <Button Classes="card-button" Canvas.Left="330" Canvas.Top="335" Width="200" Height="120" CornerRadius="15" Click="NavUiSelection_Click">
+                <Border Width="200" Height="120" CornerRadius="15" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect205.png" Stretch="UniformToFill" Opacity="0.21"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="330" Canvas.Top="435" Width="200" Height="20" CornerRadius="0,0,15,15" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Back To Setup" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Card: AI Features -->
+              <Button Classes="card-button" Canvas.Left="581" Canvas.Top="335" Width="200" Height="120" CornerRadius="15" Click="NavAgent_Click">
+                <Border Width="200" Height="120" CornerRadius="15" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect204.png" Stretch="UniformToFill" Opacity="0.21"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="581" Canvas.Top="435" Width="200" Height="20" CornerRadius="0,0,15,15" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="AI Features" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Quick Settings Bottom Bar -->
+              <Border Canvas.Left="79" Canvas.Top="480" Width="702" Height="45"
+                      CornerRadius="8" Background="#07090A" BorderBrush="#252525" BorderThickness="1">
+                <Canvas>
+                  <TextBlock Canvas.Left="15" Canvas.Top="15" Text="Quick Settings" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                  <Rectangle Canvas.Left="100" Canvas.Top="8" Width="1" Height="30" Fill="#252525"/>
+                  <Button x:Name="TopMostButton" Canvas.Left="115" Canvas.Top="8" Width="80" Height="28"
+                          Background="#07090A" BorderBrush="#252525" BorderThickness="1" CornerRadius="3" Click="TopMost_Click">
+                    <TextBlock x:Name="TopMostText" Text="TopMost" Foreground="#FF4C4C" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Button>
+                  <!-- Plus button to show quick settings guide popup -->
+                  <Button x:Name="QuickSettingsPlusButton" Canvas.Left="205" Canvas.Top="10" Width="20" Height="20"
+                          Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" Click="QuickSettingsPlus_Click">
+                    <Path Width="10" Height="10" Fill="#A1A3A2" Data="M5 0 V10 M0 5 H10"/>
+                  </Button>
+                </Canvas>
+              </Border>
+
+              <!-- Quick Settings Popup Tooltip (hidden by default) -->
+              <Border x:Name="QuickSettingsPopup" Canvas.Left="280" Canvas.Top="400" Width="120" Height="90"
+                      IsVisible="False" CornerRadius="5" Background="#33141617" BorderBrush="#52414141" BorderThickness="1">
+                <Canvas>
+                  <TextBlock Canvas.Left="10" Canvas.Top="10" Width="100" Height="50" FontSize="7" FontWeight="Bold"
+                             Foreground="White" TextAlignment="Center" TextWrapping="Wrap"
+                             Text="enter a settings section, click the cog icon next to a setting. and when its green. its added to quick settings."/>
+                  <!-- Grey cog icon -->
+                  <Viewbox Canvas.Left="10" Canvas.Top="60" Width="14" Height="14">
+                    <Path Width="16" Height="16" Fill="#8D8D8D"
+                          Data="M8,5.5 A2.5,2.5 0 1 0 8,10.5 A2.5,2.5 0 1 0 8,5.5 Z M13.94,7.13 L12.7,6.41 C12.77,6.01 12.81,5.6 12.81,5.19 L14.05,4.48 L13.05,2.74 L11.81,3.45 C11.5,3.14 11.15,2.88 10.76,2.67 L10.76,1.25 L8.76,1.25 L8.76,2.67 C8.37,2.88 8.02,3.14 7.71,3.45 L6.47,2.74 L5.47,4.48 L6.71,5.19 C6.64,5.59 6.6,6 6.6,6.41 L5.36,7.13 L6.36,8.87 L7.6,8.16 C7.91,8.47 8.26,8.73 8.65,8.94 L8.65,10.36 L10.65,10.36 L10.65,8.94 C11.04,8.73 11.39,8.47 11.7,8.16 L12.94,8.87 Z"/>
+                  </Viewbox>
+                  <!-- Arrow (grey to green gradient line) -->
+                  <Rectangle Canvas.Left="30" Canvas.Top="66" Width="50" Height="2">
+                    <Rectangle.Fill>
+                      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="#8D8D8D" Offset="0"/>
+                        <GradientStop Color="#00941B" Offset="1"/>
+                      </LinearGradientBrush>
+                    </Rectangle.Fill>
+                  </Rectangle>
+                  <!-- Green cog icon -->
+                  <Viewbox Canvas.Left="85" Canvas.Top="60" Width="14" Height="14">
+                    <Path Width="16" Height="16" Fill="#00941B"
+                          Data="M8,5.5 A2.5,2.5 0 1 0 8,10.5 A2.5,2.5 0 1 0 8,5.5 Z M13.94,7.13 L12.7,6.41 C12.77,6.01 12.81,5.6 12.81,5.19 L14.05,4.48 L13.05,2.74 L11.81,3.45 C11.5,3.14 11.15,2.88 10.76,2.67 L10.76,1.25 L8.76,1.25 L8.76,2.67 C8.37,2.88 8.02,3.14 7.71,3.45 L6.47,2.74 L5.47,4.48 L6.71,5.19 C6.64,5.59 6.6,6 6.6,6.41 L5.36,7.13 L6.36,8.87 L7.6,8.16 C7.91,8.47 8.26,8.73 8.65,8.94 L8.65,10.36 L10.65,10.36 L10.65,8.94 C11.04,8.73 11.39,8.47 11.7,8.16 L12.94,8.87 Z"/>
+                  </Viewbox>
+                </Canvas>
+              </Border>
+            </Canvas>
+
+            <!-- ───────────────────────────────────────────────────────── -->
+            <!-- PAGE 3: UI SELECTION PAGE (AppPage.Plugins)              -->
+            <!-- ───────────────────────────────────────────────────────── -->
+            <Canvas x:Name="PluginsPage" Canvas.Left="0" Canvas.Top="0" Width="860" Height="540" IsVisible="False">
+              <!-- Title -->
+              <TextBlock Canvas.Left="76" Canvas.Top="121" Text="UI Selection" Foreground="White" FontSize="20" FontWeight="Bold"/>
+              <Button Classes="top-nav-btn" Canvas.Left="650" Canvas.Top="125" Click="NavSettings_Click">
+                <TextBlock Text="Back To Home" Foreground="#4C4C4C" FontSize="12" FontWeight="Bold"/>
+              </Button>
+
+              <!-- Section 1: Synapse Framework -->
+              <TextBlock Canvas.Left="94" Canvas.Top="183" Text="Frameworks" Foreground="#4C4C4C" FontSize="12" FontWeight="Bold"/>
+
+              <!-- Row 1 Cards (Top=206) -->
+              <!-- Synapse V3 -->
+              <Button Classes="card-button" Canvas.Left="94" Canvas.Top="206" Width="160" Height="90" Click="OpenSynapseV3_Click">
+                <Border Width="160" Height="90" CornerRadius="10" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect206.png" Stretch="UniformToFill" Opacity="0.26"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="94" Canvas.Top="280" Width="160" Height="16" CornerRadius="0,0,10,10" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Synapse V3" Foreground="White" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Synapse 2016-19 -->
+              <Button Classes="card-button" Canvas.Left="270" Canvas.Top="206" Width="160" Height="90" Click="OpenSynapse2016_Click">
+                <Border Width="160" Height="90" CornerRadius="10" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect211.png" Stretch="UniformToFill" Opacity="0.26"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="270" Canvas.Top="280" Width="160" Height="16" CornerRadius="0,0,10,10" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Synapse 2016-19" Foreground="White" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Synapse Blue -->
+              <Button Classes="card-button" Canvas.Left="446" Canvas.Top="206" Width="160" Height="90" Click="OpenSynapseBlue_Click">
+                <Border Width="160" Height="90" CornerRadius="10" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect212.png" Stretch="UniformToFill" Opacity="0.26"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="446" Canvas.Top="280" Width="160" Height="16" CornerRadius="0,0,10,10" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Synapse Blue" Foreground="White" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+
+              <!-- Synapse X -->
+              <Button Classes="card-button" Canvas.Left="622" Canvas.Top="206" Width="160" Height="90" Click="OpenSynapseX_Click">
+                <Border Width="160" Height="90" CornerRadius="10" ClipToBounds="True" BorderBrush="#7D7D80" BorderThickness="0.5">
+                  <Image Source="avares://Orion/Assets/rect213.png" Stretch="UniformToFill" Opacity="0.26"/>
+                </Border>
+              </Button>
+              <Border Canvas.Left="622" Canvas.Top="280" Width="160" Height="16" CornerRadius="0,0,10,10" BorderBrush="#7D7D80" BorderThickness="0.5" Background="#3308090A">
+                <TextBlock Text="Synapse X" Foreground="White" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+            </Canvas>
+
+            <!-- ───────────────────────────────────────────────────────── -->
+            <!-- PAGE 4: SCRIPT HUB PAGE (AppPage.ScriptHub)               -->
+            <!-- ───────────────────────────────────────────────────────── -->
+            <Canvas x:Name="ScriptHubPage" Canvas.Left="0" Canvas.Top="0" Width="860" Height="540" IsVisible="False">
+              <!-- Search Bar -->
+              <TextBox x:Name="ScriptHubSearchBox" Canvas.Left="33" Canvas.Top="85" Width="680" Height="35"
+                       PlaceholderText="Search scripts..." Foreground="#C8C7CC" Background="#051E1E1E"
+                       BorderBrush="#303235" BorderThickness="1" CornerRadius="8"/>
+
+              <!-- Source Selector -->
+              <Button x:Name="ScriptSourceButton" Canvas.Left="720" Canvas.Top="85" Width="100" Height="35"
+                      Background="#051E1E1E" BorderBrush="#303235" BorderThickness="1" CornerRadius="8">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <Image Width="12" Height="12" Source="avares://Orion/Assets/icon_scriptblox.png"/>
+                  <TextBlock Text="Blox" Foreground="#C8C7CC" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+
+              <!-- Featured Section -->
+              <TextBlock Canvas.Left="33" Canvas.Top="130" Text="Featured" Foreground="#D9D9D9" FontSize="12" Opacity="0.6"/>
+
+              <!-- Card 1: Dex Explorer ++ -->
+              <Border Canvas.Left="33" Canvas.Top="155" Width="250" Height="150" CornerRadius="8" BorderBrush="#303235" BorderThickness="1" Background="#051E1E1E"/>
+              <Border Canvas.Left="33" Canvas.Top="155" Width="250" Height="120" CornerRadius="8,8,0,0" ClipToBounds="True">
+                <Image Source="avares://Orion/Assets/script_dex.png" Stretch="UniformToFill"/>
+              </Border>
+              <TextBlock Canvas.Left="40" Canvas.Top="280" Text="Dex Explorer" Foreground="#C8C7CC" FontSize="12" FontWeight="SemiBold"/>
+            </Canvas>
+
+            <!-- ───────────────────────────────────────────────────────── -->
+            <!-- PAGE 6: AI AGENT PAGE (AppPage.Robot)                    -->
+            <!-- ───────────────────────────────────────────────────────── -->
+            <Canvas x:Name="RobotPage" Canvas.Left="0" Canvas.Top="0" Width="860" Height="540" IsVisible="False">
+              <!-- Agent Icon & Title -->
+              <StackPanel Canvas.Left="380" Canvas.Top="117" Orientation="Horizontal" Spacing="8">
+                <Image Width="20" Height="20" Source="avares://Orion/Assets/logo.png"/>
+                <TextBlock Text="Agent" Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+              </StackPanel>
+
+              <!-- Chat Input Bar -->
+              <Border Canvas.Left="23" Canvas.Top="460" Width="814" Height="50"
+                      CornerRadius="25" BorderBrush="#303235" BorderThickness="1" Background="#0A0B0C">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                  <TextBox Grid.Column="0" PlaceholderText="say hi..." Foreground="White" Background="Transparent" BorderThickness="0" Margin="15,0,10,0" VerticalAlignment="Center"/>
+                  <!-- Model Selector -->
+                  <Border Grid.Column="1" Width="80" Height="25" CornerRadius="25" BorderBrush="#303235" BorderThickness="1" Margin="0,0,8,0" VerticalAlignment="Center">
+                    <TextBlock Text="Claude" Foreground="#747474" FontSize="8" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <!-- Send Button -->
+                  <Button Grid.Column="3" Classes="top-nav-btn" Width="31" Height="31" Margin="0,0,14,0" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="#535353" Data="M8 14 V2 M2 8 L8 2 L14 8"/>
+                  </Button>
+                </Grid>
+              </Border>
+            </Canvas>
+
+          </Canvas>
+        </Border>
+      </Viewbox>
+    </Grid>
+
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <!-- STARTUP LOADING SCREEN OVERLAY                            -->
+    <!-- ═════════════════════════════════════════════════════════ -->
+    <Grid x:Name="LoadingInterface" Panel.ZIndex="2">
+      <Viewbox x:Name="LoadingDesignViewbox" Stretch="Fill">
+        <Border x:Name="LoadingWindowChrome" Width="430.2" Height="270" CornerRadius="20" Background="#08090A" ClipToBounds="True">
+          <Canvas x:Name="LoadingElements" Width="430.2" Height="270">
+            <!-- Orion Logo -->
+            <Image Canvas.Left="165" Canvas.Top="80" Width="100" Height="35" Source="avares://Orion/Assets/logo.png" Stretch="Uniform"/>
+            <TextBlock Canvas.Left="190" Canvas.Top="125" Text="Orion" Foreground="White" FontSize="18" FontWeight="Bold"/>
+
+            <!-- Progress Bar -->
+            <Canvas x:Name="LoadingProgressArtwork" Canvas.Left="103" Canvas.Top="170" Width="223" Height="4">
+              <Border Width="223" Height="4" CornerRadius="2" Background="#151922"/>
+              <Border x:Name="LoadingProgressSegment" Width="50" Height="4" CornerRadius="2" Background="#4A75B4">
+                <Border.RenderTransform>
+                  <TranslateTransform X="0"/>
+                </Border.RenderTransform>
+              </Border>
+            </Canvas>
+          </Canvas>
+        </Border>
+      </Viewbox>
+    </Grid>
+
+  </Grid>
+</Window>

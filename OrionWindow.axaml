@@ -1,0 +1,1267 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OrbitAvalonia.OrionWindow"
+        Title="Orion"
+        Icon="/Assets/Orion/Sharp/orion-app.ico"
+        Width="108"
+        Height="108"
+        MinWidth="108"
+        MinHeight="108"
+        CanResize="False"
+        ShowInTaskbar="True"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        UseLayoutRounding="False"
+        FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+        FontWeight="Bold">
+
+  <Window.Resources>
+    <LinearGradientBrush x:Key="OrionWindowFill"
+                         StartPoint="0.189114%,-0.48156%"
+                         EndPoint="99.810886%,100.48156%">
+      <GradientStop Color="#181A1B" Offset="0" />
+      <GradientStop Color="#08090A" Offset="0.37019" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="OrionLoadingFill"
+                         StartPoint="-10.3312%,26.3073%"
+                         EndPoint="110.3312%,73.6927%">
+      <GradientStop Color="#181A1B" Offset="0" />
+      <GradientStop Color="#08090A" Offset="0.37019" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="OrionPageSurface"
+                         StartPoint="97.1834%,107.8071%"
+                         EndPoint="2.8166%,-7.8071%">
+      <GradientStop Color="#00070809" Offset="0" />
+      <GradientStop Color="#00111314" Offset="1" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="OrionMonacoSurface" Color="#101112" Opacity="0" />
+    <SolidColorBrush x:Key="OrionTabSurface" Color="#0E1011" Opacity="0.58" />
+    <SolidColorBrush x:Key="OrionUtilityGlass" Color="#07080A" Opacity="0.7" />
+    <LinearGradientBrush x:Key="OrionEdgeStroke"
+                         StartPoint="0%,0%"
+                         EndPoint="100%,100%">
+      <GradientStop Color="#7A7E81" Offset="0" />
+      <GradientStop Color="#5D6063" Offset="0.38" />
+      <GradientStop Color="#303235" Offset="1" />
+    </LinearGradientBrush>
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="Button.orion-window-button">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.orion-window-button:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.orion-action-hit">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="Transparent" />
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="TextBlock">
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.orion-card-hit">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="Transparent" />
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.orion-ui-card">
+      <Setter Property="Width" Value="127.437" />
+      <Setter Property="Height" Value="72.753" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="#07080A" />
+      <Setter Property="BorderBrush" Value="#66696C" />
+      <Setter Property="BorderThickness" Value="0.667" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  ClipToBounds="True">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Stretch"
+                              VerticalContentAlignment="Stretch" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.orion-ui-card:pointerover">
+      <Setter Property="Background" Value="#0D0F11" />
+      <Setter Property="BorderBrush" Value="#A2A5A8" />
+    </Style>
+  </Window.Styles>
+
+  <Border x:Name="RootShell"
+          BorderBrush="{StaticResource OrionEdgeStroke}"
+          BorderThickness="1"
+          CornerRadius="15"
+          ClipToBounds="True"
+          Background="{StaticResource OrionWindowFill}">
+
+    <Grid x:Name="SurfaceRoot"
+          Margin="-1"
+          Background="{StaticResource OrionWindowFill}">
+      <!-- The authored 2/3 Figma coordinate plane is enlarged as one unit. This
+           preserves every relative measurement while producing the requested
+           35% larger 896.4 x 558 editor. -->
+      <Viewbox x:Name="EditorLayer"
+               Width="896.4"
+               Height="558"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Top"
+               Stretch="Fill"
+               Opacity="1"
+               IsHitTestVisible="False">
+        <Canvas Width="664" Height="413.333">
+        <Border Canvas.Left="0"
+                Canvas.Top="0"
+                Width="664"
+                Height="53.333"
+                Background="Transparent"
+                PointerPressed="TitleBar_PointerPressed" />
+
+        <Image Canvas.Left="10.667"
+               Canvas.Top="10"
+               Width="71"
+               Height="24"
+               Stretch="Uniform"
+               RenderOptions.BitmapInterpolationMode="HighQuality"
+               Source="avares://Orion/Assets/Orion/Sharp/wordmark.png" />
+
+        <Button Canvas.Left="562.667" Canvas.Top="12" Width="26" Height="24.667"
+                Classes="orion-window-button" Click="Minimize_Click">
+          <Image Width="10" Height="2" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/minimize.png" />
+        </Button>
+        <Button Canvas.Left="594" Canvas.Top="12" Width="26" Height="24.667"
+                Classes="orion-window-button" Click="Maximize_Click">
+          <Image Width="10" Height="10" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/maximize.png" />
+        </Button>
+        <Button Canvas.Left="625.333" Canvas.Top="12" Width="26" Height="24.667"
+                Classes="orion-window-button" Click="Close_Click">
+          <Image Width="10" Height="10" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/close.png" />
+        </Button>
+
+        <!-- Exact Figma navigation export (355 x 57 at the authored size).
+             Orion's design plane scales it uniformly to the current 0.9 UI. -->
+        <Image x:Name="OrionNavigationPanel"
+               ZIndex="200"
+               Canvas.Left="213.333"
+               Canvas.Top="0"
+               Width="236.667"
+               Height="38"
+               Opacity="0"
+               IsVisible="False"
+               IsHitTestVisible="False"
+               Stretch="Fill"
+               RenderOptions.BitmapInterpolationMode="HighQuality"
+               Source="avares://Orion/Assets/Orion/Nav/navigation-open-dynamic.png">
+          <Image.RenderTransform>
+            <TranslateTransform Y="-38" />
+          </Image.RenderTransform>
+        </Image>
+
+        <!-- The page indicator is deliberately separate from the exported
+             navigation artwork so it can glide between all five routes. -->
+        <Canvas x:Name="OrionNavigationIndicatorHost"
+                ZIndex="205"
+                Width="664" Height="38"
+                Opacity="0"
+                IsVisible="False"
+                IsHitTestVisible="False">
+          <Canvas.RenderTransform>
+            <TranslateTransform Y="-38" />
+          </Canvas.RenderTransform>
+          <Border x:Name="OrionNavigationIndicator"
+                  Canvas.Left="324"
+                  Canvas.Top="27.333"
+                  Width="16.667"
+                  Height="1.333"
+                  Background="White"
+                  CornerRadius="1" />
+        </Canvas>
+
+        <!-- The same exported arrow is rotated and translated between the
+             exact closed and open positions from frames 76:63 and 74:48. -->
+        <Image x:Name="OrionNavigationArrow"
+               ZIndex="202"
+               Canvas.Left="328.708"
+               Canvas.Top="3.292"
+               Width="6.75"
+               Height="13.5"
+               Stretch="Fill"
+               RenderTransformOrigin="50%,50%"
+               IsHitTestVisible="False"
+               RenderOptions.BitmapInterpolationMode="HighQuality"
+               Source="avares://Orion/Assets/Orion/Nav/navigation-arrow.png">
+          <Image.RenderTransform>
+            <TransformGroup>
+              <RotateTransform Angle="90" />
+              <TranslateTransform Y="0" />
+            </TransformGroup>
+          </Image.RenderTransform>
+        </Image>
+
+        <!-- Deliberately compact while closed; this avoids opening the tray
+             from ordinary movement through the upper quarter of the window. -->
+        <Border x:Name="OrionNavigationTrigger"
+                ZIndex="203"
+                Canvas.Left="312.083"
+                Canvas.Top="0"
+                Width="40"
+                Height="18.5"
+                Background="Transparent"
+                Cursor="Hand"
+                PointerEntered="OrionNavigationTrigger_PointerEntered"
+                PointerExited="OrionNavigationTrigger_PointerExited" />
+
+        <!-- When open, retain a small buffer around the panel and moving arrow
+             so crossing the authored edge does not make navigation twitch. -->
+        <Border x:Name="OrionNavigationOpenHoverArea"
+                ZIndex="201"
+                Canvas.Left="205.333"
+                Canvas.Top="0"
+                Width="252.667"
+                Height="58"
+                Background="Transparent"
+                IsVisible="False"
+                IsHitTestVisible="False"
+                PointerEntered="OrionNavigationOpenArea_PointerEntered"
+                PointerExited="OrionNavigationOpenArea_PointerExited" />
+
+        <!-- The navigation icons retain the exact exported appearance. These
+             transparent hit targets add routing without hover/selection boxes. -->
+        <Canvas x:Name="OrionNavigationButtons"
+                ZIndex="204"
+                Width="664" Height="38"
+                IsHitTestVisible="False">
+        <Button Canvas.Left="225.333" Canvas.Top="3.333" Width="38" Height="28"
+                Classes="orion-card-hit"
+                PointerEntered="OrionNavigationButton_PointerEntered"
+                PointerExited="OrionNavigationButton_PointerExited"
+                Click="OrionPluginsNavigation_Click" />
+        <Button Canvas.Left="269.333" Canvas.Top="3.333" Width="38" Height="28"
+                Classes="orion-card-hit"
+                PointerEntered="OrionNavigationButton_PointerEntered"
+                PointerExited="OrionNavigationButton_PointerExited"
+                Click="OrionSettingsNavigation_Click" />
+        <Button Canvas.Left="313.333" Canvas.Top="3.333" Width="38" Height="28"
+                Classes="orion-card-hit"
+                PointerEntered="OrionNavigationButton_PointerEntered"
+                PointerExited="OrionNavigationButton_PointerExited"
+                Click="OrionEditorNavigation_Click" />
+        <Button Canvas.Left="357.333" Canvas.Top="3.333" Width="38" Height="28"
+                Classes="orion-card-hit"
+                PointerEntered="OrionNavigationButton_PointerEntered"
+                PointerExited="OrionNavigationButton_PointerExited"
+                Click="OrionThemesNavigation_Click" />
+        <Button Canvas.Left="401.333" Canvas.Top="3.333" Width="38" Height="28"
+                Classes="orion-card-hit"
+                PointerEntered="OrionNavigationButton_PointerEntered"
+                PointerExited="OrionNavigationButton_PointerExited"
+                Click="OrionScriptHubNavigation_Click" />
+        </Canvas>
+
+        <Canvas x:Name="OrionEditorPage" Width="664" Height="413.333">
+        <Border Canvas.Left="7.333"
+                Canvas.Top="53.333"
+                Width="648.667"
+                Height="352"
+                Background="{StaticResource OrionPageSurface}"
+                BorderBrush="#303235"
+                BorderThickness="0.667"
+                CornerRadius="10"
+                ClipToBounds="True" />
+
+        <Border Canvas.Left="7.333"
+                Canvas.Top="88.667"
+                Width="500"
+                Height="283.333"
+                Background="{StaticResource OrionMonacoSurface}"
+                BorderBrush="#303235"
+                BorderThickness="0.667" />
+
+        <!-- Exact console proportions from the supplied frame 114:300
+             captures: a tab above the output surface and a clear control
+             tucked into its upper-right edge. -->
+        <Border x:Name="OrionConsolePanel"
+                ZIndex="20"
+                Canvas.Left="7.333"
+                Canvas.Top="229.333"
+                Width="500"
+                Height="142.827"
+                Background="Transparent"
+                BorderThickness="0"
+                ClipToBounds="True"
+                IsVisible="False"
+                IsHitTestVisible="False"
+                Opacity="0">
+          <Canvas Width="500" Height="142.827">
+            <Border Canvas.Left="0" Canvas.Top="18.333"
+                    Width="500" Height="124.494"
+                    Background="#B307080A"
+                    BorderBrush="#303235"
+                    BorderThickness="0.667" />
+
+            <Border Canvas.Left="0" Canvas.Top="0"
+                    Width="66.667" Height="18.667"
+                    Background="#D907080A"
+                    BorderBrush="#303235"
+                    BorderThickness="0.667"
+                    CornerRadius="4.667,4.667,0,0">
+              <Grid ColumnDefinitions="23.333,*">
+                <Path Width="8" Height="8"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center"
+                      Stretch="Uniform"
+                      Fill="#7D7D80"
+                      Data="M92.4391 31.8836C92.1918 31.8836 91.9847 31.8004 91.8177 31.6339C91.6508 31.4674 91.567 31.2616 91.5664 31.0165C91.5658 30.7715 91.6496 30.5657 91.8177 30.3992C91.9859 30.2327 92.193 30.1495 92.4391 30.1495H97.675C97.9223 30.1495 98.1297 30.2327 98.2972 30.3992C98.4648 30.5657 98.5483 30.7715 98.5477 31.0165C98.5471 31.2616 98.4633 31.4677 98.2964 31.6348C98.1294 31.8018 97.9223 31.8848 97.675 31.8836H92.4391ZM88.6648 23.213L85.2833 19.8531C85.1088 19.6797 85.0215 19.4739 85.0215 19.2358C85.0215 18.9976 85.1088 18.7915 85.2833 18.6175C85.4578 18.4436 85.6614 18.3568 85.8941 18.3574C86.1269 18.358 86.3305 18.4447 86.505 18.6175L90.5192 22.606C90.6938 22.7794 90.781 22.9818 90.781 23.213C90.781 23.4442 90.6938 23.6465 90.5192 23.8199L86.505 27.8084C86.3305 27.9818 86.1269 28.0685 85.8941 28.0685C85.6614 28.0685 85.4578 27.9818 85.2833 27.8084C85.1088 27.635 85.0215 27.4292 85.0215 27.1911C85.0215 26.9529 85.1088 26.7468 85.2833 26.5728L88.6648 23.213Z" />
+                <TextBlock Grid.Column="1"
+                           Margin="6.667,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="8.667"
+                           Foreground="#7D7D80"
+                           Text="console" />
+              </Grid>
+            </Border>
+
+            <Border Canvas.Left="433.333" Canvas.Top="18.333"
+                    Width="66.667" Height="18.667"
+                    Background="#D907080A"
+                    BorderBrush="#303235"
+                    BorderThickness="0.667"
+                    CornerRadius="0,0,0,4.667">
+              <Grid ColumnDefinitions="25.333,*">
+                <Image Width="9.333" Height="9.333"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       Stretch="Uniform"
+                       Source="avares://Orion/Assets/Orion/Sharp/clear.png" />
+                <TextBlock Grid.Column="1"
+                           Margin="5.333,0,0,0"
+                           VerticalAlignment="Center"
+                           FontSize="8.667"
+                           Foreground="#7D7D80"
+                           Text="clear" />
+              </Grid>
+            </Border>
+
+            <Button Canvas.Left="433.333" Canvas.Top="18.333"
+                    Width="66.667" Height="18.667"
+                    Classes="orion-action-hit"
+                    Click="OrionConsoleClear_Click" />
+
+            <ScrollViewer Canvas.Left="12" Canvas.Top="42"
+                          Width="414" Height="94"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+              <StackPanel x:Name="OrionConsoleOutput" Spacing="5.333" />
+            </ScrollViewer>
+          </Canvas>
+        </Border>
+
+        <Canvas x:Name="OrionTabsCanvas"
+                Canvas.Left="14.667"
+                Canvas.Top="59.333"
+                Width="485"
+                Height="28.985" />
+
+        <Border x:Name="OrionExecuteVisual" Canvas.Left="15.333" Canvas.Top="378" Width="79.268" Height="21.619"
+                Background="#07080A" BorderBrush="#525558" BorderThickness="0.667" CornerRadius="4.667">
+          <Canvas Width="79.268" Height="21.619">
+            <Image Canvas.Left="10.433" Canvas.Top="5.633" Width="11" Height="11" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/execute.png" />
+            <TextBlock Canvas.Left="25.62" Canvas.Top="4.133" Width="44.04" Height="13.333"
+                       FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+                       FontSize="9.333" FontWeight="Bold" Foreground="#7D7D80"
+                       Text="execute" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+        <Button x:Name="OrionExecuteButton"
+                Canvas.Left="15.333" Canvas.Top="378" Width="79.268" Height="21.619"
+                Classes="orion-action-hit" Click="OrionExecute_Click" />
+
+        <Border Canvas.Left="101.007" Canvas.Top="378" Width="79.268" Height="21.619"
+                Background="#07080A" BorderBrush="#525558" BorderThickness="0.667" CornerRadius="4.667">
+          <Canvas Width="79.268" Height="21.619">
+            <Image Canvas.Left="10.413" Canvas.Top="5.633" Width="11" Height="11" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/save-file.png" />
+            <TextBlock Canvas.Left="25.62" Canvas.Top="4.133" Width="44.04" Height="13.333"
+                       FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+                       FontSize="9.333" FontWeight="Bold" Foreground="#7D7D80"
+                       Text="save file" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+        <Button Canvas.Left="101.007" Canvas.Top="378" Width="79.268" Height="21.619"
+                Classes="orion-action-hit" Click="OrionSave_Click" />
+
+        <Border Canvas.Left="186.68" Canvas.Top="378" Width="79.268" Height="21.619"
+                Background="#07080A" BorderBrush="#525558" BorderThickness="0.667" CornerRadius="4.667">
+          <Canvas Width="79.268" Height="21.619">
+            <Image Canvas.Left="8.787" Canvas.Top="5.633" Width="11" Height="11" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/open-file.png" />
+            <TextBlock Canvas.Left="23.993" Canvas.Top="4.133" Width="46.44" Height="13.333"
+                       FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+                       FontSize="9.333" FontWeight="Bold" Foreground="#7D7D80"
+                       Text="open file" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+        <Button Canvas.Left="186.68" Canvas.Top="378" Width="79.268" Height="21.619"
+                Classes="orion-action-hit" Click="OrionOpen_Click" />
+
+        <Border Canvas.Left="272.353" Canvas.Top="378" Width="53.646" Height="21.619"
+                Background="#07080A" BorderBrush="#525558" BorderThickness="0.667" CornerRadius="4.667">
+          <Canvas Width="53.646" Height="21.619">
+            <Image Canvas.Left="6.393" Canvas.Top="5.633" Width="11" Height="11" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/clear.png" />
+            <TextBlock Canvas.Left="20.82" Canvas.Top="4.133" Width="27.227" Height="13.333"
+                       FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+                       FontSize="9.333" FontWeight="Bold" Foreground="#7D7D80"
+                       Text="clear" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+        <Button Canvas.Left="272.353" Canvas.Top="378" Width="53.646" Height="21.619"
+                Classes="orion-action-hit"
+                PointerPressed="OrionClear_PointerPressed"
+                Click="OrionClear_Click" />
+
+        <TextBlock x:Name="OrionCursorPositionText"
+                   Canvas.Left="399.333"
+                   Canvas.Top="383.333"
+                   Width="100"
+                   Height="11.333"
+                   FontSize="8.667"
+                   Foreground="#A9A9AB"
+                   TextAlignment="Right"
+                   Text="Ln (num), Col (num)" />
+
+        <Border Canvas.Left="507.333" Canvas.Top="53.333" Width="148.667" Height="35.333"
+                Background="{StaticResource OrionUtilityGlass}" BorderBrush="#303235" BorderThickness="0.667"
+                CornerRadius="0,10,0,0" />
+        <Border Canvas.Left="507.333" Canvas.Top="88.667" Width="148.788" Height="283.493"
+                Background="{StaticResource OrionUtilityGlass}" BorderBrush="#303235" BorderThickness="0.667" />
+
+        <Image Canvas.Left="528.28" Canvas.Top="65.347"
+               Width="11" Height="11" Stretch="Uniform"
+               Source="avares://Orion/Assets/Orion/Sharp/search.png" />
+        <TextBlock Canvas.Left="544.667" Canvas.Top="65.333" FontSize="8.667"
+                   Foreground="#454747" Text="Search Script List..." />
+
+        <Border Canvas.Left="512" Canvas.Top="94" Width="140" Height="23.767"
+                Background="#07080A" BorderBrush="#303235" BorderThickness="0.667" CornerRadius="3.333">
+          <Canvas Width="140" Height="23.767">
+            <Image Canvas.Left="6" Canvas.Top="7.2" Width="7.333" Height="9.333" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-row-action.png" />
+            <TextBlock Canvas.Left="28" Canvas.Top="6.133" Width="86.667" FontSize="8.667"
+                       Foreground="#454747" Text="Local Filesystem" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+
+        <Border Canvas.Left="512" Canvas.Top="123.333" Width="140" Height="23.767"
+                Background="#07080A" BorderBrush="#303235" BorderThickness="0.667" CornerRadius="3.333">
+          <Canvas Width="140" Height="23.767">
+            <Image Canvas.Left="5.333" Canvas.Top="7.933" Width="9" Height="8" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/autoexecute.png" />
+            <TextBlock Canvas.Left="28" Canvas.Top="6.133" Width="86.667" FontSize="8.667"
+                       Foreground="#454747" Text="Auto Execute Sync" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+
+        <Border Canvas.Left="512" Canvas.Top="152.667" Width="140" Height="23.767"
+                Background="#07080A" BorderBrush="#303235" BorderThickness="0.667" CornerRadius="3.333">
+          <Canvas Width="140" Height="23.767">
+            <Image Canvas.Left="5.333" Canvas.Top="7.933" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/github.png" />
+            <TextBlock Canvas.Left="28" Canvas.Top="6.133" Width="86.667" FontSize="8.667"
+                       Foreground="#454747" Text="Github Gists" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+
+        <Border Canvas.Left="512" Canvas.Top="182" Width="140" Height="23.767"
+                Background="#07080A" BorderBrush="#303235" BorderThickness="0.667" CornerRadius="3.333">
+          <Canvas Width="140" Height="23.767">
+            <Image Canvas.Left="6.667" Canvas.Top="7.933" Width="7" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/bookmark.png" />
+            <TextBlock Canvas.Left="28" Canvas.Top="6.133" Width="86.667" FontSize="8.667"
+                       Foreground="#454747" Text="Bookmarks" TextAlignment="Center" />
+          </Canvas>
+        </Border>
+
+        <Border Canvas.Left="512" Canvas.Top="211.333" Width="140" Height="23.767"
+                Background="#07080A" BorderBrush="#303235" BorderThickness="0.667" CornerRadius="3.333,3.333,0,0">
+          <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                     FontSize="8.667" Foreground="#454747" Text="Opened Section Example" />
+        </Border>
+        <Border Canvas.Left="512" Canvas.Top="238" Width="140" Height="91.333"
+                Background="#07080A" BorderBrush="#303235" BorderThickness="0.667" CornerRadius="0,0,3.333,3.333">
+          <Canvas Width="140" Height="91.333">
+            <Image Canvas.Left="16.667" Canvas.Top="4.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="3.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="4.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-bookmark.png" />
+            <Image Canvas.Left="64" Canvas.Top="4.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-muted.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="14.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="13.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="14.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-alt.png" />
+            <Image Canvas.Left="64" Canvas.Top="14.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-muted.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="24.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="23.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="24.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-bookmark.png" />
+            <Image Canvas.Left="64" Canvas.Top="24.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-hot.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="34.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="33.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="34.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-bookmark.png" />
+            <Image Canvas.Left="64" Canvas.Top="34.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-muted.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="44.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="43.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="44.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-alt.png" />
+            <Image Canvas.Left="64" Canvas.Top="44.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-hot.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="54.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="53.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="54.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-bookmark.png" />
+            <Image Canvas.Left="64" Canvas.Top="54.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-muted.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="64.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="63.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="64.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-alt.png" />
+            <Image Canvas.Left="64" Canvas.Top="64.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-muted.png" />
+
+            <Image Canvas.Left="16.667" Canvas.Top="74.667" Width="9" Height="9" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/script-list-dot.png" />
+            <TextBlock Canvas.Left="31.333" Canvas.Top="73.333" FontSize="6.667" Foreground="#7D7D80" Text="Script" />
+            <Image Canvas.Left="56.667" Canvas.Top="74.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-alt.png" />
+            <Image Canvas.Left="64" Canvas.Top="74.667" Width="5" Height="5" Stretch="Uniform" Source="avares://Orion/Assets/Orion/Sharp/row-action-hot.png" />
+
+            <Border Canvas.Left="117.333" Canvas.Top="14" Width="6" Height="58.667" Background="#383838" CornerRadius="11.333" />
+            <Border Canvas.Left="117.333" Canvas.Top="14" Width="6" Height="14" Background="#7D7D80" CornerRadius="11.333" />
+          </Canvas>
+        </Border>
+
+        <Image Canvas.Left="507.333" Canvas.Top="372"
+               Width="149" Height="34" Stretch="Uniform"
+               Source="avares://Orion/Assets/Orion/Sharp/utility-box.png" />
+
+        <!-- Retained source geometry from the export. The runtime hover uses
+             exact recoloured raster variants below to avoid two independent
+             anti-aliasing passes producing a doubled edge. -->
+        <Path x:Name="OrionUtilityConnectionVector"
+              ZIndex="30"
+              Canvas.Left="507.333" Canvas.Top="372"
+              Fill="White" Opacity="0" IsVisible="False" IsHitTestVisible="False"
+              Data="M49.6252 31.4445V28.8095L46.551 25.7354V20.9046C46.551 20.5533 46.6315 20.2239 46.7926 19.9165C46.9536 19.6091 47.1878 19.3748 47.4952 19.2138V21.6731L42.5107 16.6886L43.7404 15.459L59.9016 31.6202L58.6719 32.8498L54.3242 28.5021L54.0168 28.8095V31.4445H49.6252ZM56.3444 25.5597L48.3077 17.523V15.6346H50.0643V19.1479H53.5776V15.6346H55.3343V20.0263L54.456 19.1479H55.3343C55.8174 19.1479 56.2311 19.3201 56.5754 19.6644C56.9197 20.0087 57.0915 20.4221 57.0909 20.9046V24.8131L56.3444 25.5597Z">
+          <Path.RenderTransform><ScaleTransform ScaleX="0.6676" ScaleY="0.6767" /></Path.RenderTransform>
+        </Path>
+        <Path x:Name="OrionUtilityConsoleVector"
+              ZIndex="30"
+              Canvas.Left="507.333" Canvas.Top="372"
+              Fill="White" Opacity="0" IsVisible="False" IsHitTestVisible="False"
+              Data="M92.4391 31.8836C92.1918 31.8836 91.9847 31.8004 91.8177 31.6339C91.6508 31.4674 91.567 31.2616 91.5664 31.0165C91.5658 30.7715 91.6496 30.5657 91.8177 30.3992C91.9859 30.2327 92.193 30.1495 92.4391 30.1495H97.675C97.9223 30.1495 98.1297 30.2327 98.2972 30.3992C98.4648 30.5657 98.5483 30.7715 98.5477 31.0165C98.5471 31.2616 98.4633 31.4677 98.2964 31.6348C98.1294 31.8018 97.9223 31.8848 97.675 31.8836H92.4391ZM88.6648 23.213L85.2833 19.8531C85.1088 19.6797 85.0215 19.4739 85.0215 19.2358C85.0215 18.9976 85.1088 18.7915 85.2833 18.6175C85.4578 18.4436 85.6614 18.3568 85.8941 18.3574C86.1269 18.358 86.3305 18.4447 86.505 18.6175L90.5192 22.606C90.6938 22.7794 90.781 22.9818 90.781 23.213C90.781 23.4442 90.6938 23.6465 90.5192 23.8199L86.505 27.8084C86.3305 27.9818 86.1269 28.0685 85.8941 28.0685C85.6614 28.0685 85.4578 27.9818 85.2833 27.8084C85.1088 27.635 85.0215 27.4292 85.0215 27.1911C85.0215 26.9529 85.1088 26.7468 85.2833 26.5728L88.6648 23.213Z">
+          <Path.RenderTransform><ScaleTransform ScaleX="0.6676" ScaleY="0.6767" /></Path.RenderTransform>
+        </Path>
+        <Path x:Name="OrionUtilityRobotVector"
+              ZIndex="30"
+              Canvas.Left="507.333" Canvas.Top="372"
+              Fill="White" Opacity="0" IsVisible="False" IsHitTestVisible="False"
+              Data="M124.449 31.8814C124.228 31.8814 124.042 31.8063 123.892 31.6563C123.742 31.5062 123.667 31.3214 123.668 31.1017V27.9764C123.668 27.5468 123.821 27.18 124.127 26.876C124.432 26.572 124.799 26.42 125.228 26.42H135.634C136.063 26.42 136.43 26.573 136.735 26.8789C137.041 27.1849 137.194 27.5526 137.194 27.9822V31.1066C137.194 31.3275 137.119 31.512 136.97 31.6601C136.821 31.8083 136.635 31.8823 136.414 31.8823L124.449 31.8814ZM127.811 24.71C126.664 24.71 125.687 24.3059 124.88 23.4976C124.072 22.6893 123.668 21.7129 123.668 20.5684C123.668 19.4239 124.072 18.4465 124.88 17.6363C125.687 16.8261 126.665 16.4219 127.813 16.4238H133.052C134.199 16.4238 135.176 16.8277 135.984 17.6353C136.791 18.443 137.195 19.4207 137.194 20.5684C137.194 21.7161 136.79 22.6932 135.983 23.4995C135.176 24.3059 134.198 24.7097 133.051 24.711L127.811 24.71ZM128.313 21.0698C128.449 20.9345 128.517 20.7671 128.517 20.5674C128.517 20.3678 128.449 20.2003 128.314 20.0651C128.179 19.9298 128.011 19.8619 127.812 19.8612C127.612 19.8606 127.445 19.9282 127.309 20.0641C127.174 20.2 127.106 20.3674 127.106 20.5665C127.105 20.7655 127.173 20.9329 127.308 21.0688C127.444 21.2047 127.612 21.2727 127.811 21.2727C128.01 21.2727 128.177 21.205 128.313 21.0698ZM133.554 21.0698C133.689 20.9345 133.757 20.7671 133.757 20.5674C133.757 20.3678 133.689 20.2003 133.554 20.0651C133.418 19.9298 133.251 19.8619 133.051 19.8612C132.852 19.8606 132.684 19.9282 132.549 20.0641C132.414 20.2 132.346 20.3674 132.345 20.5665C132.344 20.7655 132.412 20.9329 132.548 21.0688C132.684 21.2047 132.851 21.2727 133.05 21.2727C133.249 21.2727 133.417 21.205 133.553 21.0698">
+          <Path.RenderTransform><ScaleTransform ScaleX="0.6676" ScaleY="0.6767" /></Path.RenderTransform>
+        </Path>
+        <Path x:Name="OrionUtilitySearchVector"
+              ZIndex="30"
+              Canvas.Left="507.333" Canvas.Top="372"
+              Fill="White" Opacity="0" IsVisible="False" IsHitTestVisible="False"
+              Data="M164.054 18.1721V23.4388V23.417V32.1584V18.1721ZM162.314 33.9067V16.4238H171.01L176.227 21.6687V23.854C175.952 23.7375 175.669 23.6466 175.379 23.5813C175.089 23.516 174.792 23.4685 174.488 23.4388V22.5428H170.14V18.1721H164.054V32.1584H169.293C169.524 32.508 169.785 32.8324 170.075 33.1313C170.365 33.4303 170.684 33.6887 171.032 33.9067H162.314ZM175.597 30.6505C176.017 30.228 176.227 29.7108 176.227 29.0989C176.227 28.487 176.017 27.9698 175.597 27.5473C175.176 27.1248 174.662 26.9135 174.053 26.9135C173.445 26.9135 172.93 27.1248 172.51 27.5473C172.09 27.9698 171.879 28.487 171.879 29.0989C171.879 29.7108 172.09 30.228 172.51 30.6505C172.93 31.073 173.445 31.2842 174.053 31.2842C174.662 31.2842 175.176 31.073 175.597 30.6505ZM178.488 34.7808L176.14 32.4206C175.836 32.6246 175.506 32.7776 175.151 32.8796C174.797 32.9815 174.431 33.0325 174.053 33.0325C172.966 33.0325 172.043 32.6502 171.282 31.8857C170.521 31.1211 170.141 30.1922 170.14 29.0989C170.14 28.0056 170.52 27.077 171.282 26.313C172.044 25.549 172.967 25.1664 174.053 25.1653C175.139 25.1641 176.063 25.5467 176.825 26.313C177.588 27.0793 177.968 28.008 177.966 29.0989C177.966 29.4777 177.915 29.8457 177.814 30.2029C177.713 30.5602 177.56 30.8915 177.358 31.1968L179.705 33.557L178.488 34.7808Z">
+          <Path.RenderTransform><ScaleTransform ScaleX="0.6676" ScaleY="0.6767" /></Path.RenderTransform>
+        </Path>
+
+        <Image x:Name="OrionUtilityConnectionHover"
+               ZIndex="30" Canvas.Left="507.333" Canvas.Top="372"
+               Width="149" Height="34" Stretch="Uniform"
+               Opacity="0" IsHitTestVisible="False"
+               Source="avares://Orion/Assets/Orion/Sharp/utility-box-hover-connection.png" />
+        <Image x:Name="OrionUtilityConsoleHover"
+               ZIndex="30" Canvas.Left="507.333" Canvas.Top="372"
+               Width="149" Height="34" Stretch="Uniform"
+               Opacity="0" IsHitTestVisible="False"
+               Source="avares://Orion/Assets/Orion/Sharp/utility-box-hover-console.png" />
+        <Image x:Name="OrionUtilityRobotHover"
+               ZIndex="30" Canvas.Left="507.333" Canvas.Top="372"
+               Width="149" Height="34" Stretch="Uniform"
+               Opacity="0" IsHitTestVisible="False"
+               Source="avares://Orion/Assets/Orion/Sharp/utility-box-hover-robot.png" />
+        <Image x:Name="OrionUtilitySearchHover"
+               ZIndex="30" Canvas.Left="507.333" Canvas.Top="372"
+               Width="149" Height="34" Stretch="Uniform"
+               Opacity="0" IsHitTestVisible="False"
+               Source="avares://Orion/Assets/Orion/Sharp/utility-box-hover-search.png" />
+
+        <Button ZIndex="31" Canvas.Left="530" Canvas.Top="373.333" Width="24" Height="29.333"
+                Classes="orion-action-hit" Tag="OrionUtilityConnectionHover"
+                PointerEntered="OrionUtilityButton_PointerEntered"
+                PointerExited="OrionUtilityButton_PointerExited" />
+        <Button ZIndex="31" Canvas.Left="556.667" Canvas.Top="373.333" Width="24" Height="29.333"
+                Classes="orion-action-hit" Tag="OrionUtilityConsoleHover"
+                PointerEntered="OrionUtilityButton_PointerEntered"
+                PointerExited="OrionUtilityButton_PointerExited"
+                Click="OrionConsoleToggle_Click" />
+        <Button ZIndex="31" Canvas.Left="583.333" Canvas.Top="373.333" Width="24" Height="29.333"
+                Classes="orion-action-hit" Tag="OrionUtilityRobotHover"
+                PointerEntered="OrionUtilityButton_PointerEntered"
+                PointerExited="OrionUtilityButton_PointerExited" />
+        <Button ZIndex="31" Canvas.Left="610" Canvas.Top="373.333" Width="24" Height="29.333"
+                Classes="orion-action-hit" Tag="OrionUtilitySearchHover"
+                PointerEntered="OrionUtilityButton_PointerEntered"
+                PointerExited="OrionUtilityButton_PointerExited" />
+        </Canvas>
+
+        <Canvas x:Name="OrionPluginsPage"
+                Width="664" Height="413.333"
+                IsVisible="False" IsHitTestVisible="False" Opacity="0">
+          <Border Canvas.Left="7.333" Canvas.Top="53.333"
+                  Width="648.667" Height="352"
+                  Background="{StaticResource OrionPageSurface}"
+                  BorderBrush="#303235" BorderThickness="0.667"
+                  CornerRadius="10" ClipToBounds="True" />
+          <Border Canvas.Left="168" Canvas.Top="156.667"
+                  Width="328" Height="128"
+                  Background="#9907080A"
+                  BorderBrush="#303235" BorderThickness="0.667"
+                  CornerRadius="10">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+              <TextBlock Text="Plugins" FontSize="13.333"
+                         Foreground="White" TextAlignment="Center" />
+              <TextBlock Text="Prototype. Not Available Yet."
+                         FontSize="8.667" Foreground="#66686B"
+                         TextAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Canvas>
+
+        <Canvas x:Name="OrionThemesPage"
+                Width="664" Height="413.333"
+                IsVisible="False" IsHitTestVisible="False" Opacity="0">
+          <Border Canvas.Left="7.333" Canvas.Top="53.333"
+                  Width="648.667" Height="352"
+                  Background="{StaticResource OrionPageSurface}"
+                  BorderBrush="#303235" BorderThickness="0.667"
+                  CornerRadius="10" ClipToBounds="True" />
+          <Border Canvas.Left="168" Canvas.Top="156.667"
+                  Width="328" Height="128"
+                  Background="#9907080A"
+                  BorderBrush="#303235" BorderThickness="0.667"
+                  CornerRadius="10">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+              <TextBlock Text="Themes" FontSize="13.333"
+                         Foreground="White" TextAlignment="Center" />
+              <TextBlock Text="Prototype. Not Available Yet."
+                         FontSize="8.667" Foreground="#66686B"
+                         TextAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Canvas>
+
+        <Canvas x:Name="OrionScriptHubPage"
+                Width="664" Height="413.333"
+                IsVisible="False" IsHitTestVisible="False" Opacity="0">
+          <Border Canvas.Left="7.333" Canvas.Top="53.333"
+                  Width="648.667" Height="352"
+                  Background="{StaticResource OrionPageSurface}"
+                  BorderBrush="#303235" BorderThickness="0.667"
+                  CornerRadius="10" ClipToBounds="True" />
+          <Border Canvas.Left="168" Canvas.Top="156.667"
+                  Width="328" Height="128"
+                  Background="#9907080A"
+                  BorderBrush="#303235" BorderThickness="0.667"
+                  CornerRadius="10">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+              <TextBlock Text="Script Hub" FontSize="13.333"
+                         Foreground="White" TextAlignment="Center" />
+              <TextBlock Text="Prototype. Not Available Yet."
+                         FontSize="8.667" Foreground="#66686B"
+                         TextAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Canvas>
+
+        <!-- Settings home: exact 2/3 conversion of frame 76:170. -->
+        <Canvas x:Name="OrionSettingsPage"
+                Width="664"
+                Height="413.333"
+                IsVisible="False"
+                IsHitTestVisible="False"
+                Opacity="0">
+          <Border Canvas.Left="7.333" Canvas.Top="54"
+                  Width="648.667" Height="352"
+                  Background="{StaticResource OrionPageSurface}"
+                  BorderBrush="#303235" BorderThickness="0.5"
+                  CornerRadius="10" ClipToBounds="True" />
+
+          <TextBlock Canvas.Left="52.667" Canvas.Top="81.333"
+                     Width="82" Height="18"
+                     FontSize="13.333" Foreground="White"
+                     Text="Settings" />
+
+          <Border Canvas.Left="52.667" Canvas.Top="109.333"
+                  Width="178.667" Height="102"
+                  Background="#07080A" BorderBrush="#7D7D80"
+                  BorderThickness="0.333" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Stretch="UniformToFill" Opacity="0.21"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"
+                     Source="avares://Orion/Assets/rect200.png" />
+              <Border Height="17.333" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="White" Text="Globals" />
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="243.333" Canvas.Top="109.333"
+                  Width="178.667" Height="102"
+                  Background="#07080A" BorderBrush="#7D7D80"
+                  BorderThickness="0.333" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Stretch="UniformToFill" Opacity="0.21"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"
+                     Source="avares://Orion/Assets/rect206.png" />
+              <Border Height="17.333" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="White" Text="General" />
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="434.667" Canvas.Top="109.333"
+                  Width="178.667" Height="102"
+                  Background="#07080A" BorderBrush="#7D7D80"
+                  BorderThickness="0.333" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Stretch="UniformToFill" Opacity="0.21"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"
+                     Source="avares://Orion/Assets/rect213.png" />
+              <Border Height="17.333" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="White" Text="UI Selection" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="434.667" Canvas.Top="109.333"
+                  Width="178.667" Height="102"
+                  Classes="orion-card-hit"
+                  Click="OrionUiSelectionCard_Click" />
+
+          <Border Canvas.Left="52.667" Canvas.Top="223.333"
+                  Width="178.667" Height="102"
+                  Background="#07080A" BorderBrush="#7D7D80"
+                  BorderThickness="0.333" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Stretch="UniformToFill" Opacity="0.21"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"
+                     Source="avares://Orion/Assets/rect206.png" />
+              <Border Height="17.333" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="White" Text="Bridge Settings" />
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="243.333" Canvas.Top="223.333"
+                  Width="178.667" Height="102"
+                  Background="#07080A" BorderBrush="#7D7D80"
+                  BorderThickness="0.333" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Stretch="UniformToFill" Opacity="0.21"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"
+                     Source="avares://Orion/Assets/rect205.png" />
+              <Border Height="17.333" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="White" Text="Back To Setup" />
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="434.667" Canvas.Top="223.333"
+                  Width="178.667" Height="102"
+                  Background="#07080A" BorderBrush="#7D7D80"
+                  BorderThickness="0.333" CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Stretch="UniformToFill" Opacity="0.21"
+                     RenderOptions.BitmapInterpolationMode="HighQuality"
+                     Source="avares://Orion/Assets/rect204.png" />
+              <Border Height="17.333" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="White" Text="AI Features" />
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="52.667" Canvas.Top="342"
+                  Width="560.667" Height="37.333"
+                  Background="#07090A" BorderBrush="#252525"
+                  BorderThickness="0.667" CornerRadius="5.333">
+            <Canvas Width="560.667" Height="37.333">
+              <TextBlock Canvas.Left="8.667" Canvas.Top="13.333"
+                         Width="60" Height="10"
+                         FontSize="8" Foreground="White"
+                         Text="Quick Settings" TextAlignment="Center" />
+              <Border Canvas.Left="71.667" Canvas.Top="7.333"
+                      Width="0.667" Height="26" Background="#7D7D80" />
+              <Border Canvas.Left="78.667" Canvas.Top="8"
+                      Width="64.667" Height="22"
+                      Background="#07090A" BorderBrush="#252525"
+                      BorderThickness="0.667" CornerRadius="2">
+                <TextBlock x:Name="OrionTopMostText"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="8" Foreground="#FF4C4C" Text="TopMost" />
+              </Border>
+              <Button Canvas.Left="78.667" Canvas.Top="8"
+                      Width="64.667" Height="22"
+                      Classes="orion-card-hit"
+                      Click="OrionTopMost_Click" />
+              <TextBlock Canvas.Left="151.333" Canvas.Top="7.333"
+                         Width="16" Height="22"
+                         FontSize="15" Foreground="#BCBCBC"
+                         Text="+" TextAlignment="Center" />
+            </Canvas>
+          </Border>
+        </Canvas>
+
+        <!-- UI Selection: exact 2/3 conversion of Figma frame 78:303. -->
+        <Canvas x:Name="OrionUiSelectionPage"
+                Width="664" Height="413.333"
+                IsVisible="False" IsHitTestVisible="False" Opacity="0">
+          <Border Canvas.Left="7.333" Canvas.Top="54"
+                  Width="648.667" Height="352"
+                  Background="{StaticResource OrionPageSurface}"
+                  BorderBrush="#303235" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True" />
+
+          <TextBlock Canvas.Left="52.667" Canvas.Top="77.333"
+                     Width="115" Height="18"
+                     FontSize="13.333" Foreground="White"
+                     Text="UI Selection" />
+          <TextBlock Canvas.Left="52.667" Canvas.Top="97.333"
+                     Width="320" Height="10"
+                     FontSize="6.667" Foreground="#55585B"
+                     Text="Choose an interface. Scroll to browse the full collection." />
+          <TextBlock Canvas.Left="62.667" Canvas.Top="122"
+                     Width="538" Height="12"
+                     FontSize="8" Foreground="#4C4C4C"
+                     Text="Synapse: Framework - native" />
+          <TextBlock Canvas.Left="62.667" Canvas.Top="235.333"
+                     Width="538" Height="12"
+                     FontSize="8" Foreground="#4C4C4C"
+                     Text="Other UIs" />
+          <TextBlock Canvas.Left="504.667" Canvas.Top="85.333"
+                     Width="96" Height="12"
+                     FontSize="8" Foreground="#4C4C4C"
+                     Text="Back To Settings - Home" />
+          <Button Canvas.Left="500" Canvas.Top="80" Width="106" Height="22"
+                  Classes="orion-card-hit" Click="OrionSettingsNavigation_Click" />
+
+          <!-- Synapse V3 -->
+          <Border Canvas.Left="62.667" Canvas.Top="137.333"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-v3.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="Synapse V3" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="62.667" Canvas.Top="137.333" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="SynapseV3" Click="OrionUiChoice_Click" />
+
+          <!-- Synapse 2016-19 -->
+          <Border Canvas.Left="199.613" Canvas.Top="137.333"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-2016-19.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="Synapse 2016-19" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="199.613" Canvas.Top="137.333" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="Synapse2017" Click="OrionUiChoice_Click" />
+
+          <!-- Synapse Blue -->
+          <Border Canvas.Left="336.56" Canvas.Top="137.333"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-blue.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="Synapse Blue" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="336.56" Canvas.Top="137.333" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="SynapseBlue" Click="OrionUiChoice_Click" />
+
+          <!-- Synapse X -->
+          <Border Canvas.Left="473.333" Canvas.Top="137.333"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-x.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="Synapse X" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="473.333" Canvas.Top="137.333" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="SynapseX" Click="OrionUiChoice_Click" />
+
+          <Border Canvas.Left="58" Canvas.Top="220.667"
+                  Width="548" Height="0.667" Background="#4C4C4C" />
+
+          <!-- RC7 -->
+          <Border Canvas.Left="62.667" Canvas.Top="258"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/rc7.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="RC7" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="62.667" Canvas.Top="258" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="RC7" Click="OrionUiChoice_Click" />
+
+          <!-- KRNL -->
+          <Border Canvas.Left="199.333" Canvas.Top="258"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/krnl.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="KRNL" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="199.333" Canvas.Top="258" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="Krnl" Click="OrionUiChoice_Click" />
+
+          <!-- Calamari -->
+          <Border Canvas.Left="336.667" Canvas.Top="258"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/calamari.png"
+                     Stretch="UniformToFill" Opacity="0.26"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="Calamari" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="336.667" Canvas.Top="258" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="Calamari" Click="OrionUiChoice_Click" />
+
+          <!--
+            TEMPORARILY UNUSED — Add Your Own card data retained for later:
+            label="Add Your Own." tag="AddYourOwn"
+            asset="Assets/Orion/UiSelection/add-your-own.png"
+            bounds="473.333,258,127.437,72.753"
+
+            AWP uses the same polished placeholder until a dedicated AWP card
+            capture is supplied.
+          -->
+          <Border Canvas.Left="473.333" Canvas.Top="258"
+                  Width="127.437" Height="72.753"
+                  BorderBrush="#7D7D80" BorderThickness="0.333"
+                  CornerRadius="10" ClipToBounds="True">
+            <Grid>
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/add-your-own.png"
+                     Stretch="UniformToFill" Opacity="0.10"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+              <Border Height="12.363" VerticalAlignment="Bottom"
+                      Background="#3308090A" BorderBrush="#7D7D80"
+                      BorderThickness="0.333" CornerRadius="0,0,10,10">
+                <TextBlock Text="AWP" FontSize="6" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </Grid>
+          </Border>
+          <Button Canvas.Left="473.333" Canvas.Top="258" Width="127.437" Height="72.753"
+                  Classes="orion-card-hit" Tag="AWP" Click="OrionUiChoice_Click" />
+
+          <!-- Scrollable collection overlay. The original Figma-positioned
+               cards above remain as design reference data, while this surface
+               is the scalable selector used by Orion at runtime. -->
+          <Border Canvas.Left="51.333" Canvas.Top="114"
+                  Width="561.333" Height="270"
+                  Background="#F207080A"
+                  BorderBrush="#25282B" BorderThickness="0.667"
+                  CornerRadius="10" ClipToBounds="True" Padding="10,8,5,8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+              <StackPanel Spacing="7" Margin="0,0,5,2">
+                <TextBlock FontSize="8" Foreground="#66696C"
+                           Text="Synapse: Framework - native" />
+                <WrapPanel>
+                  <Button Classes="orion-ui-card" Tag="SynapseV3"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-v3.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Synapse V3" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="Synapse2017"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-2016-19.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Synapse 2016-19" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="SynapseBlue"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-blue.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Synapse Blue" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="SynapseX"
+                          Click="OrionUiChoice_Click" Margin="0,0,0,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/synapse-x.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Synapse X" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                </WrapPanel>
+
+                <Border Height="0.667" Background="#383B3E" Margin="0,0,3,0" />
+                <TextBlock FontSize="8" Foreground="#66696C" Text="Other UIs" />
+                <WrapPanel>
+                  <Button Classes="orion-ui-card" Tag="RC7"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/rc7.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="RC7" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="Krnl"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/krnl.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="KRNL" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="Calamari"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/calamari.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Calamari" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="AWP"
+                          Click="OrionUiChoice_Click" Margin="0,0,0,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/add-your-own.png"
+                             Stretch="UniformToFill" Opacity="0.10"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="AWP" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <!-- Xeno temporarily shares AWP's placeholder artwork. -->
+                  <Button Classes="orion-ui-card" Tag="Xeno"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/add-your-own.png"
+                             Stretch="UniformToFill" Opacity="0.10"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Xeno" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                </WrapPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </Canvas>
+        </Canvas>
+      </Viewbox>
+
+      <!-- NativeWebView is kept outside the scaled design canvas so its HWND
+           remains pixel-sharp and editable. These values are the exact 1.35x
+           Monaco rectangle with a half-stroke inset on every side. -->
+      <NativeWebView x:Name="OrionMonacoWebView"
+                     Width="673.2"
+                     Height="380.7"
+                     Margin="10.8,120.6,0,0"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Top"
+                     Background="#08090A"
+                     IsVisible="False" />
+
+      <Grid x:Name="LoadingLayer"
+            Background="{StaticResource OrionLoadingFill}">
+        <Image x:Name="SpinnerMark"
+               Width="70"
+               Height="70"
+               Stretch="Uniform"
+               Opacity="0"
+               RenderOptions.BitmapInterpolationMode="HighQuality"
+               RenderTransformOrigin="50%,50%"
+               Source="avares://Orion/Assets/Orion/Sharp/loading-mark.png">
+          <Image.RenderTransform>
+            <RotateTransform Angle="0" />
+          </Image.RenderTransform>
+        </Image>
+      </Grid>
+
+      <Border x:Name="EdgeStroke"
+              BorderBrush="{StaticResource OrionEdgeStroke}"
+              BorderThickness="1"
+              CornerRadius="15"
+              IsHitTestVisible="False" />
+
+    </Grid>
+  </Border>
+</Window>

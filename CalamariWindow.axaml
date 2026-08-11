@@ -1,0 +1,561 @@
+<Window x:Class="OrbitAvalonia.CalamariWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Calamari"
+        Width="521"
+        Height="365"
+        MinWidth="521"
+        MinHeight="365"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        CanResize="False"
+        ShowInTaskbar="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        FontFamily="Arial">
+  <Window.Styles>
+    <Style Selector="Button.calamari-light">
+      <Setter Property="Width" Value="18" />
+      <Setter Property="Height" Value="18" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.calamari-link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Foreground" Value="#0000EE" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Width" Value="275" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <ContentPresenter Content="{TemplateBinding Content}"
+                            HorizontalContentAlignment="Center"
+                            VerticalContentAlignment="Center" />
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="TextBox.calamari-input">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="5,0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Foreground" Value="#222222" />
+      <Setter Property="CaretBrush" Value="#222222" />
+      <Setter Property="SelectionBrush" Value="#B8D9F5" />
+      <Setter Property="SelectionForegroundBrush" Value="#222222" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.calamari-login">
+      <Setter Property="Height" Value="23" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#B8B8B8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.calamari-login:pointerover">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#B8B8B8" />
+      <Setter Property="Foreground" Value="#111111" />
+    </Style>
+    <Style Selector="Button.calamari-login:pressed">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#B8B8B8" />
+      <Setter Property="Foreground" Value="#111111" />
+    </Style>
+    <Style Selector="TextBox.calamari-input:pointerover">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+    </Style>
+    <Style Selector="TextBox.calamari-input:focus">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.calamari-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+    </Style>
+    <Style Selector="Button.calamari-tab">
+      <Setter Property="Height" Value="23" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#B7B7B7" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Foreground" Value="#222222" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.calamari-tab:pointerover">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#B7B7B7" />
+      <Setter Property="Foreground" Value="#222222" />
+    </Style>
+    <Style Selector="Button.calamari-tab:pressed">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#B7B7B7" />
+      <Setter Property="Foreground" Value="#222222" />
+    </Style>
+    <Style Selector="Button.calamari-tab-selected">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Offset="0" Color="#50A5F5" />
+          <GradientStop Offset="0.5" Color="#1688E7" />
+          <GradientStop Offset="1" Color="#0874D2" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#0873C9" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.calamari-tab-selected:pointerover">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Offset="0" Color="#50A5F5" />
+          <GradientStop Offset="0.5" Color="#1688E7" />
+          <GradientStop Offset="1" Color="#0874D2" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#0873C9" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.calamari-tab-selected:pressed">
+      <Setter Property="Background">
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+          <GradientStop Offset="0" Color="#50A5F5" />
+          <GradientStop Offset="0.5" Color="#1688E7" />
+          <GradientStop Offset="1" Color="#0874D2" />
+        </LinearGradientBrush>
+      </Setter>
+      <Setter Property="BorderBrush" Value="#0873C9" />
+    </Style>
+    <Style Selector="Button.calamari-surface">
+      <Setter Property="Height" Value="23" />
+      <Setter Property="Padding" Value="4,0" />
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="Foreground" Value="#171717" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.calamari-surface:pointerover">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="Foreground" Value="#171717" />
+    </Style>
+    <Style Selector="Button.calamari-surface:pressed">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="Foreground" Value="#171717" />
+    </Style>
+    <Style Selector="Button.calamari-icon">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.calamari-icon:pointerover">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+    </Style>
+    <Style Selector="Button.calamari-icon:pressed">
+      <Setter Property="Background" Value="#FAFAFA" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+    </Style>
+    <Style Selector="TextBox.calamari-editor">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#C8C8C8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="4" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="CaretBrush" Value="#111111" />
+      <Setter Property="SelectionBrush" Value="#B8D9F5" />
+      <Setter Property="SelectionForegroundBrush" Value="#111111" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+    </Style>
+    <Style Selector="TextBox.calamari-editor:pointerover">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#C8C8C8" />
+    </Style>
+    <Style Selector="TextBox.calamari-editor:focus">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#C8C8C8" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.calamari-editor /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#C8C8C8" />
+    </Style>
+    <Style Selector="TextBox.calamari-tool-input">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="4,0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="CaretBrush" Value="#111111" />
+      <Setter Property="SelectionBrush" Value="#B8D9F5" />
+      <Setter Property="SelectionForegroundBrush" Value="#111111" />
+    </Style>
+    <Style Selector="TextBox.calamari-tool-input:focus">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.calamari-tool-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+    </Style>
+  </Window.Styles>
+
+  <Border x:Name="CalamariShadow"
+          Background="Transparent"
+          Padding="0.5"
+          CornerRadius="8"
+          BoxShadow="0 6 18 0 #66000000">
+    <Border x:Name="CalamariChrome"
+            Background="#ECECEC"
+            BorderBrush="#B6B6B6"
+            BorderThickness="1"
+            CornerRadius="7"
+            ClipToBounds="True">
+      <Grid RowDefinitions="28,*">
+      <Border Grid.Row="0"
+              BorderBrush="#AFAFAF"
+              BorderThickness="0,0,0,1"
+              PointerPressed="TitleBar_PointerPressed">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#F7F7F7" />
+            <GradientStop Offset="0.45" Color="#EAEAEA" />
+            <GradientStop Offset="1" Color="#D1D1D1" />
+          </LinearGradientBrush>
+        </Border.Background>
+        <Grid VerticalAlignment="Stretch">
+          <StackPanel Orientation="Horizontal" Spacing="1" Margin="8,0,0,0" VerticalAlignment="Center">
+            <Button Classes="calamari-light" Click="CloseToOrbit_Click" ToolTip.Tip="Return to Orbit">
+              <Ellipse Width="12" Height="12" Fill="#E5E5E5" Stroke="#BDBDBD" StrokeThickness="1" />
+            </Button>
+            <Button Classes="calamari-light" Click="Minimize_Click" ToolTip.Tip="Minimize">
+              <Ellipse Width="12" Height="12" Fill="#FFBD2E" Stroke="#D9A326" StrokeThickness="1" />
+            </Button>
+            <Button Classes="calamari-light" ToolTip.Tip="Full screen is unavailable in this prototype">
+              <Ellipse Width="12" Height="12" Fill="#E5E5E5" Stroke="#BDBDBD" StrokeThickness="1" />
+            </Button>
+          </StackPanel>
+          <TextBlock Text="Calamari"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Center"
+                     FontSize="13"
+                     Foreground="#4D4D4D" />
+        </Grid>
+      </Border>
+
+      <Grid x:Name="LoginPage" Grid.Row="1" ColumnDefinitions="275,*">
+        <Border Grid.Column="0" Background="#FFFFFF">
+          <Canvas Width="275" Height="337">
+            <TextBlock Canvas.Left="0" Canvas.Top="25" Width="275"
+                       Text="Calamari-M is updated"
+                       TextAlignment="Center"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="#A000A0" />
+
+            <!-- The original project loaded its showcase through a remote iframe.
+                 This native card keeps the same proportions without bringing that
+                 network/backend surface into Orbit. -->
+            <Border Canvas.Left="28" Canvas.Top="68" Width="222" Height="150"
+                    CornerRadius="16" Background="#493019" ClipToBounds="True">
+              <Grid>
+                <Image Stretch="Fill"
+                       Source="avares://Orion/Assets/Calamari/showcase.jpg" />
+                <Border Background="#000000" Opacity="0.16" />
+                <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center"
+                            Margin="0,22,0,0" Spacing="0">
+                  <TextBlock Text="How to make:Cri..."
+                             FontSize="16" Foreground="#FFFFFF"
+                             TextAlignment="Center" />
+                </StackPanel>
+                <Border Width="52" Height="52" CornerRadius="26"
+                        Background="#4E453B" Opacity="0.78"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <TextBlock Text="&#9654;" FontSize="27" Foreground="#FFFFFF"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             Margin="3,0,0,0" />
+                </Border>
+              </Grid>
+            </Border>
+            <TextBlock Canvas.Left="0" Canvas.Top="222" Width="275"
+                       Text="Watch cutedoot's showcase"
+                       TextAlignment="Center" FontSize="16"
+                       Foreground="#111111" />
+            <Border Canvas.Left="8" Canvas.Top="248" Width="259" Height="1"
+                    Background="#999999" />
+            <StackPanel Canvas.Left="0" Canvas.Top="258" Width="275" Spacing="0">
+              <Button Classes="calamari-link" Click="NoOp_Click">
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <Path Width="14" Height="14" Fill="Transparent" Stroke="#0000EE"
+                        StrokeThickness="1.2"
+                        Data="M1,1 L4,1 L6,10 L13,10 L15,3 L5,3 M7,13 A1,1 0 1 0 9,13 M11,13 A1,1 0 1 0 13,13" />
+                  <TextBlock Text="Click here to buy this" TextDecorations="Underline" />
+                </StackPanel>
+              </Button>
+              <Button Classes="calamari-link" Click="NoOp_Click">
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                  <Canvas Width="14" Height="14">
+                    <Ellipse Canvas.Left="4" Canvas.Top="0" Width="6" Height="6" Fill="#0000EE" />
+                    <Ellipse Canvas.Left="0" Canvas.Top="4" Width="5" Height="5" Fill="#0000EE" />
+                    <Ellipse Canvas.Left="9" Canvas.Top="4" Width="5" Height="5" Fill="#0000EE" />
+                    <Border Canvas.Left="2" Canvas.Top="9" Width="10" Height="5"
+                            CornerRadius="2" Background="#0000EE" />
+                  </Canvas>
+                  <TextBlock Text="Click to Join the Discord" TextDecorations="Underline" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </Canvas>
+        </Border>
+
+        <Border Grid.Column="1" Background="#ECECEC">
+          <Canvas Width="246" Height="337">
+            <Image Canvas.Left="68" Canvas.Top="42" Width="100" Height="100"
+                   Stretch="Uniform"
+                   Source="avares://Orion/Assets/Calamari/AppLogo.png" />
+            <TextBox Canvas.Left="8" Canvas.Top="172" Width="236"
+                     Classes="calamari-input" PlaceholderText="Username..." />
+            <TextBox Canvas.Left="8" Canvas.Top="199" Width="236"
+                     Classes="calamari-input" PlaceholderText="Password..." PasswordChar="&#8226;" />
+            <Button Canvas.Left="8" Canvas.Top="227" Width="236"
+                    Classes="calamari-login" Click="Login_Click">Login</Button>
+            <TextBlock Canvas.Left="8" Canvas.Top="323"
+                       Text="&#169; 2020 Inspect" FontSize="14" Foreground="#333333" />
+          </Canvas>
+        </Border>
+      </Grid>
+
+      <Grid x:Name="MainPage" Grid.Row="1" IsVisible="False" Background="#F5F5F5">
+        <Canvas Width="521" Height="337">
+          <StackPanel Canvas.Left="0" Canvas.Top="0" Width="521"
+                      Height="30" Orientation="Horizontal"
+                      HorizontalAlignment="Center" VerticalAlignment="Top">
+            <Button x:Name="ExecutorTabButton" Classes="calamari-tab calamari-tab-selected"
+                    Width="78" Margin="173,2,0,0" Click="ExecutorTab_Click">Executor</Button>
+            <Button x:Name="ToolsTabButton" Classes="calamari-tab"
+                    Width="110" Margin="0,2,0,0" Click="ToolsTab_Click">Tools &amp; Tricks</Button>
+          </StackPanel>
+
+          <Canvas x:Name="ExecutorTab" Canvas.Left="0" Canvas.Top="30"
+                  Width="521" Height="307">
+            <Border Canvas.Left="5" Canvas.Top="5" Width="353" Height="207"
+                    Background="#FFFFFF" BorderBrush="#C8C8C8" BorderThickness="1" />
+            <TextBox x:Name="CalamariEditor" Canvas.Left="5" Canvas.Top="5"
+                     Width="353" Height="207" Classes="calamari-editor"
+                     AcceptsReturn="True" TextWrapping="NoWrap" />
+            <Button Classes="calamari-icon" Canvas.Left="7" Canvas.Top="220"
+                    Width="25" Height="28" Click="ExecuteEditor_Click">
+              <Image Width="20" Height="20" Stretch="Uniform"
+                     Source="avares://Orion/Assets/Calamari/play.png" />
+            </Button>
+            <Button Classes="calamari-icon" Canvas.Left="7" Canvas.Top="251"
+                    Width="25" Height="28" Click="PasteClipboard_Click">
+              <Image Width="20" Height="20" Stretch="Uniform"
+                     Source="avares://Orion/Assets/Calamari/clipboard.png" />
+            </Button>
+            <Image Canvas.Left="8" Canvas.Top="286" Width="22" Height="22"
+                   Stretch="Uniform" Source="avares://Orion/Assets/Calamari/AppLogo.png" />
+            <Border Canvas.Left="40" Canvas.Top="220" Width="322" Height="85"
+                    Background="#FFFFFF" BorderBrush="#C8C8C8" BorderThickness="1" />
+            <TextBox x:Name="CalamariOutput" Canvas.Left="40" Canvas.Top="220"
+                     Width="322" Height="85" Classes="calamari-editor"
+                     IsReadOnly="True" TextWrapping="Wrap"
+                     Foreground="#C84040" Background="#FFFFFF"
+                     Text="please execute the Orion Bridge in your executor." />
+
+            <TextBlock Canvas.Left="374" Canvas.Top="4" Text="Calamari-M - Selects"
+                       FontSize="14" Foreground="#111111" />
+            <Border Canvas.Left="369" Canvas.Top="21" Width="145" Height="250"
+                    CornerRadius="4" Background="#EAEAEA"
+                    BorderBrush="#E2E2E2" BorderThickness="1" />
+            <StackPanel Canvas.Left="376" Canvas.Top="27" Width="130" Spacing="4">
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="DexRaw">Dex by Moon</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="PlaceSaver">Save Place</Button>
+              <Border Height="1" Background="#C5C5C5" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="CalamariRemoteSpy">RemoteSpy-M</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="InfiniteYiff">Infinite Yield</Button>
+              <Border Height="1" Background="#C5C5C5" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="ESP">ESP</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="Internal">Internal UI</Button>
+              <Border Height="1" Background="#C5C5C5" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="OpenCalamariSaves_Click">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                  <TextBlock Text="&#128193;" FontSize="14" />
+                  <TextBlock Text="Open Saves" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+            <Button Classes="calamari-surface" Canvas.Left="369" Canvas.Top="282"
+                    Width="119" Click="RefreshBridgeStatus_Click">Attach Calamari</Button>
+            <Button Classes="calamari-surface" Canvas.Left="493" Canvas.Top="282"
+                    Width="23" Padding="0" Click="NoOp_Click">?</Button>
+          </Canvas>
+
+          <Canvas x:Name="ToolsTab" Canvas.Left="0" Canvas.Top="30"
+                  Width="521" Height="307" IsVisible="False">
+            <TextBlock Canvas.Left="14" Canvas.Top="7" Text="LocalPlayer"
+                       FontSize="11" Foreground="#222222" />
+            <Border Canvas.Left="8" Canvas.Top="19" Width="217" Height="282"
+                    CornerRadius="4" Background="#EAEAEA"
+                    BorderBrush="#E2E2E2" BorderThickness="1" />
+            <TextBlock Canvas.Left="14" Canvas.Top="40" Text="Number Value:"
+                       FontSize="14" Foreground="#111111" />
+            <TextBox x:Name="CalamariNumberValue" Canvas.Left="109" Canvas.Top="27" Width="105"
+                     Classes="calamari-tool-input" Text="150" />
+            <Border Canvas.Left="14" Canvas.Top="58" Width="205" Height="1" Background="#C6C6C6" />
+            <StackPanel Canvas.Left="14" Canvas.Top="66" Width="205" Spacing="4">
+              <Grid ColumnDefinitions="*,62" ColumnSpacing="2">
+                <Button Grid.Column="0" Classes="calamari-surface" Click="ExecuteNumericAction_Click" Tag="walkspeed">Set WalkSpeed</Button>
+                <Button Grid.Column="1" Classes="calamari-surface" Click="ExecuteRaw_Click" Tag="game:GetService('Players').LocalPlayer.Character.Humanoid.WalkSpeed=16">Reset</Button>
+              </Grid>
+              <Grid ColumnDefinitions="*,62" ColumnSpacing="2">
+                <Button Grid.Column="0" Classes="calamari-surface" Click="ExecuteNumericAction_Click" Tag="jumppower">Set JumpPower</Button>
+                <Button Grid.Column="1" Classes="calamari-surface" Click="ExecuteRaw_Click" Tag="game:GetService('Players').LocalPlayer.Character.Humanoid.JumpHeight=7.2; game:GetService('Players').LocalPlayer.Character.Humanoid.JumpPower=50">Reset</Button>
+              </Grid>
+              <Grid ColumnDefinitions="*,62" ColumnSpacing="2">
+                <Button Grid.Column="0" Classes="calamari-surface" Click="ExecuteNumericAction_Click" Tag="hipheight">Set HipHeight</Button>
+                <Button Grid.Column="1" Classes="calamari-surface" Click="ExecuteRaw_Click" Tag="game:GetService('Players').LocalPlayer.Character.Humanoid.HipHeight=1.998">Reset</Button>
+              </Grid>
+              <Grid ColumnDefinitions="*,62" ColumnSpacing="2">
+                <Button Grid.Column="0" Classes="calamari-surface" Click="ExecuteNumericAction_Click" Tag="gravity">Set Gravity (Local)</Button>
+                <Button Grid.Column="1" Classes="calamari-surface" Click="ExecuteRaw_Click" Tag="workspace.Gravity=196.2">Reset</Button>
+              </Grid>
+              <Border Height="1" Background="#C6C6C6" Margin="0,2" />
+              <Grid ColumnDefinitions="*,62" ColumnSpacing="2">
+                <Button Grid.Column="0" Classes="calamari-surface" Click="ExecutePreset_Click" Tag="fly">Enable Fly</Button>
+                <Button Grid.Column="1" Classes="calamari-surface" Click="ExecuteRaw_Click" Tag="_G.unfly()">Reset</Button>
+              </Grid>
+              <Grid ColumnDefinitions="*,62" ColumnSpacing="2">
+                <Button Grid.Column="0" Classes="calamari-surface" Click="ExecutePreset_Click" Tag="noclip">Enable Noclip</Button>
+                <Button Grid.Column="1" Classes="calamari-surface" Click="ExecuteRaw_Click" Tag="_G.unnoclip()">Reset</Button>
+              </Grid>
+              <Border Height="1" Background="#C6C6C6" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="GiveBtools_Click">Give Btools</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="ClickTP">Click to TP</Button>
+            </StackPanel>
+
+            <TextBlock Canvas.Left="235" Canvas.Top="7" Text="GUIs" FontSize="11" Foreground="#222222" />
+            <Border Canvas.Left="229" Canvas.Top="19" Width="145" Height="282"
+                    CornerRadius="4" Background="#EAEAEA"
+                    BorderBrush="#E2E2E2" BorderThickness="1" />
+            <StackPanel Canvas.Left="236" Canvas.Top="61" Width="131" Spacing="4">
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="c00lgui">c00lgui</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="RoXploit">RoXploit 6.0</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="TopK3k">TopK3k</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="FEAnimations">FE Animation GUI</Button>
+              <Border Height="1" Background="#C6C6C6" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="headspin">Headspin</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="Dex">Dex v4</Button>
+              <Border Height="1" Background="#C6C6C6" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="BackToOrbit_Click">Back To Orbit</Button>
+            </StackPanel>
+
+            <TextBlock Canvas.Left="385" Canvas.Top="7" Text="Classics" FontSize="11" Foreground="#222222" />
+            <Border Canvas.Left="380" Canvas.Top="19" Width="136" Height="282"
+                    CornerRadius="4" Background="#EAEAEA"
+                    BorderBrush="#E2E2E2" BorderThickness="1" />
+            <StackPanel Canvas.Left="387" Canvas.Top="61" Width="122" Spacing="4">
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="LustrisSword">Lustris Sword</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="TrueHeroUltima">True Hero Ultima</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="DoubleMusicTails">Double Tails Music</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="GodClaws">God Claws</Button>
+              <Border Height="1" Background="#C6C6C6" Margin="0,2" />
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="Starglitcher">Starglitcher</Button>
+              <Button Classes="calamari-surface" Click="ExecutePreset_Click" Tag="Wings">Wings Script</Button>
+              <TextBlock Text="NOTE: These tricks&#xA;won't be visible to&#xA;others. Use for tests."
+                         FontSize="14" Foreground="#111111" TextWrapping="Wrap" Margin="0,2,0,0" />
+            </StackPanel>
+          </Canvas>
+        </Canvas>
+      </Grid>
+      </Grid>
+    </Border>
+  </Border>
+</Window>

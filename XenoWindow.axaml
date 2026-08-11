@@ -1,0 +1,135 @@
+<Window x:Class="OrbitAvalonia.XenoWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="700"
+        Height="400"
+        MinWidth="560"
+        MinHeight="320"
+        Title="Xeno"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        CanResize="False">
+  <Window.Styles>
+    <Style Selector="Button.xeno-icon">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.xeno-icon:pointerover">
+      <Setter Property="Background" Value="#474747" />
+    </Style>
+    <Style Selector="Button.xeno-icon:pressed">
+      <Setter Property="Background" Value="#5A5A5A" />
+    </Style>
+  </Window.Styles>
+
+  <Border x:Name="XenoChrome"
+          Background="#090909"
+          BorderBrush="#2E2E2E"
+          BorderThickness="1"
+          CornerRadius="12"
+          ClipToBounds="True">
+    <Grid RowDefinitions="40,*">
+      <Border Grid.Row="0"
+              BorderBrush="#3A3A3A"
+              BorderThickness="0,0,0,1"
+              Background="#090909"
+              PointerPressed="TitleBar_PointerPressed">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="7" Margin="10,0,0,0">
+            <Image Source="avares://Orion/Assets/Xeno/xeno-icon.png"
+                   Width="24"
+                   Height="24"
+                   Stretch="Uniform" />
+            <TextBlock Text="Xeno"
+                       Foreground="White"
+                       FontSize="18"
+                       FontWeight="Black"
+                       VerticalAlignment="Center" />
+            <TextBlock Text="v1.0.8"
+                       Foreground="White"
+                       FontSize="12"
+                       VerticalAlignment="Center" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Stretch">
+            <Button x:Name="MinimizeButton"
+                    Classes="xeno-icon"
+                    Width="38"
+                    Height="39"
+                    Click="Minimize_Click"
+                    ToolTip.Tip="Minimize">
+              <Image Source="avares://Orion/Assets/Xeno/minimize.png" Width="20" Height="20" />
+            </Button>
+            <Button x:Name="MaximizeButton"
+                    Classes="xeno-icon"
+                    Width="38"
+                    Height="39"
+                    Click="Maximize_Click"
+                    ToolTip.Tip="Maximize">
+              <Image x:Name="MaximizeIcon" Source="avares://Orion/Assets/Xeno/maximize.png" Width="20" Height="20" />
+            </Button>
+            <Button Classes="xeno-icon"
+                    Width="38"
+                    Height="39"
+                    Click="Close_Click"
+                    ToolTip.Tip="Close">
+              <Image Source="avares://Orion/Assets/Xeno/close.png" Width="20" Height="20" />
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Border Grid.Row="1"
+              Margin="10,5,10,40"
+              Background="#050505"
+              BorderBrush="#202020"
+              BorderThickness="1"
+              ClipToBounds="True">
+        <NativeWebView x:Name="EditorWebView"
+                       Background="#050505" />
+      </Border>
+
+      <Border Grid.Row="1"
+              VerticalAlignment="Bottom"
+              Height="40"
+              Background="#090909"
+              BorderBrush="#202020"
+              BorderThickness="0,1,0,0">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" Spacing="2">
+            <Button Classes="xeno-icon" Width="32" Height="34" Click="Open_Click" ToolTip.Tip="Open">
+              <Image Source="avares://Orion/Assets/Xeno/open.png" Width="25" Height="25" />
+            </Button>
+            <Button Classes="xeno-icon" Width="32" Height="34" Click="Save_Click" ToolTip.Tip="Save">
+              <Image Source="avares://Orion/Assets/Xeno/save.png" Width="25" Height="25" />
+            </Button>
+            <Button Classes="xeno-icon" Width="32" Height="34" Click="Clear_Click" ToolTip.Tip="Clear">
+              <Image Source="avares://Orion/Assets/Xeno/clear.png" Width="28" Height="28" />
+            </Button>
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0" Spacing="2">
+            <Button Classes="xeno-icon" Width="34" Height="34" Click="Settings_Click" ToolTip.Tip="Settings">
+              <TextBlock Text="⚙" FontFamily="Segoe UI Symbol" FontSize="19" Foreground="#E4E4E4" />
+            </Button>
+            <Button Classes="xeno-icon" Width="34" Height="34" Click="Scripts_Click" ToolTip.Tip="Scripts">
+              <Image Source="avares://Orion/Assets/Xeno/scripts.png" Width="28" Height="28" />
+            </Button>
+            <Button Classes="xeno-icon" Width="34" Height="34" Click="Clients_Click" ToolTip.Tip="Clients management">
+              <Image Source="avares://Orion/Assets/Xeno/multiple.png" Width="27" Height="27" />
+            </Button>
+            <Button x:Name="ExecuteActionButton" Classes="xeno-icon" Width="34" Height="34" Click="Execute_Click" ToolTip.Tip="Execute (run Scripts/Orion Bridge.lua first)">
+              <Image Source="avares://Orion/Assets/Xeno/execute.png" Width="25" Height="25" />
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,57 @@
+# Build and release output (source repository only)
+**/[Bb]in/
+**/[Oo]bj/
+**/[Pp]ublish/
+**/[Pp]ublish-*/
+**/[Aa]rtifacts/
+**/[Tt]est[Rr]esults/
+**/[Dd]ist/
+**/[Oo]ut/
+*.pdb
+*.nupkg
+*.snupkg
+*.zip
+*.7z
+*.tar
+*.tar.gz
+
+# IDE and editor state
+.vs/
+.vscode/
+.idea/
+.agents/
+.antigravityignore
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local SDK/package caches used by the desktop workspace
+.dotnet/
+.dotnet-home/
+.nuget/
+.appdata/
+.pnpm-store/
+
+# External reference projects used only while converting UIs. Orbit ships its
+# native implementation and assets; the original Calamari source stays out of
+# this repository.
+Cali-Ware-UI-main/
+
+# Generated diagnostics, screenshots, and local exports
+orbit-*.png
+!Assets/orbit-logo-hq.png
+rc7-menu*.png
+*.log
+*.tmp
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+secrets.json

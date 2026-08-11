@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OrbitAvalonia.OrionLoadingWindow"
+        Title="Orion"
+        Width="108"
+        Height="108"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        UseLayoutRounding="True">
+
+  <Border Width="108"
+          Height="108"
+          BorderBrush="#6B6E70"
+          BorderThickness="1"
+          CornerRadius="15"
+          ClipToBounds="True">
+    <Border.Background>
+      <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.39">
+        <GradientStop Color="#181A1B" Offset="0" />
+        <GradientStop Color="#08090A" Offset="0.37019" />
+      </LinearGradientBrush>
+    </Border.Background>
+
+    <Canvas Width="108" Height="108">
+      <Border Canvas.Left="19"
+              Canvas.Top="19"
+              Width="70"
+              Height="70"
+              CornerRadius="15"
+              ClipToBounds="True">
+        <Canvas Width="70" Height="70">
+          <Image x:Name="SpinnerMark"
+                 Canvas.Left="-2.59"
+                 Canvas.Top="-2.27"
+                 Width="75.19"
+                 Height="75.19"
+                 Stretch="Fill"
+                 RenderTransformOrigin="50%,50%"
+                 Source="avares://Orion/Assets/Orion/loading-mark.png">
+            <Image.RenderTransform>
+              <RotateTransform Angle="0" />
+            </Image.RenderTransform>
+          </Image>
+        </Canvas>
+      </Border>
+    </Canvas>
+  </Border>
+</Window>

@@ -1,0 +1,683 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="OrbitAvalonia.AWPWindow"
+        Title="AWP.GG"
+        Width="820" Height="560"
+        MinWidth="620" MinHeight="420"
+        Background="Transparent"
+        FontFamily="avares://Avalonia.Fonts.Inter/Assets#Inter"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        TransparencyLevelHint="Transparent"
+        WindowStartupLocation="CenterScreen"
+        Icon="avares://Orion/Assets/AWP/icon.ico">
+
+  <Window.Resources>
+    <StreamGeometry x:Key="AwpFileIcon">M213.66,82.34 157.66,26.34A8,8 0 0 0 152,24H56A16,16 0 0 0 40,40V216A16,16 0 0 0 56,232H200A16,16 0 0 0 216,216V88A8,8 0 0 0 213.66,82.34M160,51.31 188.69,80H160ZM200,216H56V40H144V88A8,8 0 0 0 152,96H200Z</StreamGeometry>
+    <StreamGeometry x:Key="AwpToolIcon">M865.3,244.7C865,244.4 804.2,304.5 683.2,425.3L598.3,340.4 779.2,159.5C684,102.2 561.7,116.9 482.4,196.2A244.42,244.42 0 0 0 419,432L420.8,438.7 137.3,722.1A16,16 0 0 0 137.3,744.7L278.7,886.1A16,16 0 0 0 301.3,886.1L584.6,602.8 591.3,604.6C675,626.9 764.9,603.7 827.3,541.3C906.7,462 921.4,339.7 865.3,244.7</StreamGeometry>
+    <StreamGeometry x:Key="AwpPlugIcon">M149.66,138.34A8,8 0 0 0 138.34,138.34L120,156.69 99.31,136 117.66,117.66A8,8 0 0 0 106.34,106.34L88,124.69 69.66,106.34A8,8 0 0 0 58.34,117.66L64.69,124 41.37,147.31A32,32 0 0 0 41.37,192.57L46.75,197.94 18.34,226.34A8,8 0 0 0 29.66,237.66L58.06,209.25 63.43,214.63A32,32 0 0 0 108.69,214.63L132,191.31 138.34,197.66A8,8 0 0 0 149.66,186.34L131.31,168 149.66,149.66A8,8 0 0 0 149.66,138.34M97.37,203.34A16,16 0 0 1 74.75,203.34L52.69,181.25A16,16 0 0 1 52.69,158.63L76,135.31 120.69,180ZM237.66,18.34A8,8 0 0 0 226.34,18.34L197.94,46.75 192.57,41.37A32.05,32.05 0 0 0 147.31,41.37L124,64.69 117.66,58.34A8,8 0 0 0 106.34,69.66L186.34,149.66A8,8 0 0 0 197.66,138.34L191.31,132 214.63,108.69A32,32 0 0 0 214.63,63.43L209.25,58.06 237.66,29.66A8,8 0 0 0 237.66,18.34M203.31,97.34 180,120.69 135.31,76 158.63,52.69A16,16 0 0 1 181.25,52.69L203.31,74.69A16,16 0 0 1 203.31,97.34Z</StreamGeometry>
+    <StreamGeometry x:Key="AwpConnectedPlugIcon">M237.66,18.34A8,8 0 0 0 226.34,18.34L173.94,70.75 168.57,65.37A32.05,32.05 0 0 0 123.31,65.37L100,88.69 93.66,82.34A8,8 0 0 0 82.34,93.66L88.69,100 65.37,123.31A32,32 0 0 0 65.37,168.57L70.75,173.94 18.34,226.34A8,8 0 0 0 29.66,237.66L82.06,185.25 87.43,190.63A32,32 0 0 0 132.69,190.63L156,167.31 162.34,173.66A8,8 0 0 0 173.66,162.34L167.31,156 190.63,132.69A32,32 0 0 0 190.63,87.43L185.25,82.06 237.66,29.66A8,8 0 0 0 237.66,18.34M121.37,179.34A16,16 0 0 1 98.75,179.34L76.69,157.25A16,16 0 0 1 76.69,134.63L100,111.31 144.69,156ZM179.31,121.4 156,144.69 111.31,100 134.63,76.69A16,16 0 0 1 157.25,76.69L179.31,98.69A16,16 0 0 1 179.31,121.4ZM88.57,35A8,8 0 0 1 103.43,29L111.43,49A8,8 0 0 1 96.57,55ZM24.57,93A8,8 0 0 1 35,88.57L55,96.57A8,8 0 0 1 49,111.43L29,103.43A8,8 0 0 1 24.57,93M231.43,163A8,8 0 0 1 221.03,167.46L201.03,159.46A8,8 0 1 1 207,144.57L227,152.57A8,8 0 0 1 231.43,163M167.43,221.06A8,8 0 0 1 152.57,227L144.57,207A8,8 0 0 1 159.43,201Z</StreamGeometry>
+    <StreamGeometry x:Key="AwpChevronUpIcon">M1,9 7,3 13,9 11.6,10.4 7,5.8 2.4,10.4Z</StreamGeometry>
+    <StreamGeometry x:Key="AwpChevronDownIcon">M1,5 2.4,3.6 7,8.2 11.6,3.6 13,5 7,11Z</StreamGeometry>
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="Button">
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+    </Style>
+    <Style Selector="ListBox">
+      <Setter Property="FocusAdorner" Value="{x:Null}" />
+    </Style>
+    <Style Selector="Button.awp-flat">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Foreground" Value="#808080" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.awp-flat:pointerover">
+      <Setter Property="Background" Value="#282828" />
+      <Setter Property="Foreground" Value="#C5C5C5" />
+    </Style>
+    <Style Selector="Button.awp-control">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="24" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.awp-close:pointerover">
+      <Setter Property="Background" Value="#C0392B" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.awp-toolbar">
+      <Setter Property="Background" Value="#99282828" />
+      <Setter Property="BorderBrush" Value="#992C2C2C" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Foreground" Value="#808080" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="Button.awp-toolbar:pointerover">
+      <Setter Property="Background" Value="#99313131" />
+      <Setter Property="Foreground" Value="#8D8D8D" />
+    </Style>
+    <Style Selector="Button.awp-toolbar:disabled">
+      <Setter Property="Background" Value="#99282828" />
+      <Setter Property="Foreground" Value="#4D808080" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.awp-execute">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.awp-execute:disabled">
+      <Setter Property="Background" Value="#191818" />
+      <Setter Property="BorderBrush" Value="#232222" />
+      <Setter Property="Foreground" Value="#414141" />
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Button.awp-setting">
+      <Setter Property="Background" Value="#99282828" />
+      <Setter Property="BorderBrush" Value="#992C2C2C" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Foreground" Value="#808080" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinHeight" Value="26" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+    <Style Selector="Button.awp-setting:pointerover">
+      <Setter Property="Background" Value="#99313131" />
+      <Setter Property="Foreground" Value="#8D8D8D" />
+    </Style>
+    <Style Selector="Button.awp-settings-tab">
+      <Setter Property="Width" Value="42" />
+      <Setter Property="Height" Value="34" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="Button.awp-settings-tab:pointerover">
+      <Setter Property="Background" Value="#292929" />
+      <Setter Property="BorderBrush" Value="#343434" />
+      <Setter Property="Foreground" Value="#C5C5C5" />
+    </Style>
+    <Style Selector="TextBox.awp-input">
+      <Setter Property="Background" Value="#282828" />
+      <Setter Property="BorderBrush" Value="#2C2C2C" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Foreground" Value="#C5C5C5" />
+      <Setter Property="CaretBrush" Value="#C5C5C5" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="8,6" />
+      <Setter Property="SelectionBrush" Value="#596482FF" />
+    </Style>
+    <Style Selector="TextBox.awp-input:focus">
+      <Setter Property="BorderBrush" Value="#444444" />
+    </Style>
+    <Style Selector="TextBox.awp-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#282828" />
+      <Setter Property="BorderBrush" Value="#2C2C2C" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.awp-input:focus /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#444444" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.awp-input:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="BorderBrush" Value="#444444" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox#EditorTextBox /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#191818" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox#EditorTextBox:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#191818" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox#EditorTextBox /template/ ScrollViewer#PART_ScrollViewer">
+      <Setter Property="Background" Value="#191818" />
+    </Style>
+    <Style Selector="TextBox#EditorTextBox:focus-within /template/ ScrollViewer#PART_ScrollViewer">
+      <Setter Property="Background" Value="#191818" />
+    </Style>
+    <Style Selector="TextBox#ScriptSearchBox /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox#ScriptSearchBox:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ListBox.awp-list">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.awp-list ListBoxItem">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="MinHeight" Value="25" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ListBox.awp-list ListBoxItem:pointerover">
+      <Setter Property="Background" Value="#282828" />
+    </Style>
+    <Style Selector="ListBox.awp-list ListBoxItem:selected">
+      <Setter Property="Background" Value="#282828" />
+    </Style>
+    <Style Selector="ListBox.awp-console ListBoxItem:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.awp-console ListBoxItem:selected">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+  </Window.Styles>
+
+  <Border x:Name="AwpChrome"
+          Background="#1F1F1F"
+          BorderBrush="#424040"
+          BorderThickness="1"
+          CornerRadius="4"
+          ClipToBounds="True">
+    <Grid>
+      <Grid RowDefinitions="36,*">
+        <Grid x:Name="TitleBar" Grid.Row="0" Background="#1F1F1F"
+              PointerPressed="TitleBar_PointerPressed">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0"
+                      VerticalAlignment="Center">
+            <TextBlock FontSize="16" FontWeight="ExtraBold" LetterSpacing="0.8"
+                       Foreground="White" VerticalAlignment="Center">
+              <Run Text="AWP" /><Run Text="." Foreground="#6A6A6A" /><Run Text="GG" />
+            </TextBlock>
+            <Border Width="2" Height="16" Background="#6A6A6A" CornerRadius="60" />
+            <Button x:Name="PageMenuButton" Classes="awp-flat" Click="PageMenu_Click"
+                    Height="24" Padding="0" Background="Transparent">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <PathIcon x:Name="PageIcon" Data="{StaticResource AwpFileIcon}"
+                          Width="14" Height="14" Foreground="#C5C5C5" />
+                <TextBlock x:Name="PageLabel" Text="Scripting" Foreground="#C5C5C5"
+                           FontSize="12" FontWeight="SemiBold" Margin="0,1,0,0" />
+                <PathIcon x:Name="PageCaretPath" Width="14" Height="14"
+                          Data="{StaticResource AwpChevronDownIcon}" Foreground="#C5C5C5"
+                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Classes="awp-flat" Width="22" Height="22" CornerRadius="4"
+                    ToolTip.Tip="Logout" Click="Logout_Click">
+              <Grid Width="15" Height="15">
+                <Path Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      Data="M14,8 V6 A2,2 0 0 0 12,4 H5 A2,2 0 0 0 3,6 V18 A2,2 0 0 0 5,20 H12 A2,2 0 0 0 14,18 V16" />
+                <Path Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      Data="M9,12 H21 L18,9 M18,15 L21,12" />
+              </Grid>
+            </Button>
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" Margin="0,0,12,0"
+                      VerticalAlignment="Center">
+            <Button Classes="awp-flat awp-control" Click="Minimize_Click">
+              <Border Width="11" Height="1.4" CornerRadius="1"
+                      Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+            <Button Classes="awp-flat awp-control" Click="Maximize_Click">
+              <Path Width="11" Height="11" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    StrokeThickness="2" Data="M5,4 H19 A1,1 0 0 1 20,5 V19 A1,1 0 0 1 19,20 H5 A1,1 0 0 1 4,19 V5 A1,1 0 0 1 5,4 Z" />
+            </Button>
+            <Button x:Name="CloseButton" Classes="awp-flat awp-control awp-close">
+              <Path Width="11" Height="11" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    StrokeThickness="2.5" StrokeLineCap="Round" Data="M18,6 L6,18 M6,6 L18,18" />
+            </Button>
+          </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1">
+          <Grid x:Name="ScriptingPage" ColumnDefinitions="*,200">
+            <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto" MinWidth="0">
+              <Border Grid.Row="0" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1"
+                      Padding="3,0,0,3">
+                <StackPanel x:Name="TabBar" Orientation="Horizontal" Spacing="3" />
+              </Border>
+
+              <Grid Grid.Row="1" Background="#191818" MinHeight="0" ClipToBounds="True">
+                <!-- AWP deliberately uses Orion's shared Monaco document and
+                     transparent theme. The native surface below remains the
+                     source UI's exact #191818 editor colour. -->
+                <NativeWebView x:Name="AwpMonacoWebView"
+                               Background="#191818"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"
+                               IsVisible="False" />
+              </Grid>
+
+              <Grid Grid.Row="2" Background="#1F1F1F" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto"
+                    Margin="0" Height="40">
+                <Button x:Name="ExecuteButton" Grid.Column="0" Classes="awp-toolbar awp-execute" Margin="3,6,0,6"
+                        IsEnabled="False" Click="Execute_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <PathIcon Data="M9,6C9,5.148 9.986,4.703 10.623,5.217L10.707,5.293 16.707,11.293A1,1 0 0 1 16.79,12.613L16.707,12.707 10.707,18.707A1,1 0 0 1 9,18V6Z"
+                              Width="14" Height="14" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    <TextBlock Text="Execute" VerticalAlignment="Center" Margin="0,1,0,0" />
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="1" Classes="awp-toolbar" Margin="3,6,0,6" Click="Clear_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Data="M4,7 H20 M10,11 V17 M14,11 V17 M5,7 L6,19 A2,2 0 0 0 8,21 H16 A2,2 0 0 0 18,19 L19,7 M9,7 V4 A1,1 0 0 1 10,3 H14 A1,1 0 0 1 15,4 V7" />
+                    <TextBlock Text="Clear" VerticalAlignment="Center" Margin="0,1,0,0" />
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="2" Classes="awp-toolbar" Margin="3,6,0,6" Click="Open_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Data="M5,19 L7.757,11.649 A1,1 0 0 1 8.693,11 H21 A1,1 0 0 1 21.986,12.164 L20.99,17.375 A2,2 0 0 1 19.026,19 H5 A2,2 0 0 1 3,17 V6 A2,2 0 0 1 5,4 H9 L12,7 H19 A2,2 0 0 1 21,9 V11" />
+                    <TextBlock Text="Open" VerticalAlignment="Center" Margin="0,1,0,0" />
+                  </StackPanel>
+                </Button>
+                <Button x:Name="ExecuteFileButton" Grid.Column="3" Classes="awp-toolbar awp-execute" Margin="3,6,0,6"
+                        IsEnabled="False" Click="ExecuteFile_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Data="M14,3 V7 A1,1 0 0 0 15,8 H19 M17,21 H7 A2,2 0 0 1 5,19 V5 A2,2 0 0 1 7,3 H14 L19,8 V19 A2,2 0 0 1 17,21 M10,13 L9,15 10,17 M14,13 L15,15 14,17" />
+                    <TextBlock Text="Execute" VerticalAlignment="Center" Margin="0,1,0,0" />
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="4" Classes="awp-toolbar" Margin="3,6,0,6" Click="Save_Click">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Width="14" Height="14" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                          Data="M6,4 H16 L20,8 V18 A2,2 0 0 1 18,20 H6 A2,2 0 0 1 4,18 V6 A2,2 0 0 1 6,4 M12,14 A2,2 0 1 0 12,18 A2,2 0 1 0 12,14 M14,4 V8 H8 V4" />
+                    <TextBlock Text="Save" VerticalAlignment="Center" Margin="0,1,0,0" />
+                  </StackPanel>
+                </Button>
+                <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="8" Margin="0,0,10,0"
+                            VerticalAlignment="Center">
+                  <Button x:Name="AttachButton" Classes="awp-flat" Width="32" Height="32"
+                          ToolTip.Tip="Attach to Roblox"
+                          Click="Attach_Click">
+                    <PathIcon x:Name="AttachIcon" Data="{StaticResource AwpPlugIcon}" Width="24" Height="24"
+                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                  </Button>
+                  <Button Classes="awp-flat" Width="32" Height="32" ToolTip.Tip="Launch Roblox"
+                          Click="Launch_Click">
+                    <Path Width="24" Height="24" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round"
+                          Data="M15.59,14.37 Q15.749,15.036 15.75,15.75 A6,6 0 0 1 9.75,21.75 V16.95 M15.59,14.37 A14.98,14.98 0 0 0 21.75,2.25 A14.98,14.98 0 0 0 9.631,8.41 M15.59,14.37 A14.9,14.9 0 0 1 9.75,16.95 M9.631,8.41 A6,6 0 0 0 2.25,14.25 H7.05 M9.631,8.41 A14.9,14.9 0 0 0 7.05,14.25 M9.75,16.95 Q9.595,16.982 9.439,17.01 A15,15 0 0 1 6.991,14.562 L7.051,14.25 M4.811,16.64 A4.49,4.49 0 0 0 3.054,20.946 Q3.395,21 3.75,21 A4.5,4.5 0 0 0 7.36,19.188 M16.5,9 A1.5,1.5 0 1 1 13.5,9 A1.5,1.5 0 0 1 16.5,9" />
+                  </Button>
+                </StackPanel>
+              </Grid>
+
+              <Grid x:Name="ConsolePanel" Grid.Row="3" Height="130" RowDefinitions="33,*">
+                <Border Grid.Row="0" Background="#282828" Padding="9,7,7,7"
+                        PointerPressed="ConsoleHeader_PointerPressed">
+                  <Grid ColumnDefinitions="*,Auto,Auto">
+                    <TextBlock Text="Output" Foreground="#C5C5C5" FontSize="11"
+                               FontWeight="SemiBold" LetterSpacing="0.66" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="awp-flat" Width="20" Height="20"
+                            Margin="0,0,4,0" ToolTip.Tip="Clear console"
+                            Click="ConsoleClear_Click">
+                      <Path Width="13" Height="13" Stretch="Uniform"
+                            Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                            StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                            Data="M4,7 H20 M10,11 V17 M14,11 V17 M5,7 L6,19 A2,2 0 0 0 8,21 H16 A2,2 0 0 0 18,19 L19,7 M9,7 V4 A1,1 0 0 1 10,3 H14 A1,1 0 0 1 15,4 V7" />
+                    </Button>
+                    <Button Grid.Column="2" Classes="awp-flat" Width="20" Height="20"
+                            Click="ConsoleCaret_Click">
+                      <PathIcon x:Name="ConsoleCaretPath" Width="14" Height="14"
+                                Data="{StaticResource AwpChevronUpIcon}" Foreground="#808080"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                  </Grid>
+                </Border>
+                <ScrollViewer x:Name="OutputScroll" Grid.Row="1" Background="#191818"
+                              Padding="8,4" HorizontalScrollBarVisibility="Disabled"
+                              VerticalScrollBarVisibility="Auto">
+                  <SelectableTextBlock x:Name="OutputText"
+                                       FontFamily="Cascadia Code, Consolas"
+                                       FontSize="10.2" LineHeight="14.2"
+                                       Foreground="#C5C5C5" TextWrapping="Wrap"
+                                       SelectionBrush="#0E639C"
+                                       SelectionForegroundBrush="#FFFFFF" />
+                </ScrollViewer>
+                <Border x:Name="ConsoleResizeGrip" Grid.RowSpan="2" Height="6"
+                        VerticalAlignment="Top" Background="#01000000"
+                        BorderBrush="#343434" BorderThickness="0,1,0,0"
+                        Cursor="SizeNorthSouth" ZIndex="5"
+                        PointerPressed="ConsoleResizeGrip_PointerPressed"
+                        PointerMoved="ConsoleResizeGrip_PointerMoved"
+                        PointerReleased="ConsoleResizeGrip_PointerReleased" />
+              </Grid>
+            </Grid>
+
+            <Border Grid.Column="1" Background="#1F1F1F" BorderBrush="#2C2C2C"
+                    BorderThickness="1,0,0,0" BoxShadow="-4 0 12 0 #40000000">
+              <Grid RowDefinitions="35,*,Auto">
+                <Border Grid.Row="0" Padding="3" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1">
+                  <Border Background="#282828" BorderBrush="#2C2C2C" BorderThickness="1"
+                          CornerRadius="4" HorizontalAlignment="Stretch">
+                    <Grid ColumnDefinitions="25,*">
+                      <Path Grid.Column="0" Width="13" Height="13" Stretch="Uniform" Stroke="#808080"
+                            StrokeThickness="2" Data="M3,10 A7,7 0 1 0 17,10 A7,7 0 1 0 3,10 M21,21 L15,15" />
+                      <TextBox x:Name="ScriptSearchBox" Grid.Column="1" PlaceholderText="Search..."
+                               Background="Transparent" BorderThickness="0" CornerRadius="0"
+                               Foreground="#C5C5C5" CaretBrush="#C5C5C5" FontSize="12"
+                               Padding="0,5" TextChanged="ScriptSearchBox_TextChanged" />
+                    </Grid>
+                  </Border>
+                </Border>
+                <Grid Grid.Row="1" RowDefinitions="Auto,*">
+                  <Button x:Name="WorkspaceHeader" Grid.Row="0" Classes="awp-flat"
+                          Height="33" Background="#282828" BorderBrush="#2C2C2C"
+                          BorderThickness="0,0,0,1" HorizontalContentAlignment="Stretch"
+                          HorizontalAlignment="Stretch"
+                          Click="WorkspaceHeader_Click">
+                    <Grid ColumnDefinitions="20,*,16" Margin="8,0">
+                      <Path Grid.Column="0" Width="16" Height="16" Stretch="Uniform" Stroke="#C5C5C5"
+                            StrokeThickness="1" StrokeLineCap="Round" StrokeJoin="Round"
+                            Data="M12.906,13.5 V9.134 A1.109,1.109 0 0 0 11.797,8.025 H2.202 A1.108,1.108 0 0 0 1.094,9.134 V13.5 M10.036,0.5 H3.963 A0.784,0.784 0 0 0 3.179,1.284 V4.883 A0.784,0.784 0 0 0 3.963,5.667 H10.036 A0.784,0.784 0 0 0 10.82,4.883 V1.284 A0.784,0.784 0 0 0 10.036,0.5 M7,5.667 V8.025 M1.094,10.212 H12.907" />
+                      <TextBlock Grid.Column="1" Text="Workspace" Foreground="#808080" FontSize="14"
+                                 FontWeight="SemiBold" VerticalAlignment="Center" />
+                      <PathIcon x:Name="WorkspaceCaretPath" Grid.Column="2" Width="12" Height="12"
+                                Data="{StaticResource AwpChevronUpIcon}" Foreground="#808080"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                  </Button>
+                  <ListBox x:Name="WorkspaceList" Grid.Row="1" Classes="awp-list"
+                           SelectionChanged="WorkspaceList_SelectionChanged">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <Grid ColumnDefinitions="20,*" Height="27" Margin="8,0"
+                              HorizontalAlignment="Stretch">
+                          <PathIcon Grid.Column="0" Data="{StaticResource AwpFileIcon}" Width="14" Height="14"
+                                    Foreground="#808080" />
+                          <TextBlock Grid.Column="1" Text="{ReflectionBinding Name}" Foreground="#808080"
+                                     FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                  <TextBlock x:Name="NoScriptsText" Grid.Row="1" Text="No scripts found"
+                             Foreground="#555555" FontSize="12" FontStyle="Italic"
+                             Margin="8" IsHitTestVisible="False" />
+                </Grid>
+                <Grid Grid.Row="2">
+                  <Border BorderBrush="#2C2C2C" BorderThickness="0,1,0,0" Padding="3">
+                    <Button x:Name="ClientManagerButton" Classes="awp-flat" Background="#282828" BorderBrush="#2C2C2C"
+                            BorderThickness="1" CornerRadius="4" Height="33"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            Click="ClientManager_Click">
+                      <Grid ColumnDefinitions="22,*,16" Margin="6,0">
+                        <Path Grid.Column="0" Width="16" Height="16" Stretch="Uniform" Stroke="#808080"
+                              StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                              Data="M8,7 A4,4 0 1 0 16,7 A4,4 0 0 0 8,7 M6,21 V19 A4,4 0 0 1 10,15 H14 A4,4 0 0 1 18,19 V21" />
+                        <TextBlock x:Name="ClientSummaryLabel" Grid.Column="1" Text="None" Foreground="#808080" FontSize="14"
+                                   FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <PathIcon x:Name="ClientManagerCaretPath" Grid.Column="2" Width="10" Height="10"
+                                  Data="{StaticResource AwpChevronUpIcon}" Foreground="#808080"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Grid>
+                    </Button>
+                  </Border>
+                </Grid>
+              </Grid>
+            </Border>
+          </Grid>
+
+          <Grid x:Name="SettingsPage" IsVisible="False" ColumnDefinitions="58,*" Margin="0,4,0,0">
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,2,0,0">
+              <Button x:Name="GeneralSettingsTab" Grid.Row="0" Classes="awp-flat awp-settings-tab"
+                      Background="#2D2D2D" BorderBrush="#3A3A3A" Foreground="#C5C5C5"
+                      Click="GeneralSettingsTab_Click">
+                <PathIcon Data="{StaticResource AwpToolIcon}" Width="16" Height="16"
+                          Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+              </Button>
+              <Button x:Name="EditorSettingsTab" Grid.Row="1" Classes="awp-flat awp-settings-tab"
+                      Margin="0,6,0,0"
+                      Click="EditorSettingsTab_Click">
+                <Path Width="16" Height="16" Stretch="Uniform" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                      Data="M8,8 L4,12 8,16 M16,16 L20,12 16,8 M14,5 L10,19" />
+              </Button>
+            </Grid>
+            <Border Grid.Column="0" BorderBrush="#2C2C2C" BorderThickness="0,0,1,0" IsHitTestVisible="False" />
+            <ScrollViewer Grid.Column="1" BorderBrush="#2C2C2C" BorderThickness="0,1,0,0">
+              <Grid Margin="6">
+                <StackPanel x:Name="GeneralSettingsPanel" Spacing="6">
+                  <Border Background="#282828" CornerRadius="4" Padding="8,6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <PathIcon Data="{StaticResource AwpToolIcon}" Width="16" Height="16" Foreground="#C5C5C5" />
+                      <TextBlock Text="GENERAL" Foreground="#C5C5C5" FontSize="11" FontWeight="Bold"
+                                 LetterSpacing="0.5" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Border>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock x:Name="TopmostStatusLabel" Text="Always on Top: Off"
+                                 Foreground="#C5C5C5" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="Toggle UI always being on top." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button x:Name="TopmostButton" Grid.Column="1" Classes="awp-setting" Content="Enable"
+                            Click="Topmost_Click" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock x:Name="AutoInjectStatusLabel" Text="Auto Inject: Off"
+                                 Foreground="#C5C5C5" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="Auto inject new Roblox processes." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button x:Name="AutoInjectButton" Grid.Column="1" Classes="awp-setting" Content="Enable"
+                            Click="AutoInject_Click" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock x:Name="ConsoleStatusLabel" Text="Console: Visible"
+                                 Foreground="#C5C5C5" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="Show or hide the output console." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button x:Name="ConsoleVisibilityButton" Grid.Column="1" Classes="awp-setting" Content="Hide"
+                            Click="ConsoleVisibility_Click" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Scripts Folder" Foreground="#C5C5C5" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="Open the workspace folder." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="awp-setting" Content="Open" Click="OpenScriptsFolder_Click" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Reset State" Foreground="#C5C5C5" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="Clear all UI state." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="awp-setting" Content="Reset" Click="ResetState_Click" />
+                  </Grid>
+                  <Border Background="#282828" CornerRadius="4" Padding="8,6" Margin="0,2,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Path Width="16" Height="16" Stretch="Uniform" Stroke="#C5C5C5"
+                            StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                            Data="M10,17 L5,12 10,7 M5,12 H19" />
+                      <TextBlock Text="ORION" Foreground="#C5C5C5" FontSize="11" FontWeight="Bold"
+                                 LetterSpacing="0.5" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Border>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Back to Orion" Foreground="#C5C5C5" FontSize="12"
+                                 FontWeight="SemiBold" />
+                      <TextBlock Text="Return to the Orion interface." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="awp-setting" Content="Back to Orion"
+                            Click="BackToOrion_Click" />
+                  </Grid>
+                </StackPanel>
+
+                <StackPanel x:Name="EditorSettingsPanel" Spacing="6" IsVisible="False">
+                  <Border Background="#282828" CornerRadius="4" Padding="8,6">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <Path Width="16" Height="16" Stretch="Uniform" Stroke="#C5C5C5"
+                            StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                            Data="M8,8 L4,12 8,16 M16,16 L20,12 16,8 M14,5 L10,19" />
+                      <TextBlock Text="EDITOR" Foreground="#C5C5C5" FontSize="11" FontWeight="Bold"
+                                 LetterSpacing="0.5" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Border>
+                  <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="Reset State" Foreground="#C5C5C5" FontSize="12" FontWeight="SemiBold" />
+                      <TextBlock Text="Clear all UI state." Foreground="#808080" FontSize="10" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="awp-setting" Content="Reset" Click="ResetState_Click" />
+                  </Grid>
+                </StackPanel>
+              </Grid>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
+      </Grid>
+
+      <!-- A native popup root is required here: NativeWebView owns a child
+           HWND and ordinary ZIndex values cannot place Avalonia content over
+           it on Windows. -->
+      <Popup x:Name="PageMenu" IsOpen="False"
+             Placement="BottomEdgeAlignedLeft" VerticalOffset="3"
+             Topmost="True" ShouldUseOverlayLayer="False"
+             TakesFocusFromNativeControl="False"
+             IsLightDismissEnabled="True" OverlayDismissEventPassThrough="True">
+        <Border Width="130"
+                Background="#1F1F1F" BorderBrush="#2C2C2C" BorderThickness="1"
+                CornerRadius="4" Padding="3" BoxShadow="0 5 12 0 #66000000">
+          <StackPanel Spacing="2">
+            <Button x:Name="ScriptingMenuItem" Classes="awp-flat" Height="27" CornerRadius="3"
+                    Background="#282828" HorizontalContentAlignment="Stretch" Click="ScriptingMenuItem_Click">
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0">
+                <PathIcon Data="{StaticResource AwpFileIcon}" Width="13" Height="13" Foreground="#C5C5C5" />
+                <TextBlock Text="Scripting" FontSize="12" Foreground="#C5C5C5" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="SettingsMenuItem" Classes="awp-flat" Height="27" CornerRadius="3"
+                    HorizontalContentAlignment="Stretch" Click="SettingsMenuItem_Click">
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0">
+                <PathIcon Data="{StaticResource AwpToolIcon}" Width="13" Height="13" Foreground="#808080" />
+                <TextBlock Text="Settings" FontSize="12" Foreground="#808080" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+      </Popup>
+
+      <Popup x:Name="ClientManagerPopup" IsOpen="False"
+             Placement="Top" VerticalOffset="-3"
+             Topmost="True" ShouldUseOverlayLayer="False"
+             TakesFocusFromNativeControl="False"
+             IsLightDismissEnabled="True" OverlayDismissEventPassThrough="True">
+        <Border Width="194" MaxHeight="260"
+                Background="#1F1F1F" BorderBrush="#2C2C2C" BorderThickness="1"
+                CornerRadius="4" Padding="3" BoxShadow="0 5 12 0 #66000000">
+          <Grid RowDefinitions="31,*">
+            <Border Grid.Row="0" BorderBrush="#2C2C2C" BorderThickness="0,0,0,1"
+                    Padding="7,0">
+              <TextBlock Text="CLIENTS" Foreground="#808080" FontSize="10"
+                         FontWeight="Bold" LetterSpacing="0.6" VerticalAlignment="Center" />
+            </Border>
+            <ScrollViewer Grid.Row="1" MaxHeight="220"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+              <StackPanel x:Name="ClientListPanel" Spacing="2" Margin="0,3,0,0" />
+            </ScrollViewer>
+          </Grid>
+        </Border>
+      </Popup>
+
+      <Border x:Name="LoginOverlay" Background="#1F1F1F" ZIndex="100" IsVisible="True"
+              HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <StackPanel Width="260" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="0">
+          <TextBlock FontSize="22" FontWeight="ExtraBold" LetterSpacing="1" Foreground="White"
+                     HorizontalAlignment="Center" Margin="0,0,0,4">
+            <Run Text="AWP" /><Run Text="." Foreground="#6A6A6A" /><Run Text="GG" />
+          </TextBlock>
+          <TextBlock Text="Enter any credentials, this is a fake login page" Foreground="#6A6A6A"
+                     FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,20" />
+          <TextBlock Text="Username:" Foreground="#6A6A6A" FontSize="11" FontWeight="Medium" Margin="0,0,0,4" />
+          <TextBox x:Name="LoginUsername" Classes="awp-input" PlaceholderText="Username" Margin="0,0,0,12" />
+          <TextBlock Text="Password:" Foreground="#6A6A6A" FontSize="11" FontWeight="Medium" Margin="0,0,0,4" />
+          <TextBox x:Name="LoginPassword" Classes="awp-input" PlaceholderText="Password" PasswordChar="●" />
+          <TextBlock x:Name="LoginError" Foreground="#E06C75" FontSize="11" Height="16"
+                     TextAlignment="Center" Margin="0,6" />
+          <Button Classes="awp-setting" Height="34" Content="Login" FontWeight="SemiBold"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center" Click="Login_Click" />
+        </StackPanel>
+      </Border>
+
+      <Border x:Name="CredentialsOverlay" Background="#A6000000" ZIndex="110" IsVisible="False">
+        <Border Width="280" Background="#1F1F1F" BorderBrush="#2C2C2C" BorderThickness="1"
+                CornerRadius="6" Padding="20" BoxShadow="0 8 32 0 #99000000"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+          <StackPanel Spacing="12">
+            <TextBlock Text="Credentials" Foreground="#C5C5C5" FontSize="13" FontWeight="Bold" />
+            <StackPanel Spacing="4">
+              <TextBlock Text="Username" Foreground="#808080" FontSize="11" />
+              <TextBox x:Name="CredentialsUsername" Classes="awp-input" PlaceholderText="Username" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Text="Password" Foreground="#808080" FontSize="11" />
+              <TextBox x:Name="CredentialsPassword" Classes="awp-input" PlaceholderText="Password" PasswordChar="●" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+              <Button Classes="awp-setting" Content="Cancel" Click="CancelCredentials_Click" />
+              <Button Classes="awp-setting" Content="Save" Click="SaveCredentials_Click" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Border>
+
+      <Border x:Name="Toast" Background="#282828" BorderBrush="#2C2C2C" BorderThickness="1"
+              CornerRadius="4" Padding="14,7" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+              Margin="14" ZIndex="120" BoxShadow="0 4 16 0 #99000000" IsVisible="False">
+        <TextBlock x:Name="ToastText" Foreground="#C5C5C5" FontSize="12" />
+      </Border>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,63 @@
+<Window x:Class="OrbitAvalonia.BridgeNotificationWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Orion Bridge connected"
+        Width="364"
+        Height="72"
+        WindowStartupLocation="Manual"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        CanResize="False"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+  <Border CornerRadius="13"
+          BorderThickness="1"
+          BorderBrush="#3B3E41"
+          Background="#050607"
+          BoxShadow="0 7 18 0 #78000000"
+          ClipToBounds="True"
+          IsHitTestVisible="False">
+    <Grid ColumnDefinitions="*,50" Margin="18,0,10,0">
+      <StackPanel VerticalAlignment="Center" Spacing="4">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Bridge Connected"
+                     FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+                     FontSize="15.5"
+                     FontWeight="Bold"
+                     Foreground="#F8F8F8" />
+          <Viewbox Width="18" Height="18"
+                   Margin="0,0,0,-1"
+                   VerticalAlignment="Center"
+                   Stretch="Uniform">
+            <Path Width="18" Height="18"
+                  Fill="#009D0A"
+                  Stretch="Uniform"
+                  Data="M4 18H2C1.45 18 0.979333 17.8043 0.588 17.413C0.196667 17.0217 0.000666667 16.5507 0 16V14C0 13.7167 0.0960001 13.4793 0.288 13.288C0.48 13.0967 0.717333 13.0007 1 13C1.28267 12.9993 1.52033 13.0953 1.713 13.288C1.90567 13.4807 2.00133 13.718 2 14V16H4C4.28333 16 4.521 16.096 4.713 16.288C4.905 16.48 5.00067 16.7173 5 17C4.99933 17.2827 4.90333 17.5203 4.712 17.713C4.52067 17.9057 4.28333 18.0013 4 18ZM16 18H14C13.7167 18 13.4793 17.904 13.288 17.712C13.0967 17.52 13.0007 17.2827 13 17C12.9993 16.7173 13.0953 16.48 13.288 16.288C13.4807 16.096 13.718 16 14 16H16V14C16 13.7167 16.096 13.4793 16.288 13.288C16.48 13.0967 16.7173 13.0007 17 13C17.2827 12.9993 17.5203 13.0953 17.713 13.288C17.9057 13.4807 18.0013 13.718 18 14V16C18 16.55 17.8043 17.021 17.413 17.413C17.0217 17.805 16.5507 18.0007 16 18ZM4.05 13.95C2.68333 12.5833 2 10.9333 2 9C2 7.06667 2.68333 5.41667 4.05 4.05C5.41667 2.68333 7.06667 2 9 2C10.9333 2 12.5833 2.68333 13.95 4.05C15.3167 5.41667 16 7.06667 16 9C16 10.9333 15.3167 12.5833 13.95 13.95C12.5833 15.3167 10.9333 16 9 16C7.06667 16 5.41667 15.3167 4.05 13.95ZM0 2C0 1.45 0.196 0.979333 0.588 0.588C0.98 0.196667 1.45067 0.000666667 2 0H4C4.28333 0 4.521 0.0960001 4.713 0.288C4.905 0.48 5.00067 0.717333 5 1C4.99933 1.28267 4.90333 1.52033 4.712 1.713C4.52067 1.90567 4.28333 2.00133 4 2H2V4C2 4.28333 1.904 4.521 1.712 4.713C1.52 4.905 1.28267 5.00067 1 5C0.717333 4.99933 0.48 4.90333 0.288 4.712C0.0960001 4.52067 0 4.28333 0 4V2ZM16.288 4.713C16.096 4.521 16 4.28333 16 4V2H14C13.7167 2 13.4793 1.904 13.288 1.712C13.0967 1.52 13.0007 1.28267 13 1C12.9993 0.717333 13.0953 0.48 13.288 0.288C13.4807 0.0960001 13.718 0 14 0H16C16.55 0 17.021 0.196 17.413 0.588C17.805 0.98 18.0007 1.45067 18 2V4C18 4.28333 17.904 4.521 17.712 4.713C17.52 4.905 17.2827 5.00067 17 5C16.7173 4.99933 16.48 4.90433 16.288 4.713Z" />
+          </Viewbox>
+        </StackPanel>
+        <TextBlock Text="You can now execute scripts through the bridge,&#x0a;view console outputs, and more."
+                   FontFamily="avares://Orion/Assets/Orion/Fonts#Manrope"
+                   FontSize="7.6"
+                   FontWeight="SemiBold"
+                   LineHeight="10.2"
+                   Foreground="#85878A" />
+      </StackPanel>
+
+      <Grid Grid.Column="1" Width="38" Height="38"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+        <Image Width="35"
+               Height="35"
+               Margin="-1,0,0,0"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               Stretch="Uniform"
+               RenderOptions.BitmapInterpolationMode="HighQuality"
+               Source="avares://Orion/Assets/Orion/Bridge/orion-mark.png" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>
