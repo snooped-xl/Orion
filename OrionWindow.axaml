@@ -47,6 +47,7 @@
       <GradientStop Color="#5D6063" Offset="0.38" />
       <GradientStop Color="#303235" Offset="1" />
     </LinearGradientBrush>
+    <StreamGeometry x:Key="OrionPluginGlyph">M39 21.0017C39 20.206 39.3161 19.443 39.8787 18.8804C40.4413 18.3177 41.2044 18.0017 42 18.0017H44.853C45.15 18.0017 45.333 17.6927 45.219 17.4187C45.1615 17.2839 45.116 17.1444 45.083 17.0017C44.752 15.5147 45.875 14.0017 47.5 14.0017C49.126 14.0017 50.248 15.5147 49.917 17.0017C49.884 17.1444 49.8385 17.2839 49.781 17.4187C49.666 17.6927 49.85 18.0017 50.147 18.0017H52C52.7956 18.0017 53.5587 18.3177 54.1213 18.8804C54.6839 19.443 55 20.206 55 21.0017V22.8547C55 23.1517 55.308 23.3347 55.583 23.2207C55.718 23.1647 55.856 23.1167 56 23.0847C57.487 22.7537 59 23.8757 59 25.5017C59 27.1277 57.487 28.2497 56 27.9187C55.8573 27.8856 55.7177 27.8401 55.583 27.7827C55.309 27.6677 55 27.8517 55 28.1487V31.0017C55 31.7973 54.6839 32.5604 54.1213 33.123C53.5587 33.6856 52.7956 34.0017 52 34.0017H50.107C49.819 34.0017 49.634 33.7107 49.717 33.4357C49.759 33.2957 49.7873 33.151 49.802 33.0017C49.8286 32.6832 49.7888 32.3627 49.6852 32.0605C49.5815 31.7582 49.4163 31.4807 49.2 31.2456C48.9836 31.0104 48.7208 30.8227 48.4282 30.6943C48.1356 30.5659 47.8195 30.4996 47.5 30.4996C47.1805 30.4996 46.8644 30.5659 46.5718 30.6943C46.2792 30.8227 46.0164 31.0104 45.8 31.2456C45.5837 31.4807 45.4185 31.7582 45.3148 32.0605C45.2112 32.3627 45.1714 32.6832 45.198 33.0017C45.212 33.151 45.2407 33.2957 45.284 33.4357C45.366 33.7107 45.181 34.0017 44.894 34.0017H42C41.2044 34.0017 40.4413 33.6856 39.8787 33.123C39.3161 32.5604 39 31.7973 39 31.0017V28.1087C39 27.8207 39.291 27.6357 39.566 27.7187C39.706 27.7607 39.8507 27.789 40 27.8037C40.3184 27.8302 40.6389 27.7905 40.9412 27.6868C41.2435 27.5832 41.521 27.418 41.7561 27.2016C41.9913 26.9853 42.179 26.7225 42.3074 26.4299C42.4358 26.1373 42.5021 25.8212 42.5021 25.5017C42.5021 25.1821 42.4358 24.8661 42.3074 24.5735C42.179 24.2808 41.9913 24.0181 41.7561 23.8017C41.521 23.5853 41.2435 23.4201 40.9412 23.3165C40.6389 23.2129 40.3184 23.1731 40 23.1997C39.8507 23.2137 39.706 23.2423 39.566 23.2857C39.291 23.3677 39 23.1827 39 22.8957V21.0017Z</StreamGeometry>
   </Window.Resources>
 
   <Window.Styles>
@@ -121,6 +122,68 @@
     <Style Selector="Button.orion-ui-card:pointerover">
       <Setter Property="Background" Value="#0D0F11" />
       <Setter Property="BorderBrush" Value="#A2A5A8" />
+    </Style>
+    <Style Selector="Button.orion-plugin-button">
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="9,0" />
+      <Setter Property="Background" Value="#111315" />
+      <Setter Property="BorderBrush" Value="#373A3D" />
+      <Setter Property="BorderThickness" Value="0.5" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="Foreground" Value="#C8CACD" />
+      <Setter Property="FontSize" Value="7.333" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalContentAlignment="Center"
+                              VerticalContentAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.orion-plugin-button:pointerover">
+      <Setter Property="Background" Value="#191B1D" />
+      <Setter Property="BorderBrush" Value="#55585B" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.orion-plugin-button.primary">
+      <Setter Property="Background" Value="#D9DADC" />
+      <Setter Property="BorderBrush" Value="#F0F1F2" />
+      <Setter Property="Foreground" Value="#111214" />
+    </Style>
+    <Style Selector="Button.orion-plugin-button.primary:pointerover">
+      <Setter Property="Background" Value="#F2F3F4" />
+      <Setter Property="BorderBrush" Value="#FFFFFF" />
+      <Setter Property="Foreground" Value="#050607" />
+    </Style>
+    <Style Selector="Button.orion-plugin-button.danger:pointerover">
+      <Setter Property="Background" Value="#241516" />
+      <Setter Property="BorderBrush" Value="#6B3438" />
+      <Setter Property="Foreground" Value="#E8B4B7" />
+    </Style>
+    <Style Selector="TextBox.orion-plugin-search">
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="#CFD1D3" />
+      <Setter Property="CaretBrush" Value="#CFD1D3" />
+      <Setter Property="SelectionBrush" Value="#44474A" />
+      <Setter Property="FontSize" Value="7.333" />
+    </Style>
+    <Style Selector="TextBox.orion-plugin-search:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="TextBox.orion-plugin-search:focus">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
     </Style>
   </Window.Styles>
 
@@ -646,23 +709,333 @@
           <Border Canvas.Left="7.333" Canvas.Top="53.333"
                   Width="648.667" Height="352"
                   Background="{StaticResource OrionPageSurface}"
-                  BorderBrush="#303235" BorderThickness="0.667"
+                  BorderBrush="#303235" BorderThickness="0.5"
                   CornerRadius="10" ClipToBounds="True" />
-          <Border Canvas.Left="168" Canvas.Top="156.667"
-                  Width="328" Height="128"
-                  Background="#9907080A"
-                  BorderBrush="#303235" BorderThickness="0.667"
-                  CornerRadius="10">
-            <StackPanel HorizontalAlignment="Center"
+
+          <TextBlock Canvas.Left="31.333" Canvas.Top="75.333"
+                     IsVisible="False"
+                     FontSize="14" Foreground="#F5F5F6"
+                     Text="Plugins" />
+          <TextBlock Canvas.Left="31.333" Canvas.Top="96"
+                     IsVisible="False"
+                     FontSize="7.333" Foreground="#73767A"
+                     Text="Native extensions, shaped for Orion." />
+
+          <Border Canvas.Left="564.667" Canvas.Top="77.333"
+                  IsVisible="False"
+                  Width="68.667" Height="18"
+                  Background="#A60D0F11" BorderBrush="#34373A"
+                  BorderThickness="0.5" CornerRadius="9">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Spacing="8">
-              <TextBlock Text="Plugins" FontSize="13.333"
-                         Foreground="White" TextAlignment="Center" />
-              <TextBlock Text="Prototype. Not Available Yet."
-                         FontSize="8.667" Foreground="#66686B"
-                         TextAlignment="Center" />
+                        Spacing="5">
+              <Ellipse Width="4" Height="4" Fill="#7C8084" />
+              <TextBlock FontSize="6.667" Foreground="#A3A6A9"
+                         Text="UI PREVIEW" />
             </StackPanel>
           </Border>
+
+          <Border Canvas.Left="31.333" Canvas.Top="121.333"
+                  IsVisible="False"
+                  Width="251.333" Height="28"
+                  Background="#8C07080A" BorderBrush="#292B2E"
+                  BorderThickness="0.5" CornerRadius="8">
+            <Grid ColumnDefinitions="*,*" Margin="2">
+              <Border Grid.Column="0"
+                      Background="#151719" BorderBrush="#414448"
+                      BorderThickness="0.5" CornerRadius="6">
+                <TextBlock HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="7.333" Foreground="#F2F3F4"
+                           Text="Installed" />
+              </Border>
+              <TextBlock Grid.Column="1"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         FontSize="7.333" Foreground="#65686C"
+                         Text="Discover" />
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="407.333" Canvas.Top="121.333"
+                  IsVisible="False"
+                  Width="226" Height="28"
+                  Background="#8C07080A" BorderBrush="#292B2E"
+                  BorderThickness="0.5" CornerRadius="8">
+            <Grid ColumnDefinitions="29,*">
+              <Canvas Grid.Column="0" Width="29" Height="28">
+                <Ellipse Canvas.Left="10" Canvas.Top="8"
+                         Width="8" Height="8"
+                         Stroke="#5F6266" StrokeThickness="1" />
+                <Border Canvas.Left="17" Canvas.Top="16"
+                        Width="5" Height="1"
+                        Background="#5F6266"
+                        RenderTransformOrigin="0,0.5">
+                  <Border.RenderTransform>
+                    <RotateTransform Angle="45" />
+                  </Border.RenderTransform>
+                </Border>
+              </Canvas>
+              <TextBlock Grid.Column="1"
+                         VerticalAlignment="Center"
+                         FontSize="7.333" Foreground="#55585C"
+                         Text="Search plugins" />
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="31.333" Canvas.Top="160"
+                  IsVisible="False"
+                  Width="393.333" Height="216"
+                  Background="#8F07080A" BorderBrush="#303235"
+                  BorderThickness="0.5" CornerRadius="10">
+            <Grid RowDefinitions="*,34">
+              <StackPanel Grid.Row="0"
+                          Width="250"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          Spacing="7.333">
+                <Border Width="38.667" Height="38.667"
+                        HorizontalAlignment="Center"
+                        Background="#111315" BorderBrush="#3A3D40"
+                        BorderThickness="0.5" CornerRadius="11">
+                  <Canvas Width="20" Height="20"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center">
+                    <Path Fill="#A4A7AA"
+                          Data="M8,2 L12,2 L12,5.2 C12.7,4.7 13.5,4.4 14.4,4.4 C16.4,4.4 18,6 18,8 C18,10 16.4,11.6 14.4,11.6 C13.5,11.6 12.7,11.3 12,10.8 L12,14 L8.8,14 C9.3,14.7 9.6,15.5 9.6,16.4 C9.6,18.4 8,20 6,20 C4,20 2.4,18.4 2.4,16.4 C2.4,15.5 2.7,14.7 3.2,14 L0,14 L0,10 L3.2,10 C2.7,9.3 2.4,8.5 2.4,7.6 C2.4,5.6 4,4 6,4 C6.8,4 7.5,4.3 8,4.8 Z"
+                          Stretch="Uniform" />
+                  </Canvas>
+                </Border>
+                <TextBlock HorizontalAlignment="Center"
+                           FontSize="10" Foreground="#F1F2F3"
+                           Text="No plugins installed" />
+                <TextBlock Width="232"
+                           HorizontalAlignment="Center"
+                           FontSize="7.333" Foreground="#686B6F"
+                           TextAlignment="Center" TextWrapping="Wrap"
+                           Text="Imported extensions will appear here when the plugin runtime is available." />
+                <Border Width="104" Height="26"
+                        HorizontalAlignment="Center" Margin="0,3,0,0"
+                        Background="#151719" BorderBrush="#45484B"
+                        BorderThickness="0.5" CornerRadius="7"
+                        IsHitTestVisible="False">
+                  <TextBlock HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             FontSize="7.333" Foreground="#D4D6D8"
+                             Text="Import a plugin" />
+                </Border>
+              </StackPanel>
+              <Border Grid.Row="1" BorderBrush="#25272A"
+                      BorderThickness="0.5,0.5,0,0">
+                <TextBlock HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="6.667" Foreground="#505357"
+                           Text="Plugin loading is not enabled in this preview." />
+              </Border>
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="435.333" Canvas.Top="160"
+                  IsVisible="False"
+                  Width="198" Height="216"
+                  Background="#8F07080A" BorderBrush="#303235"
+                  BorderThickness="0.5" CornerRadius="10">
+            <Grid RowDefinitions="52,*,35">
+              <StackPanel Grid.Row="0" Margin="13.333,11.333,13.333,0"
+                          Spacing="2">
+                <TextBlock FontSize="9" Foreground="#E4E5E6"
+                           Text="Extension access" />
+                <TextBlock FontSize="6.667" Foreground="#5F6266"
+                           Text="Designed for native .NET plugins." />
+              </StackPanel>
+
+              <StackPanel Grid.Row="1" Margin="10.667,0" Spacing="6">
+                <Border Height="29.333" Background="#780A0B0D"
+                        BorderBrush="#27292C" BorderThickness="0.5"
+                        CornerRadius="7">
+                  <Grid ColumnDefinitions="30,*,Auto" Margin="7.333,0">
+                    <Border Width="16" Height="16" CornerRadius="5"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Background="#151719" BorderBrush="#373A3D"
+                            BorderThickness="0.5">
+                      <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 FontSize="5.667" Foreground="#A8ABAE" Text="UI" />
+                    </Border>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                               FontSize="7.333" Foreground="#B7B9BC" Text="Interface" />
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                               FontSize="6" Foreground="#5C5F63" Text="Native" />
+                  </Grid>
+                </Border>
+                <Border Height="29.333" Background="#780A0B0D"
+                        BorderBrush="#27292C" BorderThickness="0.5"
+                        CornerRadius="7">
+                  <Grid ColumnDefinitions="30,*,Auto" Margin="7.333,0">
+                    <Border Width="16" Height="16" CornerRadius="5"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Background="#151719" BorderBrush="#373A3D"
+                            BorderThickness="0.5">
+                      <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 FontSize="5.667" Foreground="#A8ABAE" Text="RT" />
+                    </Border>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                               FontSize="7.333" Foreground="#B7B9BC" Text="Runtime" />
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                               FontSize="6" Foreground="#5C5F63" Text=".NET" />
+                  </Grid>
+                </Border>
+                <Border Height="29.333" Background="#780A0B0D"
+                        BorderBrush="#27292C" BorderThickness="0.5"
+                        CornerRadius="7">
+                  <Grid ColumnDefinitions="30,*,Auto" Margin="7.333,0">
+                    <Border Width="16" Height="16" CornerRadius="5"
+                            HorizontalAlignment="Left" VerticalAlignment="Center"
+                            Background="#151719" BorderBrush="#373A3D"
+                            BorderThickness="0.5">
+                      <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 FontSize="5.667" Foreground="#A8ABAE" Text="WS" />
+                    </Border>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                               FontSize="7.333" Foreground="#B7B9BC" Text="Workspace" />
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                               FontSize="6" Foreground="#5C5F63" Text="Local" />
+                  </Grid>
+                </Border>
+              </StackPanel>
+
+              <Border Grid.Row="2" BorderBrush="#25272A"
+                      BorderThickness="0.5,0.5,0,0">
+                <TextBlock HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontSize="6.333" Foreground="#505357"
+                           Text="Trust controls will live here." />
+              </Border>
+            </Grid>
+          </Border>
+
+          <!-- Functional native plugin workspace. The puzzle mark below is
+               the exact vector used by Orion's navigation export. -->
+          <Path Canvas.Left="31.333" Canvas.Top="76"
+                Width="13.333" Height="13.333"
+                Stretch="Uniform" Fill="#BCBCBC"
+                Data="{StaticResource OrionPluginGlyph}" />
+          <TextBlock Canvas.Left="51.333" Canvas.Top="73.333"
+                     FontSize="14" Foreground="#F5F5F6"
+                     Text="Plugins" />
+          <TextBlock Canvas.Left="31.333" Canvas.Top="96"
+                     Width="260" FontSize="7.333" Foreground="#6E7175"
+                     Text="Full-trust native extensions for Orion." />
+
+          <Border Canvas.Left="302" Canvas.Top="72.667"
+                  Width="178" Height="31.333"
+                  Background="#1A07080A" BorderBrush="#2D3033"
+                  BorderThickness="0.5" CornerRadius="8">
+            <Grid ColumnDefinitions="*,30" Margin="8.667,0,5.333,0">
+              <StackPanel VerticalAlignment="Center" Spacing="1">
+                <TextBlock FontSize="6.667" Foreground="#C8CACD"
+                           Text="Open With Administrator" />
+                <TextBlock FontSize="5.333" Foreground="#55585C"
+                           Text="Some plugins may need elevated access." />
+              </StackPanel>
+              <Button x:Name="OrionPluginAdminToggle"
+                      Grid.Column="1" Width="26" Height="14"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Classes="orion-window-button"
+                      Click="OrionPluginAdminToggle_Click">
+                <Canvas Width="24" Height="12">
+                  <Border x:Name="OrionPluginAdminTrack"
+                          Canvas.Left="0" Canvas.Top="0"
+                          Width="24" Height="12"
+                          Background="#111315" BorderBrush="#373A3D"
+                          BorderThickness="0.5" CornerRadius="6" />
+                  <Ellipse x:Name="OrionPluginAdminThumb"
+                           Canvas.Left="2" Canvas.Top="2"
+                           Width="8" Height="8" Fill="#74777A" />
+                </Canvas>
+              </Button>
+            </Grid>
+          </Border>
+
+          <Button Canvas.Left="490" Canvas.Top="75.333"
+                  Width="70" Height="24"
+                  Classes="orion-plugin-button"
+                  Content="Open folder"
+                  Click="OrionOpenPluginFolder_Click" />
+          <Button Canvas.Left="566" Canvas.Top="75.333"
+                  Width="67.333" Height="24"
+                  Classes="orion-plugin-button"
+                  Content="Import"
+                  Click="OrionImportPlugin_Click" />
+
+          <Border Canvas.Left="31.333" Canvas.Top="120"
+                  Width="602" Height="30"
+                  Background="#3307080A" BorderBrush="#292B2E"
+                  BorderThickness="0.5" CornerRadius="8">
+            <Grid ColumnDefinitions="30,*,Auto" Margin="0,0,10,0">
+              <Image Grid.Column="0" Width="10" Height="10"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                     Opacity="0.62" Stretch="Uniform"
+                     Source="avares://Orion/Assets/Orion/Sharp/search.png" />
+              <TextBox x:Name="OrionPluginSearchBox"
+                       Grid.Column="1"
+                       Classes="orion-plugin-search"
+                       VerticalContentAlignment="Center"
+                       PlaceholderText="Search installed plugins"
+                       TextChanged="OrionPluginSearch_TextChanged" />
+              <TextBlock x:Name="OrionPluginCountText"
+                         Grid.Column="2" VerticalAlignment="Center"
+                         FontSize="6.667" Foreground="#55585C"
+                         Text="0 installed" />
+            </Grid>
+          </Border>
+
+          <Border Canvas.Left="31.333" Canvas.Top="160"
+                  Width="602" Height="216"
+                  Background="#2607080A" BorderBrush="#303235"
+                  BorderThickness="0.5" CornerRadius="10"
+                  ClipToBounds="True">
+            <Grid>
+              <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="OrionPluginListPanel" />
+              </ScrollViewer>
+
+              <Border x:Name="OrionPluginEmptyState"
+                      Background="#1207080A">
+                <StackPanel Width="270"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="7.333">
+                  <Path Width="20" Height="20"
+                        HorizontalAlignment="Center"
+                        Stretch="Uniform" Fill="#BCBCBC"
+                        Opacity="0.78"
+                        Data="{StaticResource OrionPluginGlyph}" />
+                  <TextBlock x:Name="OrionPluginEmptyTitle"
+                             HorizontalAlignment="Center"
+                             FontSize="9.333" Foreground="#E4E5E6"
+                             Text="No plugins installed" />
+                  <TextBlock x:Name="OrionPluginEmptyDescription"
+                             Width="250" HorizontalAlignment="Center"
+                             FontSize="7" Foreground="#616468"
+                             TextAlignment="Center" TextWrapping="Wrap"
+                             Text="Import a .orionplugin package, a .zip package, or a .NET assembly." />
+                  <Button Width="92" Height="25.333" Margin="0,3,0,0"
+                          HorizontalAlignment="Center"
+                          Classes="orion-plugin-button"
+                          Content="Import plugin"
+                          Click="OrionImportPlugin_Click" />
+                </StackPanel>
+              </Border>
+            </Grid>
+          </Border>
+
+          <TextBlock x:Name="OrionPluginMessageText"
+                     Canvas.Left="31.333" Canvas.Top="384"
+                     Width="602" Height="10"
+                     FontSize="6.667" Foreground="#55585C"
+                     Text="Plugins run with the same permissions as Orion." />
         </Canvas>
 
         <Canvas x:Name="OrionThemesPage"
@@ -1052,16 +1425,15 @@
             asset="Assets/Orion/UiSelection/add-your-own.png"
             bounds="473.333,258,127.437,72.753"
 
-            AWP uses the same polished placeholder until a dedicated AWP card
-            capture is supplied.
+            AWP now uses its dedicated native-interface capture.
           -->
           <Border Canvas.Left="473.333" Canvas.Top="258"
                   Width="127.437" Height="72.753"
                   BorderBrush="#7D7D80" BorderThickness="0.333"
                   CornerRadius="10" ClipToBounds="True">
             <Grid>
-              <Image Source="avares://Orion/Assets/Orion/UiSelection/add-your-own.png"
-                     Stretch="UniformToFill" Opacity="0.10"
+              <Image Source="avares://Orion/Assets/Orion/UiSelection/awp.png"
+                     Stretch="UniformToFill" Opacity="0.26"
                      RenderOptions.BitmapInterpolationMode="HighQuality" />
               <Border Height="12.363" VerticalAlignment="Bottom"
                       Background="#3308090A" BorderBrush="#7D7D80"
@@ -1194,8 +1566,8 @@
                   <Button Classes="orion-ui-card" Tag="AWP"
                           Click="OrionUiChoice_Click" Margin="0,0,0,8">
                     <Grid>
-                      <Image Source="avares://Orion/Assets/Orion/UiSelection/add-your-own.png"
-                             Stretch="UniformToFill" Opacity="0.10"
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/awp.png"
+                             Stretch="UniformToFill" Opacity="0.26"
                              RenderOptions.BitmapInterpolationMode="HighQuality" />
                       <Border Height="12.363" VerticalAlignment="Bottom"
                               Background="#C708090A" BorderBrush="#66696C"
@@ -1205,17 +1577,30 @@
                       </Border>
                     </Grid>
                   </Button>
-                  <!-- Xeno temporarily shares AWP's placeholder artwork. -->
                   <Button Classes="orion-ui-card" Tag="Xeno"
                           Click="OrionUiChoice_Click" Margin="0,0,7,8">
                     <Grid>
-                      <Image Source="avares://Orion/Assets/Orion/UiSelection/add-your-own.png"
-                             Stretch="UniformToFill" Opacity="0.10"
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/xeno.png"
+                             Stretch="UniformToFill" Opacity="0.26"
                              RenderOptions.BitmapInterpolationMode="HighQuality" />
                       <Border Height="12.363" VerticalAlignment="Bottom"
                               Background="#C708090A" BorderBrush="#66696C"
                               BorderThickness="0.333" CornerRadius="0,0,10,10">
                         <TextBlock Text="Xeno" FontSize="6" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                    </Grid>
+                  </Button>
+                  <Button Classes="orion-ui-card" Tag="ZenithV2"
+                          Click="OrionUiChoice_Click" Margin="0,0,7,8">
+                    <Grid>
+                      <Image Source="avares://Orion/Assets/Orion/UiSelection/zenith-v2.png"
+                             Stretch="UniformToFill" Opacity="0.26"
+                             RenderOptions.BitmapInterpolationMode="HighQuality" />
+                      <Border Height="12.363" VerticalAlignment="Bottom"
+                              Background="#C708090A" BorderBrush="#66696C"
+                              BorderThickness="0.333" CornerRadius="0,0,10,10">
+                        <TextBlock Text="Zenith V2" FontSize="6" Foreground="White"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
                       </Border>
                     </Grid>

@@ -9,6 +9,9 @@ internal static class OrbitPreferences
     private static readonly string TopMostPath = Path.Combine(PreferencesDirectory, "topmost");
     private static readonly string LegacyColoursPath = Path.Combine(PreferencesDirectory, "legacy-colours");
     private static readonly string ResizablePath = Path.Combine(PreferencesDirectory, "resizable");
+    private static readonly string PluginsRunAsAdministratorPath = Path.Combine(
+        PreferencesDirectory,
+        "plugins-run-as-administrator");
     private static readonly string SetupCompletedPath = Path.Combine(PreferencesDirectory, "setup-completed");
     private static readonly string AutoexecPathFile = Path.Combine(PreferencesDirectory, "autoexec-path");
     private static readonly string LastInterfacePath = Path.Combine(PreferencesDirectory, "last-ui");
@@ -16,6 +19,7 @@ internal static class OrbitPreferences
     private static bool _topMostEnabled = LoadTopMost();
     private static bool _legacyColoursEnabled = LoadFlag(LegacyColoursPath);
     private static bool _resizableEnabled = LoadFlag(ResizablePath);
+    private static bool _pluginsRunAsAdministrator = LoadFlag(PluginsRunAsAdministratorPath);
     private static bool _setupCompleted = LoadFlag(SetupCompletedPath);
     private static string? _autoexecPath = LoadText(AutoexecPathFile);
     private static string _lastInterface = LoadLastInterface();
@@ -89,6 +93,23 @@ internal static class OrbitPreferences
         get
         {
             lock (Gate) return _resizableEnabled;
+        }
+    }
+
+    public static bool PluginsRunAsAdministrator
+    {
+        get
+        {
+            lock (Gate) return _pluginsRunAsAdministrator;
+        }
+    }
+
+    public static void SetPluginsRunAsAdministrator(bool enabled)
+    {
+        lock (Gate)
+        {
+            _pluginsRunAsAdministrator = enabled;
+            SaveFlag(PluginsRunAsAdministratorPath, enabled);
         }
     }
 
@@ -184,6 +205,7 @@ internal static class OrbitPreferences
         "Xeno" => "Xeno",
         "Calamari" => "Calamari",
         "AWP" => "AWP",
+        "ZenithV2" => "ZenithV2",
         _ => OrionInterface
     };
 

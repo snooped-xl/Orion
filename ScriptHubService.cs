@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using System.ComponentModel;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -25,7 +26,13 @@ public sealed class ScriptHubCardModel : INotifyPropertyChanged
         string imageUrl,
         string scriptBody = "",
         string description = "",
-        string externalUrl = "")
+        string externalUrl = "",
+        DateTimeOffset? updatedAt = null,
+        long views = 0,
+        bool isPaid = false,
+        bool hasKey = false,
+        bool isVerified = false,
+        string gameId = "")
     {
         Title = string.IsNullOrWhiteSpace(title) ? "Untitled" : title.Trim();
         Subtitle = string.IsNullOrWhiteSpace(subtitle) ? "Universal Script" : subtitle.Trim();
@@ -33,6 +40,12 @@ public sealed class ScriptHubCardModel : INotifyPropertyChanged
         ScriptBody = scriptBody?.Trim() ?? string.Empty;
         Description = string.IsNullOrWhiteSpace(description) ? Subtitle : description.Trim();
         ExternalUrl = externalUrl?.Trim() ?? string.Empty;
+        UpdatedAt = updatedAt;
+        Views = Math.Max(0, views);
+        IsPaid = isPaid;
+        HasKey = hasKey;
+        IsVerified = isVerified;
+        GameId = gameId?.Trim() ?? string.Empty;
     }
 
     public string Title { get; }
@@ -46,6 +59,18 @@ public sealed class ScriptHubCardModel : INotifyPropertyChanged
     public string Description { get; }
 
     public string ExternalUrl { get; }
+
+    public DateTimeOffset? UpdatedAt { get; }
+
+    public long Views { get; }
+
+    public bool IsPaid { get; }
+
+    public bool HasKey { get; }
+
+    public bool IsVerified { get; }
+
+    public string GameId { get; }
 
     public string Key => $"{Title}\u001F{Subtitle}\u001F{ImageUrl}";
 
@@ -166,7 +191,13 @@ internal sealed class ScriptHubService : IDisposable
                     ResolveUrl("https://robloxscripts.com", image),
                     RunnableBody(FirstString(script, "script"), rawUrl),
                     FirstString(script, "description") ?? string.Empty,
-                    externalUrl);
+                    externalUrl,
+                    FirstDateTimeOffset(script, "updatedAt", "updated_at", "dateUpdated", "createdAt", "created_at", "date"),
+                    FirstInt64(script, "views", "viewCount", "viewsCount", "totalViews"),
+                    IsPaidScript(script),
+                    FirstBoolean(script, "key", "hasKey", "requiresKey", "keySystem"),
+                    FirstBoolean(script, "verified", "isVerified"),
+                    FirstScalarString(game, "gameId", "placeId", "id", "_id"));
             })
             .ToArray();
         return new ScriptHubPageResult(cards, scripts.GetArrayLength() > 0);
@@ -204,7 +235,13 @@ internal sealed class ScriptHubService : IDisposable
                     FirstString(script, "description") ?? string.Empty,
                     !string.IsNullOrWhiteSpace(slug)
                         ? $"https://scriptblox.com/script/{Uri.EscapeDataString(slug)}"
-                        : string.Empty);
+                        : string.Empty,
+                    FirstDateTimeOffset(script, "updatedAt", "updated_at", "createdAt", "created_at"),
+                    FirstInt64(script, "views", "viewCount", "viewsCount", "totalViews"),
+                    IsPaidScript(script),
+                    FirstBoolean(script, "key", "hasKey", "requiresKey", "keySystem"),
+                    FirstBoolean(script, "verified", "isVerified"),
+                    FirstScalarString(game, "gameId", "placeId", "id", "_id"));
             })
             .ToArray();
         return new ScriptHubPageResult(cards, scripts.GetArrayLength() > 0);
@@ -240,7 +277,13 @@ internal sealed class ScriptHubService : IDisposable
                     ResolveUrl("https://haxhell.com", image),
                     RunnableBody(null, ResolveUrl("https://haxhell.com", FirstString(links, "raw"))),
                     FirstString(script, "description") ?? string.Empty,
-                    ResolveUrl("https://haxhell.com", FirstString(links, "webpage")));
+                    ResolveUrl("https://haxhell.com", FirstString(links, "webpage")),
+                    FirstDateTimeOffset(script, "updatedAt", "updated_at", "publishedAt", "createdAt", "created_at", "date"),
+                    FirstInt64(script, "views", "viewCount", "viewsCount", "totalViews"),
+                    IsPaidScript(script),
+                    FirstBoolean(script, "key", "hasKey", "requiresKey", "keySystem"),
+                    FirstBoolean(script, "verified", "isVerified"),
+                    FirstScalarString(game, "gameId", "placeId", "id", "_id"));
             })
             .ToArray();
         return new ScriptHubPageResult(cards, scripts.GetArrayLength() > 0);
@@ -284,7 +327,13 @@ internal sealed class ScriptHubService : IDisposable
                     FirstString(script, "description") ?? string.Empty,
                     !string.IsNullOrWhiteSpace(slug)
                         ? $"https://rscripts.net/script/{Uri.EscapeDataString(slug)}"
-                        : string.Empty);
+                        : string.Empty,
+                    FirstDateTimeOffset(script, "updatedAt", "updated_at", "publishedAt", "createdAt", "created_at", "date"),
+                    FirstInt64(script, "views", "viewCount", "viewsCount", "totalViews"),
+                    IsPaidScript(script),
+                    FirstBoolean(script, "key", "hasKey", "requiresKey", "keySystem"),
+                    FirstBoolean(script, "verified", "isVerified"),
+                    FirstScalarString(game, "gameId", "placeId", "id", "_id"));
             })
             .ToArray();
         return new ScriptHubPageResult(cards, scripts.GetArrayLength() > 0);
@@ -398,6 +447,173 @@ internal sealed class ScriptHubService : IDisposable
         }
 
         return value.GetString();
+    }
+
+    private static string FirstScalarString(JsonElement element, params string[] names)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String)
+            {
+                return value.GetString()?.Trim() ?? string.Empty;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                return value.GetRawText();
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static long FirstInt64(JsonElement element, params string[] names)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return 0;
+        }
+
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                if (value.TryGetInt64(out var integer))
+                {
+                    return Math.Max(0, integer);
+                }
+
+                if (value.TryGetDouble(out var number) && double.IsFinite(number))
+                {
+                    return Math.Max(0, (long)Math.Min(number, long.MaxValue));
+                }
+            }
+            else if (value.ValueKind == JsonValueKind.String &&
+                     long.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return Math.Max(0, parsed);
+            }
+        }
+
+        return 0;
+    }
+
+    private static bool FirstBoolean(JsonElement element, params string[] names)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.True:
+                    return true;
+                case JsonValueKind.False:
+                    return false;
+                case JsonValueKind.Number:
+                    return value.TryGetDouble(out var number) && number != 0;
+                case JsonValueKind.String:
+                {
+                    var text = value.GetString()?.Trim();
+                    if (bool.TryParse(text, out var boolean))
+                    {
+                        return boolean;
+                    }
+
+                    if (double.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var numeric))
+                    {
+                        return numeric != 0;
+                    }
+
+                    return text?.Equals("yes", StringComparison.OrdinalIgnoreCase) == true ||
+                           text?.Equals("required", StringComparison.OrdinalIgnoreCase) == true ||
+                           text?.Equals("paid", StringComparison.OrdinalIgnoreCase) == true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static DateTimeOffset? FirstDateTimeOffset(JsonElement element, params string[] names)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        foreach (var name in names)
+        {
+            if (!element.TryGetProperty(name, out var value))
+            {
+                continue;
+            }
+
+            if (value.ValueKind == JsonValueKind.String &&
+                DateTimeOffset.TryParse(
+                    value.GetString(),
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var timestamp))
+            {
+                return timestamp;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var unixTimestamp))
+            {
+                try
+                {
+                    return unixTimestamp > 10_000_000_000
+                        ? DateTimeOffset.FromUnixTimeMilliseconds(unixTimestamp)
+                        : DateTimeOffset.FromUnixTimeSeconds(unixTimestamp);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // Ignore malformed provider timestamps and try the next alias.
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsPaidScript(JsonElement script)
+    {
+        if (FirstBoolean(script, "paid", "isPaid"))
+        {
+            return true;
+        }
+
+        var scriptType = FirstString(script, "scriptType") ?? FirstString(script, "type");
+        if (scriptType?.Equals("paid", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        return FirstInt64(script, "price", "cost") > 0;
     }
 
     private static string ResolveUrl(string origin, string? value)

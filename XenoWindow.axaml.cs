@@ -12,8 +12,8 @@ namespace OrbitAvalonia;
 
 /// <summary>
 /// Native Avalonia preservation of Xeno's WPF shell. It intentionally contains
-/// no client, injection, or native Xeno backend integration. Execute routes
-/// through the shared native Orion Bridge when a bridge client connects.
+/// no injection or native Xeno backend integration. Execute and client
+/// selection route through the shared native Orion Bridge.
 /// </summary>
 public sealed partial class XenoWindow : Window
 {
@@ -24,6 +24,8 @@ public sealed partial class XenoWindow : Window
     private readonly UnifiedBridgeServer _bridgeServer = UnifiedBridgeServer.Shared;
     private readonly NativeWebView _editorWebView;
     private readonly Button _executeActionButton;
+    private readonly HashSet<string> _selectedClientIdentifiers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _knownClientIdentifiers = new(StringComparer.OrdinalIgnoreCase);
     private XenoScriptsWindow? _scriptsWindow;
     private XenoClientsWindow? _clientsWindow;
     private XenoSettingsWindow? _settingsWindow;
@@ -70,7 +72,7 @@ public sealed partial class XenoWindow : Window
         _editorWebView.WebMessageReceived += (_, args) => HandleEditorMessage(args.Body);
         _bridgeServer.ConnectionChanged += BridgeConnectionChanged;
         _bridgeServer.ClientsChanged += BridgeClientsChanged;
-        ApplyBridgeConnectionState(_bridgeServer.IsConnected);
+        RefreshBridgeClients();
 
         Opened += XenoWindow_Opened;
         Closed += XenoWindow_Closed;
@@ -242,27 +244,46 @@ public sealed partial class XenoWindow : Window
             }
         }
 
-        _bridgeServer.EnqueueExecute(_editorContent);
+        _bridgeServer.EnqueueExecute(_editorContent, SelectedClientIdentifiers());
     }
 
     private void BridgeConnectionChanged(bool connected) =>
         Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyBridgeConnectionState(connected));
 
     private void BridgeClientsChanged() =>
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            ApplyBridgeConnectionState(_bridgeServer.IsConnected));
+        Avalonia.Threading.Dispatcher.UIThread.Post(RefreshBridgeClients);
+
+    private void RefreshBridgeClients()
+    {
+        var clients = _bridgeServer.GetConnectedClients();
+        var liveIdentifiers = new HashSet<string>(
+            clients.Select(client => client.Identifier),
+            StringComparer.OrdinalIgnoreCase);
+
+        _selectedClientIdentifiers.RemoveWhere(identifier => !liveIdentifiers.Contains(identifier));
+        _knownClientIdentifiers.RemoveWhere(identifier => !liveIdentifiers.Contains(identifier));
+        foreach (var client in clients)
+        {
+            if (_knownClientIdentifiers.Add(client.Identifier))
+            {
+                _selectedClientIdentifiers.Add(client.Identifier);
+            }
+        }
+
+        _clientsWindow?.RefreshClients();
+        ApplyBridgeConnectionState(_bridgeServer.IsConnected);
+    }
 
     private void ApplyBridgeConnectionState(bool connected)
     {
-        // The v2 bridge's authenticated session list is the source of truth.
-        // Xeno deliberately broadcasts to every live session until its own
-        // multi-client controls are designed.
         var bridgeConnected = connected && HasLiveBridgeConnection;
-        _executeActionButton.IsEnabled = bridgeConnected;
-        _executeActionButton.Opacity = bridgeConnected ? 1 : .52;
-        ToolTip.SetTip(_executeActionButton, bridgeConnected
-            ? "Execute"
-            : "Execute (run Scripts/Orion Bridge.lua first)");
+        var hasTarget = _selectedClientIdentifiers.Count > 0;
+        _executeActionButton.IsEnabled = bridgeConnected && hasTarget;
+        _executeActionButton.Opacity = bridgeConnected && hasTarget ? 1 : .52;
+        ToolTip.SetTip(_executeActionButton,
+            !bridgeConnected
+                ? "Execute (run Scripts/Orion Bridge.lua first)"
+                : hasTarget ? "Execute" : "Select at least one client");
     }
 
     private bool HasLiveBridgeConnection =>
@@ -276,7 +297,9 @@ public sealed partial class XenoWindow : Window
             return;
         }
 
-        _scriptsWindow ??= new XenoScriptsWindow(_scriptsDirectory);
+        _scriptsWindow ??= new XenoScriptsWindow(
+            _scriptsDirectory,
+            SelectedClientIdentifiers);
         _scriptsWindow.Closed -= ScriptsWindow_Closed;
         _scriptsWindow.Closed += ScriptsWindow_Closed;
         _scriptsWindow.Show();
@@ -291,10 +314,14 @@ public sealed partial class XenoWindow : Window
             return;
         }
 
-        _clientsWindow ??= new XenoClientsWindow();
+        _clientsWindow ??= new XenoClientsWindow(
+            _bridgeServer,
+            _selectedClientIdentifiers,
+            () => ApplyBridgeConnectionState(_bridgeServer.IsConnected));
         _clientsWindow.Closed -= ClientsWindow_Closed;
         _clientsWindow.Closed += ClientsWindow_Closed;
-        _clientsWindow.Show();
+        _clientsWindow.RefreshClients();
+        _clientsWindow.Show(this);
         _clientsWindow.Activate();
     }
 
@@ -319,6 +346,9 @@ public sealed partial class XenoWindow : Window
     private void ScriptsWindow_Closed(object? sender, EventArgs e) => _scriptsWindow = null;
 
     private void ClientsWindow_Closed(object? sender, EventArgs e) => _clientsWindow = null;
+
+    private IReadOnlyCollection<string> SelectedClientIdentifiers() =>
+        _selectedClientIdentifiers.ToArray();
 
     private void SettingsWindow_Closed(object? sender, EventArgs e)
     {
@@ -386,7 +416,9 @@ public sealed partial class XenoWindow : Window
                 ActiveWorkspaceTab().Content = _editorContent;
                 if (HasLiveBridgeConnection)
                 {
-                    _bridgeServer.EnqueueExecute(_editorContent);
+                    _bridgeServer.EnqueueExecute(
+                        _editorContent,
+                        SelectedClientIdentifiers());
                 }
             }
         }

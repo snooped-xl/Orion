@@ -73,6 +73,7 @@ public sealed partial class OrionWindow : Window
         InitializeOrionNavigation();
         InitializeOrionEditor();
         InitializeOrionPages();
+        InitializeOrionPluginsPage();
 
         Opened += OrionWindow_Opened;
     }

@@ -117,9 +117,13 @@ internal abstract class XenoPanelWindow : Window
 internal sealed class XenoScriptsWindow : XenoPanelWindow
 {
     private readonly List<Button> _executeButtons = [];
+    private readonly Func<IReadOnlyCollection<string>> _executionTargets;
 
-    public XenoScriptsWindow(string scriptsDirectory) : base("Scripts", 300, 200)
+    public XenoScriptsWindow(
+        string scriptsDirectory,
+        Func<IReadOnlyCollection<string>> executionTargets) : base("Scripts", 300, 200)
     {
+        _executionTargets = executionTargets;
         IReadOnlyList<string> scriptPaths;
         try
         {
@@ -177,7 +181,8 @@ internal sealed class XenoScriptsWindow : XenoPanelWindow
                 try
                 {
                     UnifiedBridgeServer.Shared.EnqueueExecute(
-                        await File.ReadAllTextAsync(scriptPath));
+                        await File.ReadAllTextAsync(scriptPath),
+                        _executionTargets());
                 }
                 catch (IOException)
                 {
@@ -217,24 +222,128 @@ internal sealed class XenoScriptsWindow : XenoPanelWindow
 
 internal sealed class XenoClientsWindow : XenoPanelWindow
 {
-    public XenoClientsWindow() : base("Clients", 300, 200)
+    private readonly UnifiedBridgeServer _bridge;
+    private readonly HashSet<string> _selectedIdentifiers;
+    private readonly Action _selectionChanged;
+
+    public XenoClientsWindow(
+        UnifiedBridgeServer bridge,
+        HashSet<string> selectedIdentifiers,
+        Action selectionChanged) : base("Clients", 300, 200)
     {
-        AddClient("Client 1, PID: —");
-        AddClient("Client 2, PID: —");
+        _bridge = bridge;
+        _selectedIdentifiers = selectedIdentifiers;
+        _selectionChanged = selectionChanged;
+        RefreshClients();
     }
 
-    private void AddClient(string label)
+    internal void RefreshClients()
     {
-        Body.Children.Add(new CheckBox
+        Body.Children.Clear();
+        var clients = _bridge.GetConnectedClients();
+        if (clients.Count == 0)
         {
-            Content = label,
-            IsChecked = true,
-            Foreground = Brushes.White,
-            Background = Brushes.Black,
+            Body.Children.Add(new TextBlock
+            {
+                Text = "No clients connected",
+                Foreground = Brush("#707070"),
+                FontFamily = new FontFamily("Franklin Gothic Medium"),
+                FontSize = 13,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(4, 18)
+            });
+            return;
+        }
+
+        foreach (var client in clients)
+        {
+            AddClient(client);
+        }
+    }
+
+    private void AddClient(UnifiedBridgeServer.BridgeClientInfo client)
+    {
+        var selected = _selectedIdentifiers.Contains(client.Identifier);
+        var identity = new StackPanel
+        {
+            Spacing = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        identity.Children.Add(new TextBlock
+        {
+            Text = client.Username,
+            Foreground = selected ? Brushes.White : Brush("#949494"),
             FontFamily = new FontFamily("Franklin Gothic Medium"),
             FontSize = 13,
-            Margin = new Thickness(3, 2)
+            TextTrimming = TextTrimming.CharacterEllipsis
         });
+        identity.Children.Add(new TextBlock
+        {
+            Text = client.Identifier,
+            Foreground = Brush("#666666"),
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 10.5,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+
+        var check = new Border
+        {
+            Width = 16,
+            Height = 16,
+            CornerRadius = new CornerRadius(2),
+            BorderBrush = Brush(selected ? "#858585" : "#3A3A3A"),
+            BorderThickness = new Thickness(1),
+            Background = Brush(selected ? "#303030" : "#111111"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        if (selected)
+        {
+            check.Child = new Avalonia.Controls.Shapes.Path
+            {
+                Width = 9,
+                Height = 7,
+                Stretch = Stretch.Uniform,
+                Stroke = Brushes.White,
+                StrokeThickness = 1.7,
+                StrokeLineCap = PenLineCap.Round,
+                StrokeJoin = PenLineJoin.Round,
+                Data = Geometry.Parse("M1,4 L3.5,6.5 L8,1")
+            };
+        }
+
+        var content = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,22"),
+            Margin = new Thickness(8, 0)
+        };
+        content.Children.Add(identity);
+        Grid.SetColumn(check, 1);
+        content.Children.Add(check);
+
+        var row = new Button
+        {
+            Height = 47,
+            MinWidth = 0,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            Background = Brush(selected ? "#181818" : "#0E0E0E"),
+            BorderBrush = Brush(selected ? "#333333" : "#242424"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = content
+        };
+        row.Click += (_, _) =>
+        {
+            if (!_selectedIdentifiers.Remove(client.Identifier))
+            {
+                _selectedIdentifiers.Add(client.Identifier);
+            }
+
+            RefreshClients();
+            _selectionChanged();
+        };
+        Body.Children.Add(row);
     }
 }
 

@@ -5,9 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Orbit Monaco Preview</title>
     <style>
+      @font-face {
+        font-family: "Zenith Nunito";
+        src: url("./zenith-nunito-wght.ttf") format("truetype");
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+      }
+
       :root {
         color-scheme: dark;
         --editor-bg: transparent;
+        --editor-radius: 0px;
         background: var(--editor-bg);
       }
 
@@ -41,6 +50,14 @@
         height: 100%;
         overflow: hidden;
         background: var(--editor-bg);
+      }
+
+      html.rounded-editor,
+      html.rounded-editor body,
+      html.rounded-editor #preview-scale,
+      html.rounded-editor #editor {
+        border-radius: var(--editor-radius) !important;
+        overflow: hidden !important;
       }
 
       body.orion-transparent .monaco-editor,
@@ -104,12 +121,56 @@
       .suggest-details.orion-empty-preview {
         display: none !important;
       }
+
+      #zenith-editor-hint {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        z-index: 5;
+        display: flex;
+        justify-content: center;
+        color: rgba(154, 154, 154, 0.5);
+        font-family: "Zenith Nunito", sans-serif;
+        font-size: 12px;
+        font-style: italic;
+        font-weight: 400;
+        line-height: 16px;
+        pointer-events: none;
+        white-space: nowrap;
+      }
+
+      #zenith-editor-hint[hidden] {
+        display: none;
+      }
+
+      #zenith-editor-help {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        color: rgba(154, 154, 154, 0.6);
+        background: transparent;
+        font: inherit;
+        text-decoration-line: underline;
+        text-decoration-style: dotted;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        pointer-events: auto;
+        transition: color 150ms ease;
+      }
+
+      #zenith-editor-help:hover {
+        color: rgba(154, 154, 154, 0.9);
+      }
     </style>
   </head>
   <body>
     <div id="preview-scale">
       <div id="loading-status">Loading Monaco…</div>
       <div id="editor"></div>
+      <div id="zenith-editor-hint" hidden>
+        Ctrl+S save&nbsp;·&nbsp;Ctrl+W close&nbsp;·&nbsp;Ctrl+P commands&nbsp;·&nbsp;<button id="zenith-editor-help" type="button">learn more →</button>
+      </div>
     </div>
 
     <script>
@@ -137,6 +198,8 @@
       const isTransparent = previewParameters.get("transparent") === "1";
       const isOrionSurface = previewParameters.get("surface") === "orion";
       const isAwpSurface = previewParameters.get("shell") === "awp";
+      const isZenithSurface = previewParameters.get("shell") === "zenith";
+      const requestedRadius = Math.max(0, Math.min(32, Number(previewParameters.get("radius") || 0)));
       const xenoBackground = "#050505";
       const requestedBackground = previewParameters.get("bg");
       const shellBackground = (isTransparent || isOrionSurface)
@@ -162,6 +225,8 @@
           : ((isTransparent || isOrionSurface) ? "transparent" : shellBackground));
       document.body.classList.toggle("orion-transparent", isTransparent || isOrionSurface);
       document.body.classList.toggle("orion-surface", isOrionSurface);
+      document.documentElement.style.setProperty("--editor-radius", `${requestedRadius}px`);
+      document.documentElement.classList.toggle("rounded-editor", requestedRadius > 0);
 
       require.onError = function (error) {
         document.getElementById("loading-status").textContent =
@@ -170,9 +235,11 @@
 
       require(["vs/editor/editor.main"], async function () {
         const fixedBackground = shellBackground;
-        const themeName = (isTransparent || isOrionSurface)
-          ? "orion-transparent"
-          : (isBlueTheme ? "synapse-blue-default" : (isXenoTheme ? "xeno-fixed" : "orbit-fixed"));
+        const themeName = isZenithSurface
+          ? "zenith-transparent"
+          : ((isTransparent || isOrionSurface)
+            ? "orion-transparent"
+            : (isBlueTheme ? "synapse-blue-default" : (isXenoTheme ? "xeno-fixed" : "orbit-fixed")));
         const defaultTokenRule = { token: "", foreground: "D4D4D4" };
         if (!isTransparent && !isOrionSurface) {
           defaultTokenRule.background = fixedBackground.slice(1);
@@ -348,7 +415,66 @@
             "scrollbarSlider.activeBackground": "#BFBFBF66"
           }
         };
-        if (isBlueTheme) {
+        if (isZenithSurface) {
+          editorThemeDefinition = {
+            base: "vs-dark",
+            inherit: true,
+            rules: [
+              { token: "", foreground: "D4D4D4" },
+              { token: "variable.language.self", foreground: "A9A0A0" },
+              { token: "variable.parameter", foreground: "A9A0A0" },
+              { token: "variable", foreground: "A9A0A0" },
+              { token: "variable.property", foreground: "9CDCFE" },
+              { token: "keyword", foreground: "4CC2F7" },
+              { token: "keyword.local", foreground: "C678DD", fontStyle: "bold" },
+              { token: "keyword.operator", foreground: "4CC2F7" },
+              { token: "operator", foreground: "D4D4D4" },
+              { token: "function", foreground: "DCDCAA" },
+              { token: "entity.name.function", foreground: "DCDCAA" },
+              { token: "global", foreground: "39A2FF", fontStyle: "bold" },
+              { token: "comment", foreground: "ABB2BF", fontStyle: "bold" },
+              { token: "delimiter", foreground: "9A9A9A" },
+              { token: "delimiter.bracket", foreground: "808080" },
+              { token: "string", foreground: "63F499" },
+              { token: "string.escape", foreground: "63F499" },
+              { token: "number", foreground: "E5C07B" },
+              { token: "constant", foreground: "39A2FF" },
+              { token: "support.function", foreground: "39A2FF" },
+              { token: "support.type", foreground: "39A2FF" }
+            ],
+            colors: {
+              "editor.background": "#00000000",
+              "editor.foreground": "#D4D4D4",
+              "editor.selectionBackground": "#3A3D41",
+              "editor.inactiveSelectionBackground": "#3A3D4188",
+              "editor.lineHighlightBackground": "#14141411",
+              "editorLineNumber.foreground": "#FFFFFF",
+              "editorLineNumber.activeForeground": "#FFFFFF",
+              "editorCursor.foreground": "#D4D4D4",
+              "editorGutter.background": "#00000000",
+              "editorPane.background": "#00000000",
+              "minimap.background": "#00000000",
+              "editorWidget.background": "#111111",
+              "editorWidget.border": "#3A3B3C",
+              "editorSuggestWidget.background": "#111111",
+              "editorSuggestWidget.border": "#3A3B3C",
+              "editorSuggestWidget.foreground": "#FFFFFF",
+              "editorSuggestWidget.selectedBackground": "#3A3D41",
+              "editorSuggestWidget.highlightForeground": "#39A2FF",
+              "editorHoverWidget.background": "#111111",
+              "editorHoverWidget.border": "#3A3B3C",
+              "scrollbar.shadow": "#00000000",
+              "scrollbarSlider.background": "#3A3A3A",
+              "scrollbarSlider.hoverBackground": "#4A4A4A",
+              "scrollbarSlider.activeBackground": "#5A5A5A",
+              "editorBracketHighlight.foreground1": "#808080",
+              "editorBracketHighlight.foreground2": "#808080",
+              "editorBracketHighlight.foreground3": "#808080",
+              "editorBracketPairGuide.background1": "#80808040",
+              "editorBracketPairGuide.activeBackground1": "#808080"
+            }
+          };
+        } else if (isBlueTheme) {
           try {
             const response = await fetch("./tomorrow-night-eighties.theme.json", { cache: "force-cache" });
             if (!response.ok) throw new Error("HTTP " + response.status);
@@ -439,7 +565,75 @@
           },
           occurrencesHighlight: "off",
           selectionHighlight: false,
-          contextmenu: true
+          contextmenu: true,
+          ...(isZenithSurface ? {
+            fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace",
+            fontSize: 14,
+            lineHeight: 20,
+            fontLigatures: false,
+            wordWrap: "on",
+            lineNumbers: "on",
+            lineNumbersMinChars: 5,
+            lineDecorationsWidth: 10,
+            glyphMargin: false,
+            folding: true,
+            foldingHighlight: true,
+            showFoldingControls: "always",
+            dragAndDrop: true,
+            links: true,
+            minimap: { enabled: false },
+            quickSuggestions: { other: true, comments: false, strings: false },
+            wordBasedSuggestions: "currentDocument",
+            suggestOnTriggerCharacters: true,
+            tabCompletion: "on",
+            inlineSuggest: { enabled: false },
+            suggestFontSize: 14,
+            suggestLineHeight: 20,
+            suggest: {
+              snippetsPreventQuickSuggestions: false,
+              showIcons: true,
+              filterGraceful: false,
+              selectionMode: "never",
+              showKeywords: true,
+              showFunctions: true,
+              showMethods: true,
+              showFields: true,
+              showVariables: true,
+              showClasses: true,
+              showEnums: true,
+              preview: false,
+              showStatusBar: false
+            },
+            parameterHints: { enabled: false },
+            hover: { enabled: false },
+            cursorBlinking: "blink",
+            cursorSmoothCaretAnimation: "off",
+            renderWhitespace: "none",
+            renderLineHighlight: "line",
+            occurrencesHighlight: "singleFile",
+            selectionHighlight: true,
+            stopRenderingLineAfter: 1000,
+            formatOnType: true,
+            bracketPairColorization: {
+              enabled: true,
+              independentColorPoolPerBracketType: false
+            },
+            guides: {
+              bracketPairs: true,
+              bracketPairsHorizontal: "active",
+              highlightActiveBracketPair: true
+            },
+            scrollbar: {
+              vertical: "auto",
+              horizontal: "auto",
+              useShadows: false,
+              verticalHasArrows: false,
+              horizontalHasArrows: false,
+              verticalScrollbarSize: 10,
+              horizontalScrollbarSize: 10
+            },
+            padding: { top: 0, bottom: 0 }
+          } : {})
         });
 
         editor.addCommand(
@@ -510,6 +704,17 @@
           }
         };
 
+        const zenithEditorHint = document.getElementById("zenith-editor-hint");
+        const updateZenithEditorHint = () => {
+          const model = editor.getModel();
+          const value = model ? model.getValue().trim() : "";
+          zenithEditorHint.hidden = !isZenithSurface ||
+            (value !== "" && value !== "-- Loading... --");
+        };
+        document.getElementById("zenith-editor-help").addEventListener("click", () => {
+          sendToHost({ type: "zenithHelpRequested" });
+        });
+
         window.orbitRequestExecute = () => {
           const model = editor.getModel();
           sendToHost({
@@ -538,6 +743,7 @@
           if (language) {
             monaco.editor.setModelLanguage(model, language);
           }
+          updateZenithEditorHint();
           editor.setPosition({ lineNumber: 1, column: 1 });
           editor.revealPosition({ lineNumber: 1, column: 1 });
           applyingHostContent = false;
@@ -564,6 +770,7 @@
 
         editor.onDidChangeCursorPosition(publishCursorPosition);
         editor.onDidChangeModelContent((event) => {
+          updateZenithEditorHint();
           if (applyingHostContent) return;
           sendToHost({
             type: "contentChangedDelta",
@@ -576,6 +783,7 @@
         });
 
         document.getElementById("loading-status").remove();
+        updateZenithEditorHint();
         document.body.dataset.ready = "true";
         editor.focus();
         publishCursorPosition();

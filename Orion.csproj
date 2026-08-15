@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="Orion.PluginSdk\Orion.PluginSdk.csproj" />
     <Reference Include="Bunifu_UI_v1.5.3">
       <HintPath>Assets\Legacy\Krnl\Bunifu_UI_v1.5.3.dll</HintPath>
       <Private>true</Private>
@@ -56,6 +57,7 @@
     <AvaloniaResource Include="Assets\Orion\UiSelection\**\*" />
     <AvaloniaResource Include="Assets\Orion\Bridge\**\*" />
     <AvaloniaResource Include="Assets\AWP\**\*" />
+    <AvaloniaResource Include="Assets\Zenith\**\*" />
     <AvaloniaResource Include="Assets\rect200.png" />
     <AvaloniaResource Include="Assets\rect204.png" />
     <AvaloniaResource Include="Assets\rect205.png" />
@@ -91,6 +93,17 @@
       <OrionPublishSymbol Include="$(PublishDir)*.pdb" />
     </ItemGroup>
     <Delete Files="@(OrionPublishSymbol)" />
+  </Target>
+
+  <Target Name="PublishOrionPluginSdk" AfterTargets="Publish">
+    <MakeDir Directories="$(PublishDir)Plugin SDK" />
+    <Copy SourceFiles="$(TargetDir)Orion.PluginSdk.dll"
+          DestinationFolder="$(PublishDir)Plugin SDK" />
+    <Copy SourceFiles="$(TargetDir)Orion.PluginSdk.xml"
+          DestinationFolder="$(PublishDir)Plugin SDK"
+          Condition="Exists('$(TargetDir)Orion.PluginSdk.xml')" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\Orion.PluginSdk\README.md"
+          DestinationFolder="$(PublishDir)Plugin SDK" />
   </Target>
 
 </Project>

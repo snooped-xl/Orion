@@ -356,6 +356,13 @@ public sealed partial class OrionWindow
                         _orionMonacoServer.Address,
                         RestoreOrionWorkspace));
                     break;
+                case "ZenithV2":
+                    ShowPreservedAvaloniaWindow(new ZenithWindow(
+                        _orionMonacoServer.Address,
+                        _orionWorkspace.ScriptsDirectory,
+                        workspace,
+                        RestoreOrionWorkspace));
+                    break;
                 case "RC7":
                     ShowPreservedWinFormsWindow(
                         "RC7 UI",
@@ -468,6 +475,10 @@ public sealed partial class OrionWindow
                 else if (returningWindow is AWPWindow awp)
                 {
                     awp.CloseForOrion();
+                }
+                else if (returningWindow is ZenithWindow zenith)
+                {
+                    zenith.CloseForOrion();
                 }
 
                 ApplyOrionWorkspace(workspace);

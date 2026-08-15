@@ -56,7 +56,19 @@ internal sealed class UnifiedBridgeServer : IDisposable
     private bool _disposed;
     private bool _connected;
 
-    public static UnifiedBridgeServer Shared { get; } = new();
+    private static readonly Lazy<UnifiedBridgeServer> SharedInstance = new(
+        static () => new UnifiedBridgeServer(),
+        LazyThreadSafetyMode.ExecutionAndPublication);
+
+    public static UnifiedBridgeServer Shared => SharedInstance.Value;
+
+    public static void ShutdownShared()
+    {
+        if (SharedInstance.IsValueCreated)
+        {
+            SharedInstance.Value.Dispose();
+        }
+    }
 
     public event Action<bool>? ConnectionChanged;
     public event Action<string, string>? LogReceived;
@@ -712,7 +724,13 @@ internal sealed class UnifiedBridgeServer : IDisposable
         {
             foreach (var waiter in _pollWaiters) waiter.TrySetCanceled();
             _pollWaiters.Clear();
+            _clientSessions.Clear();
+            _clientPending.Clear();
+            _connected = false;
         }
+        ConnectionChanged = null;
+        LogReceived = null;
+        ClientsChanged = null;
         _cancellation.Dispose();
     }
 }

@@ -1,0 +1,1018 @@
+<Window x:Class="OrbitAvalonia.ZenithWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="1050" Height="650"
+        MinWidth="760" MinHeight="500"
+        Title="Zenith V2"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        FontFamily="avares://Orion/Assets/Zenith/Fonts#Nunito"
+        CanResize="True">
+  <Window.Resources>
+    <SolidColorBrush x:Key="ZenithApp" Color="#0A0A0A" />
+    <!-- Zenith's cards are deliberately translucent so page-level gradients remain visible. -->
+    <SolidColorBrush x:Key="ZenithCard" Color="#08FFFFFF" />
+    <SolidColorBrush x:Key="ZenithCardSoft" Color="#0FFFFFFF" />
+    <SolidColorBrush x:Key="ZenithButton" Color="#13FFFFFF" />
+    <SolidColorBrush x:Key="ZenithButtonHover" Color="#20FFFFFF" />
+    <SolidColorBrush x:Key="ZenithBorder" Color="#3A3B3C" />
+    <SolidColorBrush x:Key="ZenithBorderSoft" Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="ZenithPrimary" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ZenithSecondary" Color="#E6FFFFFF" />
+    <SolidColorBrush x:Key="ZenithMuted" Color="#E69A9A9A" />
+    <SolidColorBrush x:Key="ZenithInfo" Color="#39A2FF" />
+    <SolidColorBrush x:Key="ZenithAccent" Color="#A473FF" />
+    <LinearGradientBrush x:Key="ZenithSidebarGradient" StartPoint="50%,0%" EndPoint="50%,100%">
+      <GradientStop Offset="0" Color="#3B82F6" />
+      <GradientStop Offset="1" Color="#2563EB" />
+    </LinearGradientBrush>
+    <!-- Exact Fluent geometries embedded by the original Zenith title bar. -->
+    <StreamGeometry x:Key="ZenithMinimizeGlyph">M4.250,12.000C4.250,11.586,4.586,11.250,5.000,11.250L19.000,11.250C19.414,11.250,19.750,11.586,19.750,12.000C19.750,12.414,19.414,12.750,19.000,12.750L5.000,12.750C4.586,12.750,4.250,12.414,4.250,12.000Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithMaximizeGlyph">M16.500,6.000C16.500,4.343,15.157,3.000,13.500,3.000L6.000,3.000C4.343,3.000,3.000,4.343,3.000,6.000L3.000,13.500C3.000,15.157,4.343,16.500,6.000,16.500L6.000,10.500C6.000,8.015,8.015,6.000,10.500,6.000L16.500,6.000ZM18.000,7.500C19.657,7.500,21.000,8.843,21.000,10.500L21.000,18.000C21.000,19.657,19.657,21.000,18.000,21.000L10.500,21.000C8.843,21.000,7.500,19.657,7.500,18.000L7.500,10.500C7.500,8.843,8.843,7.500,10.500,7.500L18.000,7.500Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithCloseGlyph">M5.925,5.925C6.243,5.608,6.757,5.608,7.075,5.925L13.000,11.851L18.926,5.925C19.243,5.608,19.757,5.608,20.074,5.925C20.392,6.243,20.392,6.757,20.074,7.075L14.149,13.000L20.074,18.926C20.392,19.243,20.392,19.757,20.074,20.074C19.757,20.392,19.243,20.392,18.926,20.074L13.000,14.149L7.075,20.074C6.757,20.392,6.243,20.392,5.925,20.074C5.608,19.757,5.608,19.243,5.925,18.926L11.851,13.000L5.925,7.075C5.608,6.757,5.608,6.243,5.925,5.925ZZ</StreamGeometry>
+    <!-- Exact 24px source icon paths. Canvas viewports preserve their original scale. -->
+    <StreamGeometry x:Key="ZenithHomeGlyph">M11.47 3.841c.293-.293.767-.293 1.06 0l8.69 8.689c.293.293.767.293 1.06 0s.293-.767 0-1.06l-8.689-8.69a2.25 2.25 0 0 0-3.182 0L1.72 11.47a.75.75 0 1 0 1.06 1.06l8.69-8.689ZM12 5.432l8.159 8.159.091.086v6.198a1.875 1.875 0 0 1-1.875 1.875H15a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0-.75.75V21a.75.75 0 0 1-.75.75H5.625a1.875 1.875 0 0 1-1.875-1.875v-6.198l.091-.086L12 5.432Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithExecutionGlyph">M14.447 3.026a.75.75 0 0 1 .527.921l-4.5 16.5a.75.75 0 0 1-1.448-.394l4.5-16.5a.75.75 0 0 1 .921-.527Zm2.273 3.194a.75.75 0 0 1 1.06 0l5.25 5.25a.75.75 0 0 1 0 1.06l-5.25 5.25a.75.75 0 1 1-1.06-1.06L21.439 12 16.72 7.28a.75.75 0 0 1 0-1.06ZM7.28 6.22a.75.75 0 0 1 0 1.06L2.561 12l4.719 4.72a.75.75 0 1 1-1.06 1.06L.97 12.53a.75.75 0 0 1 0-1.06l5.25-5.25a.75.75 0 0 1 1.06 0Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithScriptHubGlyph">M19.3 16.9c.4-.7.7-1.5.7-2.4a4.5 4.5 0 1 0-2.1 3.8l3.2 3.2 1.4-1.4-3.2-3.2ZM15.5 17a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5ZM12 20v2C6.48 22 2 17.52 2 12S6.48 2 12 2c4.84 0 8.87 3.44 9.8 8h-2.07A8.04 8.04 0 0 0 15 4.59V5a2 2 0 0 1-2 2h-2v2a1 1 0 0 1-1 1H8v2h2v3H9l-4.79-4.79A8.04 8.04 0 0 0 4 12c0 4.41 3.59 8 8 8Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithDocumentationGlyph">M4 6H2v14a2 2 0 0 0 2 2h14v-2H4V6Zm16-4H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2Zm-1 9H9V9h10v2Zm-4 4H9v-2h6v2Zm4-8H9V5h10v2Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithSettingsGlyph">M11.828 2.25a1.875 1.875 0 0 0-1.849 1.567l-.092.549a.82.82 0 0 1-.517.608 8.3 8.3 0 0 0-.478.198.82.82 0 0 1-.796-.064l-.453-.324a1.875 1.875 0 0 0-2.416.2l-.243.243a1.875 1.875 0 0 0-.2 2.416l.324.453a.82.82 0 0 1 .064.796 8.3 8.3 0 0 0-.198.478.82.82 0 0 1-.608.517l-.549.092A1.875 1.875 0 0 0 2.25 11.828v.344c0 .917.663 1.699 1.567 1.849l.549.092c.281.047.508.25.608.517.061.162.127.322.198.478a.82.82 0 0 1-.064.796l-.324.453a1.875 1.875 0 0 0 .2 2.416l.243.243a1.875 1.875 0 0 0 2.416.2l.453-.324a.82.82 0 0 1 .796-.064c.157.071.316.137.478.198.267.1.47.327.517.608l.092.549a1.875 1.875 0 0 0 1.849 1.567h.344a1.875 1.875 0 0 0 1.85-1.567l.091-.549a.82.82 0 0 1 .517-.608c.162-.061.321-.127.478-.198a.82.82 0 0 1 .796.064l.453.324a1.875 1.875 0 0 0 2.416-.2l.243-.243a1.875 1.875 0 0 0 .2-2.416l-.324-.453a.82.82 0 0 1-.064-.796c.071-.156.137-.316.198-.478.1-.267.327-.47.608-.517l.549-.092a1.875 1.875 0 0 0 1.567-1.849v-.344a1.875 1.875 0 0 0-1.567-1.849l-.549-.092a.82.82 0 0 1-.608-.517 8.3 8.3 0 0 0-.198-.478.82.82 0 0 1 .064-.796l.324-.453a1.875 1.875 0 0 0-.2-2.416l-.243-.243a1.875 1.875 0 0 0-2.416-.2l-.453.324a.82.82 0 0 1-.796.064 8.3 8.3 0 0 0-.478-.198.82.82 0 0 1-.517-.608l-.091-.549a1.875 1.875 0 0 0-1.85-1.567h-.344ZM12 15.75A3.75 3.75 0 1 1 12 8.25a3.75 3.75 0 0 1 0 7.5Z</StreamGeometry>
+    <!-- Exact execution-button SVG paths from Zenith's compiled source. -->
+    <StreamGeometry x:Key="ZenithAttachGlyph">M16.5,7.5L7.5,7.5L7.5,16.5L16.5,16.5L16.5,7.5ZM8.25,2.25C8.664,2.25,9,2.586,9,3L9,3.75L11.25,3.75L11.25,3C11.25,2.586,11.586,2.25,12,2.25C12.414,2.25,12.75,2.586,12.75,3L12.75,3.75L15,3.75L15,3C15,2.586,15.336,2.25,15.75,2.25C16.164,2.25,16.5,2.586,16.5,3L16.5,3.75L17.25,3.75C18.907,3.75,20.25,5.093,20.25,6.75L20.25,7.5L21,7.5C21.414,7.5,21.75,7.836,21.75,8.25C21.75,8.664,21.414,9,21,9L20.25,9L20.25,11.25L21,11.25C21.414,11.25,21.75,11.586,21.75,12C21.75,12.414,21.414,12.75,21,12.75L20.25,12.75L20.25,15L21,15C21.414,15,21.75,15.336,21.75,15.75C21.75,16.164,21.414,16.5,21,16.5L20.25,16.5L20.25,17.25C20.25,18.907,18.907,20.25,17.25,20.25L16.5,20.25L16.5,21C16.5,21.414,16.164,21.75,15.75,21.75C15.336,21.75,15,21.414,15,21L15,20.25L12.75,20.25L12.75,21C12.75,21.414,12.414,21.75,12,21.75C11.586,21.75,11.25,21.414,11.25,21L11.25,20.25L9,20.25L9,21C9,21.414,8.664,21.75,8.25,21.75C7.836,21.75,7.5,21.414,7.5,21L7.5,20.25L6.75,20.25C5.093,20.25,3.75,18.907,3.75,17.25L3.75,16.5L3,16.5C2.586,16.5,2.25,16.164,2.25,15.75C2.25,15.336,2.586,15,3,15L3.75,15L3.75,12.75L3,12.75C2.586,12.75,2.25,12.414,2.25,12C2.25,11.586,2.586,11.25,3,11.25L3.75,11.25L3.75,9L3,9C2.586,9,2.25,8.664,2.25,8.25C2.25,7.836,2.586,7.5,3,7.5L3.75,7.5L3.75,6.75C3.75,5.093,5.093,3.75,6.75,3.75L7.5,3.75L7.5,3C7.5,2.586,7.836,2.25,8.25,2.25ZM6,6.75C6,6.336,6.336,6,6.75,6L17.25,6C17.664,6,18,6.336,18,6.75L18,17.25C18,17.664,17.664,18,17.25,18L6.75,18C6.336,18,6,17.664,6,17.25L6,6.75Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithExecuteGlyph">M2.25,6C2.25,4.343,3.593,3,5.25,3L18.75,3C20.407,3,21.75,4.343,21.75,6L21.75,18C21.75,19.657,20.407,21,18.75,21L5.25,21C3.593,21,2.25,19.657,2.25,18L2.25,6ZM6.22,6.97C6.513,6.677,6.987,6.677,7.28,6.97L9.53,9.22C9.823,9.513,9.823,9.987,9.53,10.28L7.28,12.53C6.987,12.823,6.513,12.823,6.22,12.53C5.927,12.237,5.927,11.763,6.22,11.47L7.939,9.75L6.22,8.03C5.927,7.737,5.927,7.263,6.22,6.97ZM10.5,11.25C10.086,11.25,9.75,11.586,9.75,12C9.75,12.414,10.086,12.75,10.5,12.75L13.5,12.75C13.914,12.75,14.25,12.414,14.25,12C14.25,11.586,13.914,11.25,13.5,11.25L10.5,11.25Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithOpenGlyph">M19.906,9C20.288,9,20.655,9.057,21,9.162L21,9C21,7.343,19.657,6,18,6L14.121,6C13.922,6,13.732,5.921,13.591,5.78L11.47,3.659C11.048,3.237,10.475,3,9.879,3L6,3C4.343,3,3,4.343,3,6L3,9.162C3.345,9.057,3.712,9,4.094,9L19.906,9ZM4.094,10.5C2.725,10.5,1.673,11.713,1.867,13.068L2.724,19.068C2.882,20.177,3.832,21,4.951,21L19.049,21C20.168,21,21.118,20.177,21.276,19.068L22.133,13.068C22.327,11.713,21.275,10.5,19.906,10.5L4.094,10.5Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithSaveGlyph">M5.625,1.5C4.589,1.5,3.75,2.339,3.75,3.375L3.75,20.625C3.75,21.66,4.589,22.5,5.625,22.5L18.375,22.5C19.41,22.5,20.25,21.66,20.25,20.625L20.25,12.75C20.25,10.679,18.571,9,16.5,9L14.625,9C13.59,9,12.75,8.161,12.75,7.125L12.75,5.25C12.75,3.179,11.071,1.5,9,1.5L5.625,1.5ZM7.5,15C7.5,14.586,7.836,14.25,8.25,14.25L15.75,14.25C16.164,14.25,16.5,14.586,16.5,15C16.5,15.414,16.164,15.75,15.75,15.75L8.25,15.75C7.836,15.75,7.5,15.414,7.5,15ZM8.25,17.25C7.836,17.25,7.5,17.586,7.5,18C7.5,18.414,7.836,18.75,8.25,18.75L12,18.75C12.414,18.75,12.75,18.414,12.75,18C12.75,17.586,12.414,17.25,12,17.25L8.25,17.25ZM12.971,1.816C13.768,2.736,14.25,3.937,14.25,5.25L14.25,7.125C14.25,7.332,14.418,7.5,14.625,7.5L16.5,7.5C17.813,7.5,19.014,7.982,19.934,8.779C19.046,5.38,16.37,2.704,12.971,1.816Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithClearGlyph">M5.625,1.5L9,1.5C11.071,1.5,12.75,3.179,12.75,5.25L12.75,7.125C12.75,8.161,13.59,9,14.625,9L16.5,9C18.571,9,20.25,10.679,20.25,12.75L20.25,20.625C20.25,21.66,19.41,22.5,18.375,22.5L5.625,22.5C4.589,22.5,3.75,21.66,3.75,20.625L3.75,3.375C3.75,2.339,4.589,1.5,5.625,1.5ZM9.75,14.25C9.336,14.25,9,14.586,9,15C9,15.414,9.336,15.75,9.75,15.75L15,15.75C15.414,15.75,15.75,15.414,15.75,15C15.75,14.586,15.414,14.25,15,14.25L9.75,14.25ZM14.25,5.25C14.25,3.937,13.768,2.736,12.971,1.816C16.37,2.704,19.046,5.38,19.934,8.779C19.014,7.982,17.813,7.5,16.5,7.5L14.625,7.5C14.418,7.5,14.25,7.332,14.25,7.125L14.25,5.25Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithFileGlyph">M14 2H6A2 2 0 0 0 4 4V20A2 2 0 0 0 6 22H18A2 2 0 0 0 20 20V8ZM14 2V8H20</StreamGeometry>
+    <StreamGeometry x:Key="ZenithFolderGlyph">M22 19A2 2 0 0 1 20 21H4A2 2 0 0 1 2 19V5A2 2 0 0 1 4 3H9L11 6H20A2 2 0 0 1 22 8Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithChevronGlyph">M9 18L15 12L9 6</StreamGeometry>
+    <StreamGeometry x:Key="ZenithChevronLeftGlyph">M15 18L9 12L15 6</StreamGeometry>
+    <StreamGeometry x:Key="ZenithChevronDownGlyph">M6 9L12 15L18 9</StreamGeometry>
+    <StreamGeometry x:Key="ZenithChevronUpGlyph">M6 15L12 9L18 15</StreamGeometry>
+    <StreamGeometry x:Key="ZenithPanelTriangleGlyph">M7 5L17 12L7 19Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithHubPlayGlyph">M5 3L19 12L5 21L5 3Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithHubEditGlyph">M11 4H4C2.895 4 2 4.895 2 6V20C2 21.105 2.895 22 4 22H18C19.105 22 20 21.105 20 20V13M18.5 2.5C19.328 1.672 20.672 1.672 21.5 2.5C22.328 3.328 22.328 4.672 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithHubExternalGlyph">M18 13V19C18 20.105 17.105 21 16 21H5C3.895 21 3 20.105 3 19V8C3 6.895 3.895 6 5 6H11M15 3H21V9M10 14L21 3</StreamGeometry>
+    <StreamGeometry x:Key="ZenithSearchGlyph">M19 11A8 8 0 1 1 3 11A8 8 0 1 1 19 11M21 21L16.65 16.65</StreamGeometry>
+    <StreamGeometry x:Key="ZenithHubEyeGlyph">M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12ZM12 9C10.343 9 9 10.343 9 12C9 13.657 10.343 15 12 15C13.657 15 15 13.657 15 12C15 10.343 13.657 9 12 9Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithHubWarningGlyph">M12 3L23 21H1L12 3ZM12 9V14M12 18V18.01</StreamGeometry>
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="TextBlock">
+      <Setter Property="FontWeight" Value="Regular" />
+    </Style>
+    <Style Selector="Button">
+      <!-- This is the Nunito variable face preserved from Zenith V2 itself. -->
+      <Setter Property="FontFamily" Value="avares://Orion/Assets/Zenith/Fonts#Nunito" />
+      <Setter Property="Foreground" Value="{StaticResource ZenithSecondary}" />
+      <Setter Property="Background" Value="{StaticResource ZenithButton}" />
+      <Setter Property="BorderBrush" Value="{StaticResource ZenithBorderSoft}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="{StaticResource ZenithButtonHover}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.chrome">
+      <Setter Property="Width" Value="24" />
+      <Setter Property="Height" Value="26" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#7A7A7A" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.chrome:pressed">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.nav">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="MinHeight" Value="40" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Button.nav:pointerover">
+      <Setter Property="Background" Value="#0AFFFFFF" />
+    </Style>
+    <Style Selector="Button.action">
+      <Setter Property="Height" Value="36" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="ClipToBounds" Value="True" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="Background" Value="#137C8293" />
+      <Setter Property="Foreground" Value="#E69A9A9A" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <!-- A dedicated rounded clipping shell is required here: the stock Fluent
+           template clips effects to a rectangle even when CornerRadius is set. -->
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  ClipToBounds="True">
+            <ContentPresenter x:Name="PART_ContentPresenter"
+                              Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Padding="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.2" />
+          <BrushTransition Property="Foreground" Duration="0:0:0.2" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.action:pointerover">
+      <Setter Property="Background" Value="#207C8293" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.action:pressed">
+      <Setter Property="Background" Value="#307C8293" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.action:disabled">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="Background" Value="#137C8293" />
+      <Setter Property="Foreground" Value="#E69A9A9A" />
+    </Style>
+    <Style Selector="Button.action:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Opacity" Value="1" />
+    </Style>
+    <Style Selector="Border.action-blob">
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+      <Setter Property="RenderTransform" Value="scale(0.9)" />
+      <Setter Property="IsHitTestVisible" Value="False" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.3" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.3" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.action:pointerover Border.action-blob">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="RenderTransform" Value="scale(1)" />
+    </Style>
+    <Style Selector="Button.action:pressed Border.action-blob">
+      <Setter Property="Opacity" Value="1" />
+      <Setter Property="RenderTransform" Value="scale(1.05)" />
+    </Style>
+    <Style Selector="Button.zenith-tab-add">
+      <Setter Property="Width" Value="50" />
+      <Setter Property="MinWidth" Value="50" />
+      <Setter Property="Height" Value="34" />
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="Margin" Value="0,6,12,6" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="#14FFFFFF" />
+      <Setter Property="Foreground" Value="#E69A9A9A" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.zenith-tab-add:pointerover">
+      <Setter Property="Background" Value="#1FFFFFFF" />
+      <Setter Property="Foreground" Value="#E6FFFFFF" />
+    </Style>
+    <Style Selector="Button.zenith-tab-add:pressed">
+      <Setter Property="Background" Value="#29FFFFFF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.zenith-tab-close">
+      <Setter Property="Width" Value="20" />
+      <Setter Property="MinWidth" Value="20" />
+      <Setter Property="Height" Value="20" />
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#E69A9A9A" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="FontWeight" Value="Regular" />
+    </Style>
+    <Style Selector="Button.zenith-tab-close:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#FF3737" />
+    </Style>
+    <Style Selector="Button.zenith-tab-close:pressed">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#FF5555" />
+    </Style>
+    <Style Selector="Button.zenith-file-row">
+      <Setter Property="Height" Value="27" />
+      <Setter Property="MinHeight" Value="27" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource ZenithSecondary}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.zenith-file-row:pointerover">
+      <Setter Property="Background" Value="#14FFFFFF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.zenith-file-row:pointerover TextBlock">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.zenith-file-row:pointerover Path">
+      <Setter Property="Stroke" Value="#E6FFFFFF" />
+    </Style>
+    <Style Selector="Button.filter">
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Background" Value="#0DFFFFFF" />
+      <Setter Property="Foreground" Value="#999999" />
+    </Style>
+    <Style Selector="Button.filter.active">
+      <Setter Property="Background" Value="#39A2FF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="ComboBox.zenith-provider">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="Background" Value="#0DFFFFFF" />
+      <Setter Property="BorderBrush" Value="{StaticResource ZenithBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Foreground" Value="{StaticResource ZenithSecondary}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox.zenith-provider:pointerover">
+      <Setter Property="Background" Value="#14FFFFFF" />
+    </Style>
+    <Style Selector="ComboBox.zenith-provider ComboBoxItem">
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="Padding" Value="11,7" />
+      <Setter Property="Background" Value="#121212" />
+      <Setter Property="Foreground" Value="{StaticResource ZenithSecondary}" />
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="ComboBox.zenith-provider ComboBoxItem:pointerover">
+      <Setter Property="Background" Value="#20FFFFFF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="ComboBox.zenith-provider ComboBoxItem:selected">
+      <Setter Property="Background" Value="#2939A2FF" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.setting-card">
+      <Setter Property="MinHeight" Value="80" />
+      <Setter Property="Padding" Value="16,11" />
+      <Setter Property="Background" Value="#18FFFFFF" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="Button.setting-card:pointerover">
+      <Setter Property="Background" Value="#24FFFFFF" />
+    </Style>
+    <Style Selector="TextBox.search">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="Padding" Value="40,0,62,0" />
+      <Setter Property="Background" Value="#08000000" />
+      <Setter Property="Foreground" Value="{StaticResource ZenithSecondary}" />
+      <Setter Property="Watermark" Value="Search..." />
+      <Setter Property="BorderBrush" Value="{StaticResource ZenithBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{StaticResource ZenithCard}" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="ScrollViewer">
+      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+    <Style Selector="ToggleSwitch.zenith-toggle">
+      <Setter Property="OnContent" Value="" />
+      <Setter Property="OffContent" Value="" />
+      <Setter Property="MinWidth" Value="48" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+  </Window.Styles>
+
+  <Border x:Name="ZenithChrome"
+          Background="{StaticResource ZenithApp}"
+          BorderBrush="{StaticResource ZenithBorder}"
+          BorderThickness="1"
+          CornerRadius="7"
+          ClipToBounds="True">
+    <Grid RowDefinitions="42,*">
+      <!-- Original status field overflows the title bar and washes across the shell below it. -->
+      <Border x:Name="BridgeStatusGlow" Grid.RowSpan="2" ZIndex="40" Width="600" Height="600"
+              Margin="-293,-279,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+              CornerRadius="300" IsHitTestVisible="False">
+        <Border.Effect><BlurEffect Radius="8" /></Border.Effect>
+        <Border.Background>
+          <RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%">
+            <GradientStop Offset="0" Color="#664E4D72" />
+            <GradientStop Offset="0.04" Color="#594E4D72" />
+            <GradientStop Offset="0.10" Color="#404E4D72" />
+            <GradientStop Offset="0.20" Color="#264E4D72" />
+            <GradientStop Offset="0.33" Color="#144E4D72" />
+            <GradientStop Offset="0.50" Color="#0A4E4D72" />
+            <GradientStop Offset="1" Color="#004E4D72" />
+          </RadialGradientBrush>
+        </Border.Background>
+      </Border>
+      <!-- Original 42px Zenith title bar. -->
+      <Border Grid.Row="0" ZIndex="50" Background="#08FFFFFF"
+              BorderBrush="{StaticResource ZenithBorder}"
+              BorderThickness="0,0,0,1"
+              PointerPressed="TitleBar_PointerPressed">
+        <Grid ColumnDefinitions="*,Auto,*">
+          <StackPanel Grid.Column="0" ZIndex="1" Width="160" Margin="12,0,0,0" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="6">
+            <Grid Width="14" Height="14" VerticalAlignment="Center">
+              <Ellipse x:Name="BridgeStatusDotGlow" Width="14" Height="14" Fill="#4E4D72" Opacity="0.4">
+                <Ellipse.Effect><BlurEffect Radius="12" /></Ellipse.Effect>
+              </Ellipse>
+              <Ellipse x:Name="BridgeStatusDot" Width="14" Height="14" Fill="#4E4D72" />
+            </Grid>
+            <TextBlock x:Name="BridgeStatusText" Text="Inactive"
+                       Foreground="#9A9A9A" FontWeight="Medium"
+                       FontSize="16" VerticalAlignment="Center" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" ZIndex="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="Zenith" Foreground="White" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="V2" FontSize="18" FontWeight="SemiBold">
+              <TextBlock.Foreground>
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                  <GradientStop Offset="0" Color="#667EEA" />
+                  <GradientStop Offset="0.25" Color="#9C66FF" />
+                  <GradientStop Offset="0.5" Color="#FF6B96" />
+                  <GradientStop Offset="0.75" Color="#FFA87A" />
+                  <GradientStop Offset="1" Color="#667EEA" />
+                </LinearGradientBrush>
+              </TextBlock.Foreground>
+            </TextBlock>
+          </StackPanel>
+          <StackPanel Grid.Column="2" ZIndex="1" Margin="0,0,12,0" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+            <Button Classes="chrome" Click="Minimize_Click" ToolTip.Tip="Minimize">
+              <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithMinimizeGlyph}" /></Canvas></Viewbox>
+            </Button>
+            <Button Classes="chrome" Click="Maximize_Click" ToolTip.Tip="Maximize">
+              <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithMaximizeGlyph}" /></Canvas></Viewbox>
+            </Button>
+            <Button Classes="chrome close" Width="26" Click="Close_Click" ToolTip.Tip="Close">
+              <Viewbox Width="26" Height="26"><Canvas Width="26" Height="26"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithCloseGlyph}" /></Canvas></Viewbox>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+        <!-- Original nav is 56px collapsed and 200px on hover. -->
+        <Border x:Name="NavigationPanel" Grid.Column="0" Width="56"
+                Background="#08FFFFFF" BorderBrush="{StaticResource ZenithBorderSoft}"
+                BorderThickness="0,0,1,0" ClipToBounds="True"
+                PointerEntered="NavigationPanel_PointerEntered"
+                PointerExited="NavigationPanel_PointerExited">
+          <Border.Transitions>
+            <Transitions>
+              <DoubleTransition Property="Width" Duration="0:0:0.30" Easing="CubicEaseOut" />
+            </Transitions>
+          </Border.Transitions>
+          <Grid RowDefinitions="*,Auto" Margin="8">
+            <StackPanel Grid.Row="0" Spacing="8">
+              <Button x:Name="HomeNavButton" Classes="nav" Tag="Home" Click="NavButton_Click">
+                <Grid ColumnDefinitions="40,*">
+                  <Border x:Name="HomeNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" />
+                  <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithHomeGlyph}" /></Canvas></Viewbox>
+                  <TextBlock Grid.Column="1" Text="Home" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                </Grid>
+              </Button>
+              <Button x:Name="ExecutionNavButton" Classes="nav" Tag="Execution" Click="NavButton_Click">
+                <Grid ColumnDefinitions="40,*">
+                  <Border x:Name="ExecutionNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithExecutionGlyph}" /></Canvas></Viewbox>
+                  <TextBlock Grid.Column="1" Text="Execution" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                </Grid>
+              </Button>
+              <Button x:Name="ScriptHubNavButton" Classes="nav" Tag="ScriptHub" Click="NavButton_Click">
+                <Grid ColumnDefinitions="40,*">
+                  <Border x:Name="ScriptHubNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithScriptHubGlyph}" /></Canvas></Viewbox>
+                  <TextBlock Grid.Column="1" Text="Script Hub" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                </Grid>
+              </Button>
+              <Button x:Name="DocumentationNavButton" Classes="nav" Tag="Documentation" Click="NavButton_Click">
+                <Grid ColumnDefinitions="40,*">
+                  <Border x:Name="DocumentationNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithDocumentationGlyph}" /></Canvas></Viewbox>
+                  <TextBlock Grid.Column="1" Text="Documentation" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                </Grid>
+              </Button>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Spacing="8">
+              <Button x:Name="HelpNavButton" Classes="nav" Tag="Help" Click="NavButton_Click">
+                <Grid ColumnDefinitions="40,*">
+                  <Border x:Name="HelpNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Viewbox Grid.Column="0" Width="24" Height="24">
+                    <Canvas Width="24" Height="24">
+                      <Ellipse Canvas.Left="2" Canvas.Top="2" Width="20" Height="20"
+                               Stroke="#BF9A9A9A" StrokeThickness="2" />
+                      <Path Data="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"
+                            Stroke="#BF9A9A9A" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round" />
+                      <Path Data="M12 17L12.01 17"
+                            Stroke="#BF9A9A9A" StrokeThickness="2" StrokeLineCap="Round" />
+                    </Canvas>
+                  </Viewbox>
+                  <TextBlock Grid.Column="1" Text="Help" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                </Grid>
+              </Button>
+              <Button x:Name="SettingsNavButton" Classes="nav" Tag="Settings" Click="NavButton_Click">
+                <Grid ColumnDefinitions="40,*">
+                  <Border x:Name="SettingsNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithSettingsGlyph}" /></Canvas></Viewbox>
+                  <TextBlock Grid.Column="1" Text="Settings" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                </Grid>
+              </Button>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="12">
+          <!-- HOME -->
+          <Grid x:Name="HomePage" RowDefinitions="73,12,*">
+            <Border Grid.Row="0" Classes="card" ClipToBounds="True" Padding="12">
+              <Grid>
+                <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-70,-62,0" Opacity="0.24"
+                        RenderTransformOrigin="50%,50%">
+                  <Border.RenderTransform><ScaleTransform ScaleX="2.1" ScaleY="2.1" /></Border.RenderTransform>
+                  <Border.Effect><BlurEffect Radius="96" /></Border.Effect>
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                      <GradientStop Offset="0" Color="#667EEA" />
+                      <GradientStop Offset="1" Color="#764BA2" />
+                    </LinearGradientBrush>
+                  </Border.Background>
+                </Border>
+                <StackPanel VerticalAlignment="Top" Spacing="8" Margin="0,-3,0,0">
+                  <TextBlock Text="Hey there, orion!" FontSize="20" LineHeight="24" Foreground="White" />
+                  <TextBlock FontSize="14" LineHeight="16.8" Foreground="{StaticResource ZenithMuted}">
+                    <Run Text="Your license expires in 11 months and 30 days. You can " />
+                    <Run Text="add time here." Foreground="#A473FF" />
+                  </TextBlock>
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Grid Grid.Row="2" ColumnDefinitions="*,12,*">
+              <Border Grid.Column="0" Classes="card" Padding="12" ClipToBounds="True">
+                <Grid>
+                  <Border Width="137" Height="139" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-72,-30,0,0" Opacity="0.28"
+                          RenderTransformOrigin="50%,50%">
+                    <Border.RenderTransform><ScaleTransform ScaleX="2.1" ScaleY="2.1" /></Border.RenderTransform>
+                    <Border.Effect><BlurEffect Radius="96" /></Border.Effect>
+                    <Border.Background>
+                      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#F093FB" />
+                        <GradientStop Offset="1" Color="#F5576C" />
+                      </LinearGradientBrush>
+                    </Border.Background>
+                  </Border>
+                  <StackPanel Margin="0,-3,0,0">
+                    <TextBlock Text="Changelog" FontSize="20" LineHeight="24" FontWeight="SemiBold" Foreground="{StaticResource ZenithSecondary}" />
+                    <TextBlock Text="Below you can find a changelog for the last few updates." FontSize="14" LineHeight="16.8" Foreground="{StaticResource ZenithMuted}" />
+                    <TextBlock Text="You're all caught up! 🎊" Margin="0,25,0,0" HorizontalAlignment="Center" FontSize="14" LineHeight="16.8" Foreground="{StaticResource ZenithMuted}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <Border Grid.Column="2" Classes="card" Padding="12" ClipToBounds="True">
+                <Grid>
+                  <Border Width="137" Height="139" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-72,0,0,-69" Opacity="0.22"
+                          RenderTransformOrigin="50%,50%">
+                    <Border.RenderTransform><ScaleTransform ScaleX="2.1" ScaleY="2.1" /></Border.RenderTransform>
+                    <Border.Effect><BlurEffect Radius="96" /></Border.Effect>
+                    <Border.Background>
+                      <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                        <GradientStop Offset="0" Color="#4FACFE" />
+                        <GradientStop Offset="1" Color="#00F2FE" />
+                      </LinearGradientBrush>
+                    </Border.Background>
+                  </Border>
+                  <StackPanel Margin="0,-3,0,0">
+                    <TextBlock Text="News" FontSize="20" LineHeight="24" FontWeight="SemiBold" Foreground="{StaticResource ZenithSecondary}" />
+                    <TextBlock Text="Right now, there's no news to be seen. Come back later." FontSize="14" LineHeight="16.8" FontWeight="Medium" Foreground="{StaticResource ZenithSecondary}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </Grid>
+          </Grid>
+
+          <!-- Source-faithful Zenith execution editor. -->
+          <!--
+          <Grid x:Name="ExecutionPage" IsVisible="False" RowDefinitions="47,*,8,109,8,38">
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="#08000000">
+              <StackPanel x:Name="ZenithTabBar" Orientation="Horizontal" Spacing="6" Margin="12,0" />
+              <Button Grid.Column="1" Width="50" Height="34" Margin="0,6,12,6" Padding="0" Click="NewTab_Click" Content="+" FontSize="18" />
+            </Grid>
+            <Grid Grid.Row="1" ColumnDefinitions="*,8,200">
+              <Border Grid.Column="0" Background="#141414" CornerRadius="12" ClipToBounds="True">
+                <Grid>
+                  <NativeWebView x:Name="ZenithEditorWebView" Background="#141414" />
+                  <TextBlock Text="Ctrl+S save · Ctrl+W close · Ctrl+P commands · learn more →"
+                             FontSize="12" FontStyle="Italic" Foreground="#6B9A9A9A"
+                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,9"
+                             IsHitTestVisible="False" />
+                </Grid>
+              </Border>
+              <Border Grid.Column="2" Classes="card" ClipToBounds="True">
+                <Grid RowDefinitions="36,*">
+                  <Grid Margin="12,0" ColumnDefinitions="*,Auto">
+                    <TextBlock Text="File List" FontSize="14" Foreground="#C49A9A9A" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="chrome" Width="26" Height="30" Click="ToggleFileList_Click" Content="▶" FontSize="11" />
+                  </Grid>
+                  <StackPanel Grid.Row="1" x:Name="ZenithFileList" Margin="10,2" Spacing="4" />
+                </Grid>
+              </Border>
+            </Grid>
+            <Border Grid.Row="3" Classes="card" ClipToBounds="True">
+              <Grid RowDefinitions="34,*">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="12,0">
+                  <TextBlock Text="Script Output" FontSize="14" Foreground="#C49A9A9A" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" Classes="chrome" Width="50" Height="32" Click="ClearOutput_Click" Content="Clear" FontSize="13" />
+                  <Button Grid.Column="2" Classes="chrome" Width="24" Height="32" Click="ToggleOutput_Click" Content="▼" FontSize="11" />
+                </Grid>
+                <SelectableTextBlock x:Name="ZenithOutputText" Grid.Row="1" Margin="12,3" FontSize="12"
+                                     FontStyle="Italic" Foreground="#737C8293"
+                                     Text="Output from printconsole() → will appear here. Enable Error Spoofing → for errors too." TextWrapping="Wrap" />
+              </Grid>
+            </Border>
+            <Grid Grid.Row="5" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+              <Button x:Name="ZenithAttachButton" Grid.Column="0" Classes="action" Click="Attach_Click" Content="▣  Attach" Margin="0,0,7,0" />
+              <Button x:Name="ZenithExecuteButton" Grid.Column="1" Classes="action" Click="Execute_Click" Content="▶  Execute" />
+              <Button Grid.Column="3" Classes="action" Click="OpenFile_Click" Content="▰  Open File" Margin="0,0,7,0" />
+              <Button Grid.Column="4" Classes="action" Click="SaveFile_Click" Content="▣  Save File" Margin="0,0,7,0" />
+              <Button Grid.Column="5" Classes="action" Click="ClearEditor_Click" Content="▰  Clear" />
+            </Grid>
+          </Grid>
+
+          -->
+          <Grid x:Name="ExecutionPage" IsVisible="False" RowDefinitions="46,8,*,8,36">
+            <Border Grid.Row="0" Background="{StaticResource ZenithCard}" CornerRadius="12" ClipToBounds="True">
+              <Grid ColumnDefinitions="*,Auto">
+                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                  <StackPanel x:Name="ZenithTabBar" Orientation="Horizontal" Spacing="4" Margin="12,0,4,0" />
+                </ScrollViewer>
+                <Button Grid.Column="1" Classes="zenith-tab-add" Click="NewTab_Click" Content="+" />
+              </Grid>
+            </Border>
+
+            <Grid x:Name="ZenithEditorSplit" Grid.Row="2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="200" />
+              </Grid.ColumnDefinitions>
+              <Grid x:Name="ZenithEditorStack" Grid.Column="0">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*" />
+                  <RowDefinition Height="8" />
+                  <RowDefinition Height="140" />
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="#0D0D0D" CornerRadius="12" ClipToBounds="True" Padding="4">
+                  <Grid ClipToBounds="True">
+                    <NativeWebView x:Name="ZenithEditorWebView" Background="Transparent" />
+                  </Grid>
+                </Border>
+                <Border x:Name="ZenithOutputPanel" Grid.Row="2" Background="{StaticResource ZenithCard}" CornerRadius="8" ClipToBounds="True">
+                  <Grid RowDefinitions="32,*">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,52,32" Margin="12,0,4,0">
+                      <TextBlock Text="Script Output" FontSize="14" FontWeight="Medium" Foreground="#E69A9A9A" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Classes="chrome" Width="52" Height="32" HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Center" Click="ClearOutput_Click" Content="Clear" FontSize="14" />
+                      <Button Grid.Column="2" Classes="chrome" Width="32" Height="32" HorizontalAlignment="Stretch"
+                              HorizontalContentAlignment="Center" Click="ToggleOutput_Click">
+                        <Viewbox Width="16" Height="16"><Canvas Width="24" Height="24"><Path x:Name="ZenithOutputChevron" Stroke="#BF9A9A9A" StrokeThickness="2.2" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithChevronDownGlyph}" /></Canvas></Viewbox>
+                      </Button>
+                    </Grid>
+                    <ScrollViewer x:Name="ZenithOutputScroll" Grid.Row="1" Padding="12,6"
+                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                      <SelectableTextBlock x:Name="ZenithOutputText" FontFamily="Cascadia Mono, Consolas" FontSize="11"
+                                           LineHeight="15" Foreground="#C5C5C5" TextWrapping="Wrap"
+                                           SelectionBrush="#0E639C" SelectionForegroundBrush="White">
+                        <SelectableTextBlock.Inlines>
+                          <Run Text="Output from printconsole() → will appear here. Enable Error Spoofing → for errors too."
+                               FontStyle="Italic" Foreground="#807C8293" />
+                        </SelectableTextBlock.Inlines>
+                      </SelectableTextBlock>
+                    </ScrollViewer>
+                    <Border x:Name="ZenithOutputResizeGrip" Grid.RowSpan="2" Height="5" VerticalAlignment="Top"
+                            Background="Transparent" Cursor="SizeNorthSouth" ZIndex="5"
+                            PointerPressed="OutputResizeGrip_PointerPressed"
+                            PointerMoved="OutputResizeGrip_PointerMoved"
+                            PointerReleased="OutputResizeGrip_PointerReleased" />
+                  </Grid>
+                </Border>
+              </Grid>
+
+              <Border x:Name="ZenithFileListPanel" Grid.Column="2" Background="{StaticResource ZenithCard}" CornerRadius="8" ClipToBounds="True">
+                <Grid RowDefinitions="32,*">
+                  <Grid Margin="12,0" ColumnDefinitions="*,Auto">
+                    <TextBlock x:Name="ZenithFileListTitle" Text="File List" FontSize="14" FontWeight="Medium" Foreground="#E69A9A9A" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="chrome" Width="32" Height="32" HorizontalContentAlignment="Center" Click="ToggleFileList_Click">
+                      <Viewbox Width="14" Height="14"><Canvas Width="24" Height="24"><Path x:Name="ZenithFileListChevron" Fill="#E69A9A9A" Data="{StaticResource ZenithPanelTriangleGlyph}" RenderTransformOrigin="50%,50%" /></Canvas></Viewbox>
+                    </Button>
+                  </Grid>
+                  <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="ZenithFileList" Margin="4,8,12,12" Spacing="4" />
+                  </ScrollViewer>
+                </Grid>
+              </Border>
+            </Grid>
+
+            <Grid Grid.Row="4" ColumnDefinitions="Auto,8,Auto,*,Auto,8,Auto,8,Auto">
+              <Button x:Name="ZenithAttachButton" Grid.Column="0" Classes="action" Width="92" Click="Attach_Click">
+                <Grid>
+                  <Canvas IsHitTestVisible="False">
+                    <Border x:Name="ZenithAttachBlob" Canvas.Left="-12" Canvas.Top="17" Classes="action-blob" Width="46" Height="36" CornerRadius="23">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                          <GradientStop Offset="0" Color="#667EEA" />
+                          <GradientStop Offset="1" Color="#764BA2" />
+                        </LinearGradientBrush>
+                      </Border.Background>
+                      <Border.Effect><BlurEffect Radius="8" /></Border.Effect>
+                    </Border>
+                  </Canvas>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="6" ZIndex="1">
+                    <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithAttachGlyph}" /></Canvas></Viewbox>
+                    <TextBlock x:Name="ZenithAttachLabel" Text="Attach" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+              <Button x:Name="ZenithExecuteButton" Grid.Column="2" Classes="action" Width="98" Click="Execute_Click">
+                <Grid>
+                  <Canvas IsHitTestVisible="False">
+                    <Border x:Name="ZenithExecuteBlob" Canvas.Left="58" Canvas.Top="-3" Classes="action-blob" Width="46" Height="36" CornerRadius="23">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                          <GradientStop Offset="0" Color="#4FACFE" />
+                          <GradientStop Offset="1" Color="#00F2FE" />
+                        </LinearGradientBrush>
+                      </Border.Background>
+                      <Border.Effect><BlurEffect Radius="8" /></Border.Effect>
+                    </Border>
+                  </Canvas>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="6" ZIndex="1">
+                    <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithExecuteGlyph}" /></Canvas></Viewbox>
+                    <TextBlock Text="Execute" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+              <Button x:Name="ZenithOpenButton" Grid.Column="4" Classes="action" Width="115" Click="OpenFile_Click">
+                <Grid>
+                  <Canvas IsHitTestVisible="False">
+                    <Border x:Name="ZenithOpenBlob" Canvas.Left="75" Canvas.Top="15" Classes="action-blob" Width="46" Height="36" CornerRadius="23">
+                      <Border.Background>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                          <GradientStop Offset="0" Color="#F093FB" />
+                          <GradientStop Offset="1" Color="#F5576C" />
+                        </LinearGradientBrush>
+                      </Border.Background>
+                      <Border.Effect><BlurEffect Radius="8" /></Border.Effect>
+                    </Border>
+                  </Canvas>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="6" ZIndex="1">
+                    <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithOpenGlyph}" /></Canvas></Viewbox>
+                    <TextBlock Text="Open File" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+              <Button x:Name="ZenithSaveButton" Grid.Column="6" Classes="action" Width="108" Click="SaveFile_Click">
+                <Grid>
+                  <Canvas IsHitTestVisible="False">
+                    <Border x:Name="ZenithSaveBlob" Canvas.Left="-2" Canvas.Top="15" Classes="action-blob" Width="46" Height="36" CornerRadius="23"
+                            Background="#2CFF35">
+                      <Border.Effect><BlurEffect Radius="8" /></Border.Effect>
+                    </Border>
+                  </Canvas>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="6" ZIndex="1">
+                    <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithSaveGlyph}" /></Canvas></Viewbox>
+                    <TextBlock Text="Save File" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+              <Button x:Name="ZenithClearButton" Grid.Column="8" Classes="action" Width="80" Click="ClearEditor_Click">
+                <Grid>
+                  <Canvas IsHitTestVisible="False">
+                    <Border x:Name="ZenithClearBlob" Canvas.Left="48" Canvas.Top="-3" Classes="action-blob" Width="46" Height="36" CornerRadius="23"
+                            Background="#FF3737">
+                      <Border.Effect><BlurEffect Radius="8" /></Border.Effect>
+                    </Border>
+                  </Canvas>
+                  <StackPanel Orientation="Horizontal" Spacing="6" Margin="6" ZIndex="1">
+                    <Viewbox Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" Data="{StaticResource ZenithClearGlyph}" /></Canvas></Viewbox>
+                    <TextBlock Text="Clear" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                  </StackPanel>
+                </Grid>
+              </Button>
+            </Grid>
+          </Grid>
+
+          <!-- SCRIPT HUB -->
+          <Grid x:Name="ScriptHubPage" IsVisible="False" RowDefinitions="73,12,40,12,*">
+            <Border Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
+              <Grid>
+                <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="0,-30,-30,0" CornerRadius="68.5" Background="#39A2FF" Opacity="0.25"
+                        IsHitTestVisible="False" RenderTransformOrigin="50%,50%">
+                  <Border.RenderTransform><ScaleTransform ScaleX="2.1" ScaleY="2.1" /></Border.RenderTransform>
+                  <Border.Effect><BlurEffect Radius="96" /></Border.Effect>
+                </Border>
+                <StackPanel VerticalAlignment="Center" Spacing="4" ZIndex="1">
+                  <TextBlock Text="Script Hub" FontSize="20" LineHeight="24" Foreground="White" />
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="Discover and run scripts from " FontSize="14" Foreground="{StaticResource ZenithMuted}" />
+                    <TextBlock x:Name="ZenithHubSourceHeader" Text="robloxscripts.com" FontSize="14"
+                               Foreground="{StaticResource ZenithSecondary}" />
+                    <Viewbox Width="10" Height="10" VerticalAlignment="Center" Opacity="0.7">
+                      <Canvas Width="24" Height="24">
+                        <Path Stroke="{StaticResource ZenithSecondary}" StrokeThickness="2" StrokeLineCap="Round"
+                              StrokeJoin="Round" Data="{StaticResource ZenithHubExternalGlyph}" />
+                      </Canvas>
+                    </Viewbox>
+                  </StackPanel>
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Grid Grid.Row="2" Margin="12,0" ColumnDefinitions="*,12,174,8,Auto">
+              <Grid Grid.Column="0">
+                <TextBox x:Name="ZenithHubSearchBox" Classes="search" PlaceholderText="Search for scripts..."
+                         TextChanged="ZenithHubSearchBox_TextChanged" />
+                <Viewbox Width="17" Height="17" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                  <Canvas Width="24" Height="24"><Path Stroke="#939393" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
+                </Viewbox>
+                <Border HorizontalAlignment="Right" Margin="0,0,12,0" Padding="6,2" BorderBrush="#363636" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center">
+                  <TextBlock Text="Ctrl+K" FontSize="10" FontFamily="Consolas" Foreground="#777" />
+                </Border>
+              </Grid>
+              <ComboBox x:Name="ZenithHubProviderBox" Grid.Column="2" Classes="zenith-provider"
+                        SelectionChanged="ZenithHubProviderBox_SelectionChanged">
+                <ComboBoxItem Content="robloxscripts.com" Tag="RobloxScripts" />
+                <ComboBoxItem Content="rscripts" Tag="Rscripts" />
+                <ComboBoxItem Content="haxhell" Tag="HaxHell" />
+                <ComboBoxItem Tag="ScriptBlox">
+                  <StackPanel Orientation="Horizontal" Spacing="7">
+                    <TextBlock Text="ScriptBlox" VerticalAlignment="Center" />
+                    <Viewbox Width="13" Height="13" VerticalAlignment="Center">
+                      <Canvas Width="24" Height="24">
+                        <Path Stroke="#FF7940" StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                              Data="{StaticResource ZenithHubWarningGlyph}" />
+                      </Canvas>
+                    </Viewbox>
+                  </StackPanel>
+                </ComboBoxItem>
+              </ComboBox>
+              <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                <Button x:Name="ZenithHubRecentButton" Classes="filter active" Content="Recent" Tag="recent" Click="ZenithHubFilter_Click" />
+                <Button x:Name="ZenithHubPopularButton" Classes="filter" Content="Popular" Tag="popular" Click="ZenithHubFilter_Click" />
+                <Button x:Name="ZenithHubUniversalButton" Classes="filter" Content="Universal" Tag="universal" Click="ZenithHubFilter_Click" />
+              </StackPanel>
+            </Grid>
+            <Grid x:Name="ZenithHubContent" Grid.Row="4" ClipToBounds="True">
+              <ScrollViewer x:Name="ZenithHubScrollViewer" VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Disabled" ScrollChanged="ZenithHubScrollViewer_ScrollChanged">
+                <StackPanel x:Name="ZenithHubCardsPanel" Margin="0,1,0,16" Spacing="16" />
+              </ScrollViewer>
+              <StackPanel x:Name="ZenithHubStatePanel" HorizontalAlignment="Center" VerticalAlignment="Top"
+                          Margin="0,64,0,0" Spacing="0" MaxWidth="384">
+                <Viewbox Width="48" Height="48" Margin="0,0,0,16">
+                  <Canvas Width="24" Height="24"><Path Stroke="#809A9A9A" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
+                </Viewbox>
+                <TextBlock x:Name="ZenithHubStateTitle" Text="Loading scripts..." HorizontalAlignment="Center"
+                           Foreground="{StaticResource ZenithSecondary}" FontSize="18" FontWeight="Medium" Margin="0,0,0,4" />
+                <TextBlock x:Name="ZenithHubStateDescription" HorizontalAlignment="Center"
+                           Foreground="{StaticResource ZenithMuted}" FontSize="14" TextAlignment="Center"
+                           TextWrapping="Wrap" Margin="0,0,0,24" />
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                  <Button x:Name="ZenithHubClearSearchButton" Content="Clear search" IsVisible="False"
+                          Click="ZenithHubClearSearch_Click" />
+                  <Button x:Name="ZenithHubBrowsePopularButton" Content="Browse popular" IsVisible="False"
+                          Click="ZenithHubBrowsePopular_Click" />
+                </StackPanel>
+              </StackPanel>
+            </Grid>
+          </Grid>
+
+          <!-- DOCUMENTATION -->
+          <Grid x:Name="DocumentationPage" IsVisible="False" RowDefinitions="73,12,*">
+            <Border Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
+              <Grid>
+                <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="0,-30,-30,0" CornerRadius="68.5" Background="#39A2FF" Opacity="0.25"
+                        IsHitTestVisible="False" RenderTransformOrigin="50%,50%">
+                  <Border.RenderTransform><ScaleTransform ScaleX="2.1" ScaleY="2.1" /></Border.RenderTransform>
+                  <Border.Effect><BlurEffect Radius="96" /></Border.Effect>
+                </Border>
+                <StackPanel VerticalAlignment="Center" Spacing="4" ZIndex="1">
+                  <TextBlock Text="Function Documentation" FontSize="20" Foreground="White" />
+                  <TextBlock Text="Browse and search Zenith's custom Lua functions and API" FontSize="14" Foreground="{StaticResource ZenithMuted}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Grid Grid.Row="2" ColumnDefinitions="224,12,*">
+              <Border Grid.Column="0" Classes="card" Padding="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <StackPanel x:Name="DocumentationCategoryPanel" Spacing="8" />
+                </ScrollViewer>
+              </Border>
+              <Border Grid.Column="2" Classes="card">
+                <Grid RowDefinitions="Auto,*">
+                  <Border x:Name="DocumentationSearchShell" Grid.Row="0" Padding="12"
+                          BorderBrush="{StaticResource ZenithBorderSoft}" BorderThickness="0,0,0,1">
+                    <Grid>
+                      <TextBox x:Name="DocumentationSearchBox" Classes="search" Height="36"
+                                Padding="36,0,12,0" PlaceholderText="Search functions..." />
+                      <Viewbox Width="16" Height="16" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Canvas Width="24" Height="24"><Path Stroke="#929292" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
+                      </Viewbox>
+                    </Grid>
+                  </Border>
+                  <ScrollViewer x:Name="DocumentationContentScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="DocumentationContentPanel" Margin="32" Spacing="16"
+                                MaxWidth="896" HorizontalAlignment="Left" />
+                  </ScrollViewer>
+                </Grid>
+              </Border>
+            </Grid>
+          </Grid>
+
+          <!-- HELP -->
+          <Grid x:Name="HelpPage" IsVisible="False" RowDefinitions="73,12,*">
+            <Border Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
+              <Grid>
+                <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Margin="0,-30,-30,0" CornerRadius="68.5" Background="#39A2FF" Opacity="0.25"
+                        IsHitTestVisible="False" RenderTransformOrigin="50%,50%">
+                  <Border.RenderTransform><ScaleTransform ScaleX="2.1" ScaleY="2.1" /></Border.RenderTransform>
+                  <Border.Effect><BlurEffect Radius="96" /></Border.Effect>
+                </Border>
+                <StackPanel VerticalAlignment="Center" Spacing="4" ZIndex="1">
+                  <TextBlock Text="Help &amp; Guides" FontSize="20" Foreground="White" />
+                  <TextBlock Text="Learn how to use Zenith with comprehensive guides and tutorials" FontSize="14" Foreground="{StaticResource ZenithMuted}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Grid Grid.Row="2" ColumnDefinitions="256,12,*">
+              <Border Grid.Column="0" Classes="card" Padding="12">
+                <Grid RowDefinitions="36,12,*">
+                  <Grid>
+                    <TextBox x:Name="HelpSearchBox" Classes="search" Height="36" Padding="36,0,12,0" PlaceholderText="Search articles..." />
+                    <Viewbox Width="15" Height="15" Margin="12,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                      <Canvas Width="24" Height="24"><Path Stroke="#929292" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
+                    </Viewbox>
+                  </Grid>
+                  <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="HelpNavigationPanel" Spacing="8" />
+                  </ScrollViewer>
+                </Grid>
+              </Border>
+              <Border Grid.Column="2" Classes="card">
+                <ScrollViewer x:Name="HelpContentScroll" VerticalScrollBarVisibility="Auto">
+                  <StackPanel x:Name="HelpContentPanel" Margin="32" Spacing="17"
+                              MaxWidth="896" HorizontalAlignment="Left" />
+                </ScrollViewer>
+              </Border>
+            </Grid>
+          </Grid>
+
+          <!-- SETTINGS -->
+          <Grid x:Name="SettingsPage" IsVisible="False">
+            <Grid x:Name="SettingsMainPage" RowDefinitions="78,40,12,*">
+              <StackPanel Grid.Row="0" Margin="4,7,0,0" Spacing="6">
+                <TextBlock Text="Settings" FontSize="25" Foreground="White" />
+                <TextBlock Text="Configure Zeniths execution and appearance  (Help?)" FontSize="14" Foreground="{StaticResource ZenithMuted}" />
+              </StackPanel>
+              <Grid Grid.Row="1">
+                <TextBox Classes="search" PlaceholderText="Search all settings..." />
+                <Viewbox Width="18" Height="18" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                  <Canvas Width="24" Height="24"><Path Stroke="#929292" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
+                </Viewbox>
+                <Border HorizontalAlignment="Right" Margin="0,0,12,0" Padding="6,2" BorderBrush="#363636" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"><TextBlock Text="Ctrl+K" FontSize="10" FontFamily="Consolas" Foreground="#777"/></Border>
+              </Grid>
+              <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16" Margin="0,0,8,0">
+                  <Button Classes="setting-card" Tag="Execution Settings" Click="SettingsSection_Click">
+                    <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Execution Settings" FontSize="16" Foreground="White"/><TextBlock Text="Configure how scripts are executed and your preferences" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><TextBlock Grid.Column="1" Text="›" FontSize="28" Foreground="#888" VerticalAlignment="Center"/></Grid>
+                  </Button>
+                  <Button Classes="setting-card" Tag="Interface Settings" Click="SettingsSection_Click">
+                    <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Interface Settings" FontSize="16" Foreground="White"/><TextBlock Text="Customise the appearance and behavior of the interface" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><TextBlock Grid.Column="1" Text="›" FontSize="28" Foreground="#888" VerticalAlignment="Center"/></Grid>
+                  </Button>
+                  <Button Classes="setting-card" Tag="Other Settings" Click="SettingsSection_Click">
+                    <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Other Settings" FontSize="16" Foreground="White"/><TextBlock Text="Additional configuration options and preferences" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><TextBlock Grid.Column="1" Text="›" FontSize="28" Foreground="#888" VerticalAlignment="Center"/></Grid>
+                  </Button>
+                  <Border Classes="card" Padding="16" MinHeight="80"><Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Restart Tutorial" FontSize="16" Foreground="White"/><TextBlock Text="Start the guided tour of Zenith's interface again" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><Button Grid.Column="1" Content="Start Tutorial" Background="#0D4AFF" BorderThickness="0"/></Grid></Border>
+                  <Border Classes="card" Padding="16" MinHeight="80"><Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Force Live" FontSize="16" Foreground="White"/><TextBlock Text="Upgrade or downgrade Roblox to the latest LIVE version" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><Button Grid.Column="1" Content="Force Live" Background="#15883C" BorderThickness="0"/></Grid></Border>
+                  <Border Classes="card" Padding="16" MinHeight="80"><Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Official Discord" FontSize="16" Foreground="White"/><TextBlock Text="Join our Discord server for real-time help" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><Button Grid.Column="1" Content="Join Discord"/></Grid></Border>
+                  <Border Classes="card" Padding="16" MinHeight="80"><Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Orion" FontSize="16" Foreground="White"/><TextBlock Text="Return to Orion's interface selection" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><Button Grid.Column="1" Content="Back To Orion" Click="BackToOrion_Click"/></Grid></Border>
+                </StackPanel>
+              </ScrollViewer>
+            </Grid>
+
+            <Grid x:Name="SettingsSectionPage" IsVisible="False" RowDefinitions="55,40,12,*">
+              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="13" VerticalAlignment="Center">
+                <Button Classes="chrome" Width="38" Height="38" Click="SettingsBack_Click" ToolTip.Tip="Go back to main settings"><TextBlock Text="‹" FontSize="31" Foreground="#999" Margin="0,-4,0,0"/></Button>
+                <TextBlock x:Name="SettingsSectionTitle" Text="Execution Settings" FontSize="25" Foreground="White" VerticalAlignment="Center" />
+              </StackPanel>
+              <Grid Grid.Row="1">
+                <TextBox Classes="search" PlaceholderText="Search settings..." />
+                <Viewbox Width="18" Height="18" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                  <Canvas Width="24" Height="24"><Path Stroke="#929292" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
+                </Viewbox>
+              </Grid>
+              <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="SettingsRowsPanel" Spacing="16" Margin="0,0,8,0" />
+              </ScrollViewer>
+            </Grid>
+          </Grid>
+        </Grid>
+      </Grid>
+
+      <!-- Original ScriptBlox notice, shown once before the hub is used. -->
+      <Border x:Name="ScriptHubNotice" Grid.RowSpan="2" IsVisible="False"
+              Background="#D9000000" ZIndex="200">
+        <Border Width="672" Padding="24"
+                Background="#0A0A0A" BorderBrush="{StaticResource ZenithBorder}"
+                BorderThickness="1" CornerRadius="12"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Grid RowDefinitions="Auto,18,Auto,20,Auto">
+            <StackPanel Orientation="Horizontal" Spacing="15">
+              <Border Width="46" Height="46" CornerRadius="23" Background="#24FF7940">
+                <PathIcon Width="24" Height="24" Foreground="#FF7940"
+                          Data="M12,3 L23,21 L1,21 Z M12,9 L12,14 M12,18 L12.01,18" />
+              </Border>
+              <TextBlock Text="Important Notice" FontSize="20" FontWeight="SemiBold"
+                         Foreground="White" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Grid.Row="2" Spacing="15">
+              <TextBlock FontSize="16" Foreground="{StaticResource ZenithSecondary}" TextWrapping="Wrap">
+                <Run Text="Scripts in this hub are provided directly from the ScriptBlox website and are " />
+                <Run Text="not verified or endorsed" Foreground="#FF7940" />
+                <Run Text=" by Zenith. The &quot;Verified&quot; scripts are verified by ScriptBlox, not us." />
+              </TextBlock>
+              <TextBlock Text="We cannot guarantee the quality, safety, or reliability of these scripts. Some scripts may:"
+                         FontSize="16" Foreground="{StaticResource ZenithSecondary}" TextWrapping="Wrap" />
+              <TextBlock Text="  •  Not work at all, and simply throw an error&#10;  •  Be incompatible with Zenith&#10;  •  Purposefully cause your game to freeze up or crash&#10;  •  ...Or just generally suck"
+                         FontSize="16" LineHeight="28" Foreground="{StaticResource ZenithSecondary}" TextWrapping="Wrap" />
+              <TextBlock Text="Always review a script's content before executing it if its possible."
+                         FontSize="16" Foreground="{StaticResource ZenithSecondary}" TextWrapping="Wrap" />
+            </StackPanel>
+            <Button Grid.Row="4" Content="I Understand" Click="ScriptHubNoticeDismiss_Click"
+                    HorizontalAlignment="Right" Padding="16,9" />
+          </Grid>
+        </Border>
+      </Border>
+
+      <!-- Short native equivalent of Zenith's initialization state. -->
+      <Grid x:Name="ZenithLoadingOverlay" Grid.RowSpan="2" Background="#0A0A0A" ZIndex="300" Opacity="1">
+        <Grid.Transitions>
+          <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut" />
+          </Transitions>
+        </Grid.Transitions>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14">
+          <Ellipse Width="28" Height="28" Stroke="#C0C0C0" StrokeThickness="2"
+                   StrokeDashArray="8,4" />
+          <TextBlock Text="Initializing..." FontSize="15" Foreground="#7F7F7F" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

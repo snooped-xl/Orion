@@ -1,0 +1,344 @@
+[
+  {
+    "title": "Welcome to Zenith",
+    "category": "Getting Started",
+    "content": "# Welcome to Zenith\n\nZenith is a powerful script execution environment with a custom Lua API. Built by a team of experienced developers and trusted by over **33,000 users**. You will never use another script executor with as much care and attention to detail as Zenith.\n\nIf you're viewing this page, you may be unfortunately experiencing difficulty using Zenith or wish to learn more. Please navigate around and use the search bar to find a suitable article for any issues you're having.\n\nIf these articles fail to help, you are welcome to create a support ticket to get direct one-on-one support from our expert Zenith support team (constantly rated #1 support experience!).\n\nThis video is a quick introduction to setting up Zenith and how to get started if you're new:\n\n[youtube:tRxAosn_Nb0]",
+    "tags": [
+      "basics",
+      "introduction",
+      "first-time"
+    ]
+  },
+  {
+    "title": "Executing Scripts with Zenith",
+    "category": "Getting Started",
+    "content": "# Executing Scripts with Zenith\n\nThe Executor page is where you write and run your Lua scripts, as well as attach to Roblox.\n\nIf you've skipped or forgotten how to use the Executor page, navigate to Settings and click **Restart Tutorial** for a quick overview.\n\nUsing Zenith is straightforward:\n1. Join a Roblox game, any game you would like is fine\n2. Click **Attach** in Zenith, wait for it to finish injecting/attaching (top left of the interface will say \"Attached\" when complete)\n3. Paste your script and click the **Execute** button\n\nThat's it! You can run any script you'd like.\n\n**Note:** If [setting:errorSpoofing] is enabled, script errors appear in Zenith's console instead of Roblox's F9 console. This helps avoid detection in games with anti-cheat.",
+    "tags": [
+      "executor",
+      "editor",
+      "basics"
+    ]
+  },
+  {
+    "title": "Using Multi-Instance",
+    "category": "Getting Started",
+    "content": "# Using Multi-Instance\n\nEnable [setting:multiInstance] to attach to multiple Roblox instances simultaneously.\n\n**Important:** Enable this **BEFORE** opening any games.\n\n## How to Use\n\n1. Enable [setting:multiInstance]\n2. Launch multiple Roblox instances\n3. Click **Attach** (now labeled \"Select Process\")\n4. Choose which processes to attach to\n\n## Multi-Selection\n\nUse **Ctrl+Click** in the process selection dialog to select multiple processes and execute the same script across all of them.\n\n**Important:** If you're new, please don't forget to use different Roblox accounts for each instance to avoid disconnection issues. Roblox only allows one session per account at a time.",
+    "tags": [
+      "multi-instance",
+      "processes",
+      "advanced"
+    ]
+  },
+  {
+    "title": "Using Auto-Attach",
+    "category": "Feature Tutorials",
+    "content": "# Using Auto-Attach\n\nAuto-Attach automatically connects Zenith to Roblox when detected.\n\n## Setup\n\n1. Enable [setting:autoAttach]\n2. Set [setting:autoAttachDelay] (recommended: 5 seconds)\n\n## How It Works\n\nWhen enabled, Zenith will:\n1. Monitor for Roblox processes\n2. Wait for the configured delay\n3. Automatically attach to the game\n4. Notify you of success or failure\n\nThe delay gives Roblox time to fully initialize before attachment, preventing connection issues.",
+    "tags": [
+      "auto-attach",
+      "settings",
+      "automation"
+    ]
+  },
+  {
+    "title": "Working with Tabs",
+    "category": "Feature Tutorials",
+    "content": "# Working with Tabs\n\nZenith supports multiple editor tabs for organizing scripts and improving workflow.\n\n## Creating Tabs\n\n- Click the **+** button next to existing tabs\n- Press **Ctrl+T**\n\n## Managing Tabs\n\n- **Switch tabs**: Click tab headers\n- **Close tabs**: Click the X button or press **Ctrl+W**\n- **Rename tabs**: Right-click → \"Rename\"\n- **Reorder tabs**: Drag and drop tab headers\n- **Split view**: Right-click → \"Open in Split View\"\n- **Quick management**: Press **Ctrl+P** to use the Command Palette, you can create, close, and switch tabs really quickly with this feature!\n\n## Tab Persistence\n\nTabs are automatically saved. Close Zenith anytime and resume exactly where you left off. No more lost scripts!",
+    "tags": [
+      "tabs",
+      "workflow",
+      "editor"
+    ]
+  },
+  {
+    "title": "Using the Script Hub",
+    "category": "Feature Tutorials",
+    "content": "# Using the Script Hub\n\nThe Script Hub provides access to community scripts via ScriptBlox.\n\nBefore you are given access, we show you a warning. These scripts are created and shared by the ScriptBlox community, not Zenith. We do not review or endorse these scripts. \n\nYou are welcome to run and try any of these scripts with the knowledge that Zenith does not endorse, verify, review, or provide these scripts for you. They are provided by ScriptBlox exclusively (and their community).",
+    "tags": [
+      "script-hub",
+      "community",
+      "scripts"
+    ]
+  },
+  {
+    "title": "Custom Themes",
+    "category": "Feature Tutorials",
+    "content": "# Custom Themes\n\nOne unique and fun feature is the ability to customize your UI however you want!\n\nNavigate to [setting:theme] to create, import, or use pre-set themes we provide.\n\nWe regularly host theme contests on our Discord server where users can submit and share their custom themes with the community for prizes. Join our Discord to participate and download community-created themes!\n",
+    "tags": [
+      "theme",
+      "customization",
+      "appearance"
+    ]
+  },
+  {
+    "title": "Script Not Executing",
+    "category": "Troubleshooting",
+    "content": "# Script Not Executing\n\nScripts not running is annoying, but usually easy to fix. Follow these steps:\n\n## Check Attachment Status\n\nEnsure Zenith is actually attached to the game:\n1. Look for the attachment indicator (it should say \"Attached\" in the top left)\n2. If not attached, click the **Attach** button and wait for it to complete.\n\n## Console Errors\n\nCheck either Zenith's output console or the game's developer console (press **F9 in-game**) for any error messages. You can use this to gauge whether or not it was the script or Zenith itself that caused the issue. These provide clues about what went wrong.\n\nIf it is still not working, try the following:\n\n## Use the Internal Interface\n1. Enable [setting:internalInterface]\n2. Set a keybind for [setting:internalKeybind]\n3. In-game, press the keybind to open Zenith's internal interface\n4. Execute the script from there\n\nThe issue could be related to the external interface not communicating properly with the game.\n",
+    "tags": [
+      "troubleshooting",
+      "errors",
+      "execution"
+    ]
+  },
+  {
+    "title": "Connection Errors",
+    "category": "Troubleshooting",
+    "content": "# Connection Errors\n\nIf you're experiencing connection issues with Zenith, here's how to resolve them.\n\nMost connection issues occur because your ISP (internet provider) may be blocking Zenith's websites. You can resolve this by using WARP via one.one.one.one or by using a VPN service to bypass these restrictions.\n\nThe most common country with this issue is Russia, but it can happen anywhere. It is usually very easy to fix.\n\nYou can also ensure your firewall isn't causing issues with Zenith.",
+    "tags": [
+      "troubleshooting",
+      "connection",
+      "attachment"
+    ]
+  },
+  {
+    "title": "What is Zenith?",
+    "category": "FAQs",
+    "content": "# What is Zenith?\n\nZenith is a script execution environment with an extensive custom Lua API. Built by a team of passionate developers.\n\nFrom our site: **\"Zenith offers the most reliable and feature-rich scripting utility on the market. Our focus on stability, performance, and user experience makes us the preferred choice for thousands of users.\"**\n\n**Why the name \"Zenith\"?** Zenith means the highest point reached by a celestial sphere, or the most successful point - a fitting name for our product.\n\nZenith has the #1 Lua environment, #1 script decompiler, #1 user interface, #1 support team, and #1 usability.\n\nZenith is designed for script developers **and** script enjoyers alike!",
+    "tags": [
+      "faq",
+      "general",
+      "about"
+    ]
+  },
+  {
+    "title": "How do I update Zenith?",
+    "category": "FAQs",
+    "content": "# How do I update Zenith?\n\nZenith includes an automatic update system.\n\n## Automatic Updates\n\nZenith checks for updates on startup:\n1. You'll see a notification when updates are available\n2. Zenith automatically downloads new files and either restarts or continues running based on the update type\n\n## Update Issues\n\nIf updates fail:\n- Check your internet connection\n- Ensure firewall/antivirus isn't blocking Zenith\n- Use Cloudflare WARP (one.one.one.one) to bypass ISP restrictions or use a VPN\n- Redownload the latest **PACKAGED** version from zenith.win/user/dashboard",
+    "tags": [
+      "faq",
+      "updates",
+      "installation"
+    ]
+  },
+  {
+    "title": "Is my data safe?",
+    "category": "FAQs",
+    "content": "# Is my data safe?\n\nIn a nutshell: **Absolutely. Yes.**\n\nWe store as little data as possible to allow our product to work.\n\nFrom our site: **\"We collect minimal data on our users as we value their privacy. The main data we collect is your Zenith account username, a strongly-protected (hashed & salted) variant of your password, and your email address. Please review our Privacy Policy for more details!\"**\n\nYou can review our Privacy Policy: zenith.win/privacy-policy\n\nWe don't touch your scripts (they're only ever stored locally on your device), your login credentials are fully encrypted during transmission, and we follow industry-standard security practices.\n\nWe will **never** collect your script content, and we have **zero** telemetry or tracking of any kind - we don't even know your Roblox username!\n\n**Note:** Scripts that use online services (e.g., does some sort of authentication) may send data to third-party servers. This is entirely separate from Zenith and is controlled by the script author, not us. Always review scripts before executing them if possible.\n\nWe trust you have already been lectured on privacy and security, and with great power comes great responsibility! Don't just run any script you find online without reviewing it first, or atleast reading about what it does.\n\n",
+    "tags": [
+      "faq",
+      "security",
+      "privacy"
+    ]
+  },
+  {
+    "title": "Where can I get help?",
+    "category": "FAQs",
+    "content": "# Where can I get help?\n\nIf you can't find help on these articles, you are welcome to use our Discord server for help.\n\nWe understand that you may be experiencing issues, and our support team is here to assist you. We offer support primarily through our Discord server, where you can create support tickets (via the #ticket) and get help from our expert team.\n\n**We DO NOT use our email address for product support. It is mainly for legal notices (i.e. GDPR) or direct queries.** So unless you need to contact us for these reasons, please use Discord for support!\n\nFind the Discord link in **Settings** at the bottom of the page.",
+    "tags": [
+      "faq",
+      "support",
+      "help"
+    ]
+  },
+  {
+    "title": "Can I contribute or suggest features?",
+    "category": "FAQs",
+    "content": "# Can I contribute or suggest features?\n\nWe welcome your feedback and suggestions!\n\nAlthough you can't contribute code directly, you can suggest features and report bugs to help improve Zenith.\n\nIt is this simple:\n\n## Feature Requests\n\nTo suggest new features:\n1. Join our Discord server\n2. Use the #suggestions channel\n3. Describe your idea clearly\n4. Explain why it would be useful\n\n## Bug Reports\n\nFound a bug? Report it:\n1. Note the steps to reproduce (how to make the bug happen)\n2. Include error messages if any\n3. Share your system info\n4. Make a support ticket via the Discord (#ticket) and provide the details\n\nYour ideas make Zenith better for everyone!",
+    "tags": [
+      "faq",
+      "community",
+      "contribution"
+    ]
+  },
+  {
+    "title": "Fixing Injection Issues",
+    "category": "Troubleshooting",
+    "content": "# Fixing Injection/Attaching Issues\n\nIf Zenith won't inject/attach into Roblox, follow these troubleshooting steps in order.\n\n**Note:** Every issue has a solution. Follow each step carefully for best results.\n\n## Your Zenith Installation Path (IMPORTANT)\n**YOUR ZENITH LOCATION:** `ZENITH_INSTALL`\n\nYou will need this path for this guide. Make sure to use **THIS path**, not anything else.\n\n## 1. Delete Corrupted Files\n\nAnti-virus software may corrupt Zenith's files even when disabled. Delete the `bin` folder and `Zenith-Module.dll` where the Zenith installation path is, then continue with the next step.\n\n## 2. Exclude Zenith from Antivirus\n\nAdd a **permanent exclusion** instead of temporarily disabling anti-virus.\n\nLet's begin by you pressing this button below to open Windows Security, then follow the steps:\n\n[button-defender:Open Windows Security]\n\n1. Click **Manage settings** under **\"Virus & threat protection settings\"**\n2. Scroll to **Exclusions** → **Add or remove exclusions**\n3. Click **Add an exclusion** → **Folder**\n4. Select your Zenith folder: `ZENITH_INSTALL` (shown in Step 1)\n\n**IMPORTANT**: Make sure to exclude the **entire Zenith folder**, not just specific files.\n**IMPORTANT**: Do NOT exclude only `Zenith.exe` - this will NOT work.\n**IMPORTANT**: If you use third-party antivirus software (Norton, Malwarebytes, McAfee, G Data, etc.), add the same exclusion there as well, research how to add folder exclusions for Zenith.\n\n## 3. Restart Zenith\n\nClose and restart Zenith to regenerate files with antivirus excluded.\n\n## 4. Verify LIVE Roblox Version\n\nZenith only works with LIVE Roblox, not Beta or other channels.\n\nDownload the latest LIVE version from WEAO: rdd.weao.gg → select \"Download Latest Version\" → unzip the folder and run RobloxPlayerBeta.exe.\n\nTo learn more about Roblox channels, read this article: [article:LIVE vs Other Roblox Versions].\n\n## 5. Attach Before Joining\n\nOpen Zenith and attach **BEFORE** joining a Roblox game. If this works, you're done!\n\n**Still not working?** Restart your PC and try all steps again. If issues persist, create a support ticket via Discord (find the link in Settings).",
+    "tags": [
+      "injection",
+      "troubleshooting",
+      "attach",
+      "errors",
+      "timeout",
+      "failure"
+    ]
+  },
+  {
+    "title": "Game Crashes When Executing Scripts",
+    "category": "Troubleshooting",
+    "content": "# Game Crashes When Executing Scripts\n\nIf Roblox crashes when you execute scripts, follow these steps.\n\n## 1. Reset Exploit Protection Settings\n\n1. Go to Windows Security → App and Browser Control\n2. Open Exploit Protection Settings\n3. Set all options to \"Use default (on)\"\n\n**This fixes most crashes - try this first!**\n\n## 2. Reinstall Roblox Fresh\n\n1. Press Windows + R, type `%localappdata%`\n2. Delete the Roblox folder\n3. Download a fresh copy from roblox.com/download\n\n## 3. Disable Real-Time Protection\n\n1. Turn off anti-tamper and real-time protection in Windows Security\n2. Reinstall Zenith from the packaged zip\n\n## 4. Test with Different Script\n\nTry executing a simple script like Infinite Yield to isolate the issue.",
+    "tags": [
+      "crash",
+      "execution",
+      "scripts",
+      "game"
+    ]
+  },
+  {
+    "title": "Understanding HWID Resets",
+    "category": "FAQs",
+    "content": "# Understanding HWID Resets\n\nHWID (Hardware ID) errors occur when your Zenith account is used across multiple computers too quickly.\n\n## IMPORTANT: Two Different Types of HWID\n\nThis article is about **Zenith HWID** - the hardware lock on your Zenith account. This is different from **Script HWID**, which some paid scripts use.\n\n**Zenith HWID:**\n- Tied to your Zenith account and subscription\n- Prevents your account from being used on multiple PCs\n- Affects your ability to **login and use Zenith itself**\n\n**Script HWID:**\n- Used by individual paid scripts for their own copy protection\n- Completely separate from Zenith\n- Affects your ability to **run that specific script in-game**\n\n**How to tell which HWID issue you have:**\n- ✓ **Can't login to Zenith or getting HWID errors before attaching?** → Zenith HWID issue (this article applies)\n- ✓ **Getting kicked from game with \"HWID Mismatch\" error?** → Script HWID issue (contact the script developer, not Zenith support)\n\n## Reset Policy\n\nYou get **TWO automatic HWID resets every 24 hours** (non-stacking).\n\n## Why This Happens\n\nThis protection prevents account sharing, which violates our terms of service.\n\n## How to Resolve\n\n1. Change your account password immediately\n2. If using someone else's account, return it to the rightful owner\n3. Wait 24 hours before logging in again\n\n## Important\n\nWe will **NOT manually reset** your HWID. The automatic reset system is your only option.\n\nAccount sharing is prohibited and may result in license termination.",
+    "tags": [
+      "hwid",
+      "account",
+      "security",
+      "sharing"
+    ]
+  },
+  {
+    "title": "What Happens During Downtime",
+    "category": "FAQs",
+    "content": "# What Happens During Downtime\n\nOccasionally, Zenith needs maintenance or updates. This can be due to server issues, major game updates, or emergency fixes.\n\n## Typical Downtime\n\nMost downtime lasts less than 24 hours. In rare cases, it may take 1-3 days for major updates. We strive to minimize downtime and restore service as quickly as possible.\n\n## Compensation\n\nYou receive full time compensation for any downtime. Your subscription is automatically extended by the downtime duration. Additionally, we may offer bonus time as goodwill.\n\n## Stay Updated\n\nCheck Discord announcements for real-time status updates and estimated return times. Alternatively, you can simply open Zenith during downtime to see a status message.\n\n**Don't worry** - downtime is temporary and you won't lose any paid time.",
+    "tags": [
+      "downtime",
+      "maintenance",
+      "updates",
+      "compensation"
+    ]
+  },
+  {
+    "title": "Fixing Time Synchronization Errors",
+    "category": "Troubleshooting",
+    "content": "# Fixing Time Synchronization Errors\n\n\"Time check failed\" means your system time isn't synchronized properly.\n\n## Fix 1: Synchronize Time\n\n1. Open Windows Settings → Time & Date\n2. Click \"Synchronize now\"\n3. Try running Zenith again\n\n## Fix 2: Reconfigure Time Service\n\nOpen Command Prompt as administrator and run:\n\n```\nw32tm /config /manualpeerlist:\"pool.ntp.org\" /syncfromflags:manual /update\nnet stop w32time\nnet start w32time\nw32tm /resync /force\n```\n\nThen run Zenith as administrator.\n\n## Fix 3: Use VPN\n\nIf you're in a region with restricted access, try using:\n- Cloudflare WARP (one.one.one.one)\n- ProtonVPN (protonvpn.com)\n\nThis usually fixes time-related initialization errors.",
+    "tags": [
+      "time",
+      "sync",
+      "initialization",
+      "clock"
+    ]
+  },
+  {
+    "title": "Roblox Won't Open After Injection",
+    "category": "Troubleshooting",
+    "content": "# Roblox Won't Open After Injection\n\nIf Roblox fails to launch after injecting Zenith, try these fixes.\n\n## Fix 1: Launch Order\n\nLaunch Roblox **BEFORE** opening Zenith, then inject into the running process.\n\n## Fix 2: Enable Auto-Attach\n\n1. Enable [setting:autoAttach]\n2. Set [setting:autoAttachDelay] to **0 or 1 second**\n\nThis automatically handles the injection timing and prevents launch issues.",
+    "tags": [
+      "launch",
+      "roblox",
+      "auto-attach",
+      "opening"
+    ]
+  },
+  {
+    "title": "Module Update Failures",
+    "category": "Troubleshooting",
+    "content": "# Module Update Failures\n\nErrors like \"module failed to update\" or \"luau-lsp failed to download\" are usually network-related.\n\n## Solution 1: Use Cloudflare WARP\n\n1. Download from one.one.one.one\n2. Run the installer\n3. Enable Cloudflare WARP from the system tray (^ arrow icon)\n4. Try opening Zenith again\n\nCloudflare WARP routes your connection through their network, bypassing ISP restrictions that may block Zenith's update servers.\n\n## Solution 2: Download Packaged Version\n\nIf issues persist, download the latest **PACKAGED** version of Zenith from your dashboard at zenith.win/user/dashboard/ and reinstall.\n\n## Alternative Fixes\n\n- Check if your firewall is blocking Zenith\n- Temporarily disable antivirus\n- Run Zenith as administrator",
+    "tags": [
+      "update",
+      "download",
+      "network",
+      "module"
+    ]
+  },
+  {
+    "title": "Using the VSCode Extension",
+    "category": "Feature Tutorials",
+    "content": "# Using the VSCode Extension\n\nZenith offers an official VSCode (Visual Studio Code) extension that lets you execute scripts directly from your editor without switching windows.\n\n## What is the VSCode Extension?\n\nThe Zenith VSCode extension allows you to:\n- Execute scripts directly from VSCode\n- Keep your code in the familiar VSCode editor environment\n- Eliminate context switching between VSCode and Zenith's UI\n- Leverage VSCode's powerful features (IntelliSense, syntax highlighting, extensions)\n\n## Getting the Extension\n\n### Automatic Notification\n\nIf you have VSCode running while using Zenith, you'll see a one-time popup notification offering to install the extension. Click \"Get Extension\" to open it directly in VSCode.\n\n### Manual Installation\n\nIf you missed the popup:\n\n1. Open VSCode\n2. Go to Extensions (Ctrl+Shift+X)\n3. Search for \"Zenith\"\n4. Install the extension by ZenithSoftware (ID: `ZenithSoftware.zenith-vsc`)\n\nOr visit: marketplace.visualstudio.com/items?itemName=ZenithSoftware.zenith-vsc\n\n## How It Works\n\nOnce installed, you can execute your Lua scripts from VSCode while Zenith handles the injection and execution in the background. Your workflow stays in one place.\n\n**Note:** Zenith must be running and attached to Roblox for the extension to execute scripts.",
+    "tags": [
+      "vscode",
+      "extension",
+      "editor",
+      "workflow",
+      "integration"
+    ]
+  },
+  {
+    "title": "LIVE vs Other Roblox Versions",
+    "category": "Getting Started",
+    "content": "# LIVE vs Other Roblox Versions/Channels\n\nZenith only works with the **LIVE (production) version/channel** of Roblox, not Beta or other versions.\n\nIn some cases, users may unknowingly be on an older or incorrect version of Roblox that prevents Zenith from injecting properly. This article helps you ensure you're on the correct version.\n\n## Why am I not on LIVE?\n\nRoblox offers multiple release channels, and you may not be on the LIVE channel by default. Zenith typically will let you know if you're not on LIVE when injection fails. It is entirely random, and there is no set reason why some users end up on another channel.\n\n## Why LIVE is Required\n\nZenith's injection mechanism is specifically designed for the LIVE channel. Other versions have different binary structures that break compatibility, causing injection failures.\n\n## Checking Your Roblox Version\n\nThe easiest way to ensure you're on LIVE is to use Zenith's built-in Force Live feature:\n\n1. Go to **Settings**\n2. Search for \"Force Live\"\n3. Click \"Force Live\" option\n4. Follow the dialog to check and update your version\n\n## What Force Live Does\n\nThe Force Live feature:\n- Detects your current Roblox version (supports standard Roblox, Bloxstrap, and Fishstrap)\n- Checks if you're on the LIVE channel\n- Downloads and installs the latest LIVE version if needed\n- Sets your Windows registry to keep you on LIVE\n\n## Manual Method\n\nIf you prefer to install manually, or the Force Live method fails:\n\n1. Visit rdd.weao.gg\n2. Select \"Download Latest Version\"\n3. Unzip the entire folder to a new location, then run `RobloxPlayerBeta.exe`\n4. Attach Zenith after Roblox is running\n\n## Common Issues\n\n**\"Injection failed\" or \"Timeout\"**: Often caused by being on Beta version instead of LIVE. Use Force Live to fix this.\n\n**Note:** Always ensure you're on LIVE before attempting to inject Zenith. We will not support other Roblox versions.",
+    "tags": [
+      "roblox",
+      "version",
+      "live",
+      "beta",
+      "force-live",
+      "setup"
+    ]
+  },
+  {
+    "title": "Understanding Error Spoofing",
+    "category": "Feature Tutorials",
+    "content": "# Understanding Error Spoofing\n\nError Spoofing is an anti-detection feature that redirects script errors from the in-game console to Zenith's UI.\n\n## What is Error Spoofing?\n\nWhen enabled, Error Spoofing:\n- Intercepts runtime errors from your executed scripts\n- Redirects them to Zenith's Output Console (bottom panel)\n- Prevents errors from appearing in Roblox's F9 developer console\n\n![Error Spoofing Demo](/help-images/error-spoofing-overview.png)\n\n## Why Use It?\n\n**Anti-Cheat Evasion**: Many anti-cheat systems monitor the in-game console for suspicious errors or output. By keeping errors out of the F9 console, you reduce detection risk.\n\n**Benefits:**\n- In-game console stays clean (appears normal)\n- You still see all errors in Zenith's UI\n- Helps avoid console-based anti-cheat detection\n- Also easier to view errors in one place\n\n## How to Enable/Disable\n\nToggle [setting:errorSpoofing] to enable or disable this feature.\n\n## Where Errors Appear\n\n**Without Error Spoofing:**\n- Errors show in Roblox's F9 developer console (in-game)\n\n**With Error Spoofing:**\n- Errors show in Zenith's Output Console (bottom panel of Executor page)\n- Output from `printconsole()` also appears here\n\n## When to Use It\n\nEnable Error Spoofing when:\n- Playing on servers with strict anti-cheat\n- Wanting to avoid detection through console monitoring\n- Testing scripts that might produce errors\n\n**Note:** Error Spoofing requires Zenith to be attached to Roblox to work.",
+    "tags": [
+      "error-spoofing",
+      "anti-cheat",
+      "console",
+      "detection",
+      "errors"
+    ]
+  },
+  {
+    "title": "Managing Scripts and Files",
+    "category": "Feature Tutorials",
+    "content": "# Managing Scripts and Files\n\nZenith provides a complete file management system for organizing your scripts.\n\n## Your File Storage Locations\n\n- **Scripts (NOT TABS):** `%APPDATA%\\Zenith\\Scripts`\n- **AutoExec files:** `%APPDATA%\\Zenith\\AutoExec`\n- **Workspace files:** `%APPDATA%\\Zenith\\Workspace`\n\n## Root Folders\n\nThe three aforementioned folders serve different purposes:\n\n**Scripts Folder:**\n- Your general script storage, like a \"Documents\" folder for scripts - place any scripts you want here\n- Organize with custom subfolders, do whatever you'd like with it\n- Accessible from the right-side file list sidebar on the executor page. This is what makes this folder special - you can quickly open and edit any scripts here directly from Zenith\n\n**AutoExec Folder:**\n- These are scripts that run **automatically on injection** without needing to manually execute them\n- **Note:** Only scripts in the **root AutoExec folder** (this means nothing inside a folder inside of AutoExec) run automatically\n- Place scripts here to have them execute every time you attach Zenith or teleport in-game\n- Ideal for auto-farming scripts you always want active, or utility scripts you enjoy using every session\n- You can disable AutoExec in Settings if needed\n- See [article:Using Auto-Execute] for more details\n\n**Workspace Folder:**\n- Scripts that run and use the filesystem functions will only ever write and read from here\n- This serves as a sandboxed environment for scripts that need file access. this prevents scripts from accessing your entire filesystem unnecessarily\n- For example, functions like `saveinstance`, `writefile`, `readfile`, etc. will only work within this folder. See function documentation for more details on filesystem functions.\n\nOn the executor page, you can quickly open the Scripts and AutoExec via the file list, you can left-click files to quickly open the file in your explorer, and simply click the file to open them in a new tab. Then, you can edit and save them to their respective locations.\n",
+    "tags": [
+      "files",
+      "scripts",
+      "workspace",
+      "tabs",
+      "autoexec",
+      "organization"
+    ]
+  },
+  {
+    "title": "Using the Command Palette",
+    "category": "Feature Tutorials",
+    "content": "# Using the Command Palette\n\nThe Command Palette is a powerful, searchable interface for quick access to all (and a few exclusive) Zenith features without leaving your keyboard.\n\n## Opening the Command Palette\n\nPress **Ctrl+P** to open the Command Palette from anywhere in Zenith.\n\n![Command Palette Overview](/help-images/command-palette-overview.png)\n\n## What You Can Do\n\nThe Command Palette organizes hundreds of commands into categories:\n\n### Navigation Commands\n- Go to Home, Executor, ScriptHub, Documentation, or Settings\n- Quick navigation without clicking through the UI\n\n### Execution Commands\n- **Attach to Roblox** - Auto-detects available processes\n- **Execute Script** - Run current script\n- **Clear Editor** - Clear current tab\n- **Open Script File** - Load scripts from disk\n- **Save Script File** - Save current script\n- **Kill All Processes** - Terminate all attached processes\n- **Select All Processes** - For multi-instance execution\n- **Execute All Tabs** - Run all tabs sequentially\n\n### Tab Management\n- **New Tab** - Create new script tab\n- **Close Current Tab** - Close active tab\n- **Close All Tabs** - Close all tabs\n- **Close Other Tabs** - Close all except current\n- **Switch to Tab** - Jump to any open tab by name\n\n### Settings Control\nEvery setting in Zenith can be toggled or edited directly from the Command Palette. Yes, every single one.\n\n### Documentation Lookup\nSearch and view function documentation inline without leaving the palette:\n- Type any function name to see its documentation\n- View parameters, return values, and examples\n- Copy syntax and code snippets with one click\n\n![Command Palette Inline Docs](/help-images/command-palette-inline.png)\n\n## Searching and Filtering\n\nThe Command Palette uses intelligent fuzzy matching:\n- Type partial words to find commands\n- Searches titles, descriptions, and aliases\n- Results ranked by relevance\n- Highlights matching text in yellow\n\n### Examples:\n- **Type \"exec\"** → finds Execute Script, Execute All Tabs, Enable Auto Execute\n- **Type \"fps\"** → finds Unlock FPS, FPS Cap Value\n- **Type \"tabs\"** → quick tab navigation commands (you can also use \"t1\" (or \"tab1\"/just the number \"1\") for Tab 1, \"t2\" for Tab 2, etc.)\n\n## Command History\n\nThe palette tracks your usage:\n\n**Recent Commands:** Last 5 commands you executed\n\n**Frequently Used:** Top 5 most-used commands with usage count badge (e.g., \"5×\")\n\n**Pinned Commands:** Click the star icon ⭐ to pin your favorite commands to the top\n\n**Clear History:** Use the \"Clear history\" button to reset tracking\n\n## Quick Switch Mode\n\nPress **Ctrl+P** while the palette is already open:\n- Enters quick switch mode\n- Press Ctrl+P repeatedly to cycle through commands\n- Release Ctrl to execute the selected command\n- Perfect for rapid command access\n\n## Inline Documentation Viewer\n\nWhen you select a documentation command:\n- Full function reference opens in the palette\n- Shows description, syntax, parameters, and examples\n- Copy buttons for code snippets\n- Press Escape or Back button to return to commands\n\n## Opening Files Directly\n\nType **\"open \"** followed by a file path to open files:\n```\nopen C:\\Scripts\\myscript.lua\n```\nThe file loads directly into a new tab. It's hooked to Zenith and you can save changes back to disk, making it easy to work with external scripts.\n\n## Keyboard Navigation\n\n**Ctrl+P** - Open palette / Quick switch mode\n\n**↑ ↓ Arrow Keys** - Navigate through commands\n\n**Enter** - Execute selected command\n\n**Escape** - Close palette or exit documentation\n\n**Click ⭐** - Pin/unpin command\n\n## Tips\n\n- Pin your most-used commands for instant access\n- Use aliases: \"exe\" for Executor, \"sh\" for ScriptHub, \"?\" for Documentation\n- The palette remembers your frequently used commands\n- Settings changes are instant - no need to close the palette\n- Tab switching shows your current tab with a bullet point (•)\n\nThe Command Palette is designed to keep your hands on the keyboard and your workflow uninterrupted.\n",
+    "tags": [
+      "command-palette",
+      "shortcuts",
+      "keyboard",
+      "productivity",
+      "navigation",
+      "ctrl+p"
+    ]
+  },
+  {
+    "title": "Keyboard Shortcuts Reference",
+    "category": "Feature Tutorials",
+    "content": "# Keyboard Shortcuts Reference\n\nQuick reference for Zenith-specific keyboard shortcuts.\n\n## Essential Shortcuts\n\n**Ctrl+P** - Open Command Palette (see [article:Using the Command Palette] for full details)\n\n**Ctrl+T** - New tab\n\n**Ctrl+W** - Close current tab\n\n**Ctrl+R** - Refresh Zenith application\n\n**Escape** - Close modals, exit views, go back\n\n## Tab Management\n\n**Ctrl+T** - Create new tab\n\n**Ctrl+W** - Close current tab\n\n**Middle Mouse Click** - Close tab (click on tab header)\n\n**Right-Click Tab** - Open context menu (Rename, Split View, etc.)\n\n## Output Console\n\n**Enter or Space** - Cycle console height (while hovering over resize handle)\n\nToggles between: 100px → 30% → 50% → Maximum height\n\n## Execution\n\n**Ctrl+Click** - Multi-select processes (in process selection dialog)\n\n**Enter** - Execute focused button (when Execute/Attach/Clear button has focus)\n\n## Settings\n\n**Insert** - Internal Interface Keybind (default, customizable via [setting:internalKeybind])\n\n## Editor Shortcuts\n\nZenith uses the Monaco editor. For a complete list of editor shortcuts, see: microsoft.github.io/monaco-editor/\n\nCommon shortcuts include Ctrl+/, Ctrl+Z, Ctrl+Shift+K, Alt+Up/Down, and more.\n\n## Command Palette\n\n**Ctrl+P** gives you keyboard access to virtually everything in Zenith. See [article:Using the Command Palette] for complete details on:\n- Navigation shortcuts\n- Quick Switch Mode\n- Settings control\n- File operations\n- Documentation lookup\n\n## Disabling Editor Hints\n\nIf you were brought here from the editor hint overlay, you can disable it in [setting:showEditorHints].\n\nThe editor hints appear at the bottom of empty tabs to help new users discover essential shortcuts. Once you're familiar with Zenith's shortcuts, feel free to disable them for a cleaner interface.\n",
+    "tags": [
+      "shortcuts",
+      "keyboard",
+      "hotkeys",
+      "productivity",
+      "reference",
+      "keybinds"
+    ]
+  },
+  {
+    "title": "Using the Internal Interface (In-Game UI)",
+    "category": "Feature Tutorials",
+    "content": "# Using the Internal Interface (In-Game UI)\n\nThe Internal Interface is a lightweight in-game overlay for fast script execution without alt-tabbing.\n\n## How to Enable\n\n1. Enable [setting:internalInterface]\n2. Customize [setting:internalKeybind] (default: **Insert**)\n3. Attach Zenith to Roblox\n4. Press your keybind in-game\n\n![Internal Interface Demo](/help-images/internal-gui-overview.png)\n\n## What It Does\n\nExecute scripts directly in-game without switching windows. Perfect for quick testing and rapid iteration during gameplay.\n\n## Key Differences from Main GUI\n\n**Has:**\n- Fast script execution in-game\n- Minimal UI overlay\n\n**Doesn't Have:**\n- Output console\n- Tab management\n- File operations\n- Script Hub/Documentation\n- Advanced editor features\n\n**Important:** You must attach using the main GUI first. The Internal Interface only works on already-attached processes.\n\n## When to Use It\n\n**Internal Interface:** Quick script testing without leaving the game\n\n**Main GUI:** Everything else (managing scripts, viewing errors, accessing features)\n\nDisabled by default - enable via [setting:internalInterface].",
+    "tags": [
+      "internal-interface",
+      "in-game",
+      "ui",
+      "overlay",
+      "keybind",
+      "execution"
+    ]
+  },
+  {
+    "title": "Using Create LocalScript",
+    "category": "Feature Tutorials",
+    "content": "# Using Create LocalScript\n\nThe Create LocalScript setting is designed for legacy scripts that expect to run within a LocalScript instance.\n\n## What It Does\n\nWhen enabled, your executed scripts will run under a randomly-generated LocalScript in-game rather than directly in the environment.\n\n## When to Use It\n\n**Only enable this for legacy scripts** that specifically expect to be running within a LocalScript instance. Most modern scripts do not need this.\n\n## How It Works\n\n- Zenith creates a LocalScript with a randomly generated name\n- Your code executes within that LocalScript context\n- The LocalScript name is random and changes each execution\n\nEnable via [setting:createLocalScript].",
+    "tags": [
+      "localscript",
+      "execution",
+      "legacy",
+      "compatibility"
+    ]
+  },
+  {
+    "title": "Using FPS Unlocker",
+    "category": "Feature Tutorials",
+    "content": "# Using FPS Unlocker\n\nControl your in-game frame rate beyond Roblox's built-in limits.\n\n## Roblox vs Zenith\n\n**Roblox's FPS Unlocker:** 60-240 FPS only\n\n**Zenith's FPS Unlocker:** 1 FPS to uncapped\n\n## Why Use It\n\n**Low FPS (1-30):** Reduce CPU/GPU usage for auto-farming or background running\n\n**High FPS (240+):** Smoother gameplay and better performance\n\nEnable [setting:unlockFPS] and set [setting:fpsCapValue] to control your frame rate.",
+    "tags": [
+      "fps",
+      "performance",
+      "framerate",
+      "optimization",
+      "farming"
+    ]
+  },
+  {
+    "title": "Using Auto-Execute",
+    "category": "Feature Tutorials",
+    "content": "# Using Auto-Execute\n\nAuto-Execute automatically runs scripts from your AutoExec folder when you attach to Roblox.\n\n## How It Works\n\nAutoExec scripts run **before the game's ReplicatedFirst**, making them fast and powerful. Your scripts execute immediately on attachment, before most game systems load.\n\n## Setup\n\n1. Place scripts in the **AutoExec** folder (`%APPDATA%\\Zenith\\AutoExec`)\n2. Enable [setting:enableAutoExec]\n3. Attach to Roblox - scripts run automatically\n\n**Note:** Only scripts in the root AutoExec folder run automatically, not in subfolders. See [article:Managing Scripts and Files] for more about file organization.\n\n## Use Cases\n\n- Auto-farming scripts that need to run every session\n- Utility scripts you always want active\n- Game-specific configurations that load on join\n\nAdditionally, you can disable AutoExec temporarily via [setting:enableAutoExec] if needed. You can also run AutoExec scripts by running the script `runautoexec()` manually from the executor after attaching.\n\n## Troubleshooting: Scripts Not Running\n\nIf your AutoExec scripts fail to run, the game may not be fully loaded yet. Add this line at the start:\n\n```\nif not game.IsLoaded then game.Loaded:Wait() end\nprint(\"AutoExec script loaded!\")\n```\n\nThis ensures the game is fully loaded before your script executes.",
+    "tags": [
+      "autoexec",
+      "automation",
+      "scripts",
+      "execution"
+    ]
+  }
+]
