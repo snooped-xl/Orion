@@ -136,6 +136,15 @@ public sealed partial class OrionWindow
                     {
                         _orionMonacoReady = true;
                         PushOrionActiveTabToMonaco();
+                        var theme = CurrentOrionTheme();
+                        PushOrionThemeToMonaco(
+                            theme,
+                            theme.Material == OrionThemeMaterial.Solid ? 1 :
+                                theme.Material == OrionThemeMaterial.LiquidGlass ? 0.72 : theme.SurfaceOpacity,
+                            theme.Material == OrionThemeMaterial.Solid ? theme.SurfaceOpacity :
+                                theme.Material == OrionThemeMaterial.LiquidGlass
+                                    ? Math.Clamp(theme.SurfaceOpacity, 0.18, 0.72)
+                                    : Math.Clamp(theme.SurfaceOpacity * 0.72, 0.06, 0.42));
                     });
                     break;
 
@@ -344,8 +353,10 @@ public sealed partial class OrionWindow
             Tag = tab.Id,
             Width = tabWidth,
             Height = OrionTabHeight,
-            Background = new SolidColorBrush(Color.Parse(isActive ? "#94080A0A" : "#520E1011")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#171A1D")),
+            Background = isActive
+                ? ThemeResourceBrush("OrionTabSurface", "#94080A0A")
+                : ThemeResourceBrush("OrionPanelOverlayBrush", "#520E1011"),
+            BorderBrush = ThemeResourceBrush("OrionBorderBrush", "#171A1D"),
             BorderThickness = new Thickness(0.667, 0.667, 0.667, 0),
             CornerRadius = new CornerRadius(4.667, 4.667, 0, 0),
             Cursor = new Cursor(StandardCursorType.Hand),
@@ -379,11 +390,11 @@ public sealed partial class OrionWindow
                 Height = 20,
                 Padding = new Thickness(2, 0),
                 Margin = new Thickness(0, 4, 0, 4),
-                Background = new SolidColorBrush(Color.Parse("#CC07080A")),
-                BorderBrush = new SolidColorBrush(Color.Parse("#525558")),
+                Background = ThemeResourceBrush("OrionPanelStrongBrush", "#CC07080A"),
+                BorderBrush = ThemeResourceBrush("OrionBorderStrongBrush", "#525558"),
                 BorderThickness = new Thickness(.667),
                 CornerRadius = new CornerRadius(2.5),
-                Foreground = Brushes.White,
+                Foreground = ThemeResourceBrush("OrionTextPrimaryBrush", "#FFFFFF"),
                 FontSize = 8,
                 VerticalContentAlignment = VerticalAlignment.Center
             };
@@ -424,7 +435,9 @@ public sealed partial class OrionWindow
                 Text = tab.Title,
                 FontSize = 8,
                 FontWeight = FontWeight.Bold,
-                Foreground = new SolidColorBrush(Color.Parse(isActive ? "#FFFFFF" : "#7D7D80")),
+                Foreground = isActive
+                    ? ThemeResourceBrush("OrionTextPrimaryBrush", "#FFFFFF")
+                    : ThemeResourceBrush("OrionTextSecondaryBrush", "#7D7D80"),
                 VerticalAlignment = VerticalAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
@@ -436,7 +449,7 @@ public sealed partial class OrionWindow
         {
             Width = 5,
             Height = 5,
-            Fill = new SolidColorBrush(Color.Parse("#595C5F")),
+            Fill = ThemeResourceBrush("OrionTextMutedBrush", "#595C5F"),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -451,7 +464,7 @@ public sealed partial class OrionWindow
         closeTarget.PointerEntered += (_, _) =>
             dot.Fill = new SolidColorBrush(Color.Parse("#9A5C61"));
         closeTarget.PointerExited += (_, _) =>
-            dot.Fill = new SolidColorBrush(Color.Parse("#595C5F"));
+            dot.Fill = ThemeResourceBrush("OrionTextMutedBrush", "#595C5F");
         closeTarget.PointerPressed += (_, eventArgs) =>
         {
             if (!eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)

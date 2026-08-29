@@ -121,9 +121,15 @@ public sealed partial class OrionWindow
     private void UpdateOrionPluginAdminToggle()
     {
         var enabled = OrbitPreferences.PluginsRunAsAdministrator;
-        _orionPluginAdminTrack.Background = Brush(enabled ? "#55595D" : "#111315");
-        _orionPluginAdminTrack.BorderBrush = Brush(enabled ? "#777B7F" : "#373A3D");
-        _orionPluginAdminThumb.Fill = Brush(enabled ? "#F1F2F3" : "#74777A");
+        _orionPluginAdminTrack.Background = enabled
+            ? ThemeResourceBrush("OrionBorderStrongBrush", "#55595D")
+            : ThemeResourceBrush("OrionControlBrush", "#111315");
+        _orionPluginAdminTrack.BorderBrush = enabled
+            ? ThemeResourceBrush("OrionTextSecondaryBrush", "#777B7F")
+            : ThemeResourceBrush("OrionBorderBrush", "#373A3D");
+        _orionPluginAdminThumb.Fill = enabled
+            ? ThemeResourceBrush("OrionTextPrimaryBrush", "#F1F2F3")
+            : ThemeResourceBrush("OrionTextSecondaryBrush", "#74777A");
         Canvas.SetLeft(_orionPluginAdminThumb, enabled ? 14 : 2);
     }
 
@@ -185,7 +191,7 @@ public sealed partial class OrionWindow
         {
             Height = 53.333,
             Background = Brushes.Transparent,
-            BorderBrush = Brush("#25272A"),
+            BorderBrush = ThemeResourceBrush("OrionBorderBrush", "#25272A"),
             BorderThickness = new Thickness(0, 0, 0, 0.5)
         };
 
@@ -203,7 +209,7 @@ public sealed partial class OrionWindow
             VerticalAlignment = VerticalAlignment.Center,
             Opacity = plugin.IsRunning ? 0.95 : 0.52,
             Stretch = Stretch.Uniform,
-            Fill = Brush("#BCBCBC"),
+            Fill = ThemeResourceBrush("OrionTextSecondaryBrush", "#BCBCBC"),
             Data = Geometry.Parse(OrionPluginGlyphData)
         });
 
@@ -222,7 +228,7 @@ public sealed partial class OrionWindow
         {
             Text = plugin.Name,
             FontSize = 8.333,
-            Foreground = Brush("#E3E4E5"),
+            Foreground = ThemeResourceBrush("OrionTextPrimaryBrush", "#E3E4E5"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 240
         });
@@ -230,7 +236,7 @@ public sealed partial class OrionWindow
         {
             Text = plugin.Version,
             FontSize = 6.333,
-            Foreground = Brush("#515458"),
+            Foreground = ThemeResourceBrush("OrionTextMutedBrush", "#515458"),
             VerticalAlignment = VerticalAlignment.Center
         });
         identity.Children.Add(titleLine);
@@ -246,7 +252,9 @@ public sealed partial class OrionWindow
         {
             Text = detail,
             FontSize = 6.667,
-            Foreground = Brush(plugin.Error is null ? "#606367" : "#A6676B"),
+            Foreground = plugin.Error is null
+                ? ThemeResourceBrush("OrionTextMutedBrush", "#606367")
+                : Brush("#A6676B"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             MaxWidth = 292
         });
@@ -256,9 +264,11 @@ public sealed partial class OrionWindow
         {
             Text = PluginStatus(plugin),
             FontSize = 6.667,
-            Foreground = Brush(plugin.Error is not null
-                ? "#A6676B"
-                : plugin.IsRunning ? "#AEB8B0" : "#5C5F63"),
+            Foreground = plugin.Error is not null
+                ? Brush("#A6676B")
+                : plugin.IsRunning
+                    ? ThemeResourceBrush("OrionTextPrimaryBrush", "#AEB8B0")
+                    : ThemeResourceBrush("OrionTextMutedBrush", "#5C5F63"),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -470,7 +480,9 @@ public sealed partial class OrionWindow
     private void SetOrionPluginMessage(string message, bool isError = false)
     {
         _orionPluginMessageText.Text = message;
-        _orionPluginMessageText.Foreground = Brush(isError ? "#A6676B" : "#55585C");
+        _orionPluginMessageText.Foreground = isError
+            ? Brush("#A6676B")
+            : ThemeResourceBrush("OrionTextMutedBrush", "#55585C");
         ToolTip.SetTip(_orionPluginMessageText, message);
     }
 

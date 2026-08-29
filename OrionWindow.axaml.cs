@@ -19,6 +19,8 @@ public sealed partial class OrionWindow : Window
     private const double EditorHeight = 558d;
     private const double SpinnerDegreesPerSecond = 10d;
     private const uint SpiGetClientAreaAnimation = 0x1042;
+    private const int DwmWindowCornerPreference = 33;
+    private const int DwmBorderColor = 34;
 
     private static readonly TimeSpan LoadingFadeInDuration = TimeSpan.FromMilliseconds(600);
     private static readonly TimeSpan LoadingHoldDuration = TimeSpan.FromMilliseconds(900);
@@ -70,10 +72,14 @@ public sealed partial class OrionWindow : Window
         };
         _spinnerTimer.Tick += SpinnerTimer_Tick;
 
+        // Apply the saved Orion-only palette before any child controls are
+        // generated, preventing a one-frame flash of the default material.
+        LoadOrionThemeStateAndApply();
         InitializeOrionNavigation();
         InitializeOrionEditor();
         InitializeOrionPages();
         InitializeOrionPluginsPage();
+        InitializeOrionThemeStudio();
 
         Opened += OrionWindow_Opened;
     }
@@ -87,6 +93,7 @@ public sealed partial class OrionWindow : Window
     private async void OrionWindow_Opened(object? sender, EventArgs e)
     {
         Opened -= OrionWindow_Opened;
+        ApplyNativeOrionWindowCurve();
 
         if (!string.Equals(_startupInterface, OrbitPreferences.OrionInterface, StringComparison.Ordinal))
         {
@@ -114,6 +121,33 @@ public sealed partial class OrionWindow : Window
             // Never leave a live but transparent window behind if a frame fails.
             ShowEditorImmediately();
         }
+    }
+
+    private void ApplyNativeOrionWindowCurve()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            return;
+        }
+
+        var platformHandle = TryGetPlatformHandle();
+        if (platformHandle?.Handle is not { } handle || handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var rounded = 2; // DWMWCP_ROUND
+        _ = DwmSetWindowAttribute(
+            handle,
+            DwmWindowCornerPreference,
+            ref rounded,
+            sizeof(int));
+        var noNativeBorder = unchecked((int)0xFFFFFFFE); // DWMWA_COLOR_NONE
+        _ = DwmSetWindowAttribute(
+            handle,
+            DwmBorderColor,
+            ref noNativeBorder,
+            sizeof(int));
     }
 
     private void PrepareOrionForPreservedUiStartup()
@@ -324,6 +358,13 @@ public sealed partial class OrionWindow : Window
         [MarshalAs(UnmanagedType.Bool)] out bool pvParam,
         uint fWinIni);
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr hwnd,
+        int attribute,
+        ref int value,
+        int valueSize);
+
     private void TitleBar_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (_morphCompleted && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
@@ -351,6 +392,7 @@ public sealed partial class OrionWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        DisposeOrionThemeStudio();
         DisposeOrionNavigation();
         DisposeOrionPages();
         DisposeOrionEditor();

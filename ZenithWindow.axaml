@@ -57,6 +57,10 @@
     <StreamGeometry x:Key="ZenithSearchGlyph">M19 11A8 8 0 1 1 3 11A8 8 0 1 1 19 11M21 21L16.65 16.65</StreamGeometry>
     <StreamGeometry x:Key="ZenithHubEyeGlyph">M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12ZM12 9C10.343 9 9 10.343 9 12C9 13.657 10.343 15 12 15C13.657 15 15 13.657 15 12C15 10.343 13.657 9 12 9Z</StreamGeometry>
     <StreamGeometry x:Key="ZenithHubWarningGlyph">M12 3L23 21H1L12 3ZM12 9V14M12 18V18.01</StreamGeometry>
+    <!-- Exact account and password-visibility paths used by Zenith V2's login page. -->
+    <StreamGeometry x:Key="ZenithLoginUserGlyph">M18.685,19.097C20.572,17.319 21.750,14.797 21.750,12.000C21.750,6.615 17.385,2.250 12.000,2.250C6.615,2.250 2.250,6.615 2.250,12.000C2.250,14.797 3.428,17.319 5.315,19.097C7.060,20.742 9.412,21.750 12.000,21.750C14.588,21.750 16.940,20.742 18.685,19.097ZM6.145,17.812C7.520,16.098 9.632,15.000 12.000,15.000C14.368,15.000 16.480,16.098 17.855,17.812C16.360,19.318 14.289,20.250 12.000,20.250C9.711,20.250 7.640,19.318 6.145,17.812ZM15.750,9.000C15.750,11.071 14.071,12.750 12.000,12.750C9.929,12.750 8.250,11.071 8.250,9.000C8.250,6.929 9.929,5.250 12.000,5.250C14.071,5.250 15.750,6.929 15.750,9.000Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithLoginEyeGlyph">M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12ZM9 12A3 3 0 1 0 15 12A3 3 0 1 0 9 12Z</StreamGeometry>
+    <StreamGeometry x:Key="ZenithLoginEyeOffGlyph">M17.94 17.94A10.07 10.07 0 0 1 12 20C5 20 1 12 1 12A18.45 18.45 0 0 1 6.06 6.06M9.9 4.24A9.12 9.12 0 0 1 12 4C19 4 23 12 23 12A18.5 18.5 0 0 1 20.84 15.19M14.12 14.12A3 3 0 1 1 9.88 9.88M1 1L23 23</StreamGeometry>
   </Window.Resources>
 
   <Window.Styles>
@@ -88,6 +92,22 @@
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="#7A7A7A" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="Transparent" BorderThickness="0">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                              Padding="{TemplateBinding Padding}"
+                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
     </Style>
     <Style Selector="Button.chrome:pointerover">
       <Setter Property="Background" Value="Transparent" />
@@ -96,6 +116,9 @@
     <Style Selector="Button.chrome:pressed">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.chrome:focus">
+      <Setter Property="Background" Value="Transparent" />
     </Style>
     <Style Selector="Button.nav">
       <Setter Property="Height" Value="40" />
@@ -109,6 +132,36 @@
     </Style>
     <Style Selector="Button.nav:pointerover">
       <Setter Property="Background" Value="#0AFFFFFF" />
+    </Style>
+    <Style Selector="Border.nav-indicator">
+      <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+      <Setter Property="RenderTransform" Value="scale(1,0.5)" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.30">
+            <DoubleTransition.Easing>
+              <SplineEasing X1="0.4" Y1="0" X2="0.2" Y2="1" />
+            </DoubleTransition.Easing>
+          </DoubleTransition>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.30">
+            <TransformOperationsTransition.Easing>
+              <SplineEasing X1="0.4" Y1="0" X2="0.2" Y2="1" />
+            </TransformOperationsTransition.Easing>
+          </TransformOperationsTransition>
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="TextBlock.nav-label">
+      <Setter Property="Opacity" Value="0" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.30">
+            <DoubleTransition.Easing>
+              <SplineEasing X1="0.4" Y1="0" X2="0.2" Y2="1" />
+            </DoubleTransition.Easing>
+          </DoubleTransition>
+        </Transitions>
+      </Setter>
     </Style>
     <Style Selector="Button.action">
       <Setter Property="Height" Value="36" />
@@ -325,6 +378,85 @@
       <Setter Property="MinWidth" Value="48" />
       <Setter Property="HorizontalAlignment" Value="Right" />
     </Style>
+    <Style Selector="TextBox.zenith-login-input">
+      <Setter Property="Width" Value="216" />
+      <Setter Property="Height" Value="38" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="Foreground" Value="#DEDEDE" />
+      <Setter Property="BorderBrush" Value="#00DEDEDE" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <!-- Keep Zenith's restrained text selection instead of Fluent/Avalonia's
+           opaque default highlight. -->
+      <Setter Property="SelectionBrush" Value="#2BDEDEDE" />
+      <Setter Property="SelectionForegroundBrush" Value="#FFFFFFFF" />
+      <Setter Property="CaretBrush" Value="#BFFFFFFF" />
+    </Style>
+    <Style Selector="TextBox.zenith-login-input:pointerover">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#00DEDEDE" />
+    </Style>
+    <Style Selector="TextBox.zenith-login-input:focus">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#1FDEDEDE" />
+    </Style>
+    <Style Selector="TextBox.zenith-login-input:focus-within">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#1FDEDEDE" />
+    </Style>
+    <!-- Fluent draws its accent focus ring on the template border rather than
+         the TextBox itself, so override that part explicitly. -->
+    <Style Selector="TextBox.zenith-login-input /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#00DEDEDE" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="TextBox.zenith-login-input:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#00DEDEDE" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.zenith-login-input:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#1FDEDEDE" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.zenith-login-input:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#0C626262" />
+      <Setter Property="BorderBrush" Value="#1FDEDEDE" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.zenith-login-button">
+      <Setter Property="Width" Value="216" />
+      <Setter Property="Height" Value="38" />
+      <Setter Property="Padding" Value="8" />
+      <Setter Property="Background" Value="#1A626262" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+    <Style Selector="Button.zenith-login-button:pointerover">
+      <Setter Property="Background" Value="#25626262" />
+    </Style>
+    <Style Selector="Button.zenith-login-button:pressed">
+      <Setter Property="Background" Value="#2A626262" />
+    </Style>
+    <Style Selector="Button.zenith-password-toggle">
+      <Setter Property="Width" Value="32" />
+      <Setter Property="Height" Value="38" />
+      <Setter Property="Padding" Value="8" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="#9A9A9A" />
+    </Style>
+    <Style Selector="Button.zenith-password-toggle:pointerover">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#DEDEDE" />
+    </Style>
   </Window.Styles>
 
   <Border x:Name="ZenithChrome"
@@ -357,7 +489,7 @@
               BorderThickness="0,0,0,1"
               PointerPressed="TitleBar_PointerPressed">
         <Grid ColumnDefinitions="*,Auto,*">
-          <StackPanel Grid.Column="0" ZIndex="1" Width="160" Margin="12,0,0,0" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="6">
+          <StackPanel Grid.Column="0" ZIndex="1" Width="390" Margin="12,0,0,0" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="6">
             <Grid Width="14" Height="14" VerticalAlignment="Center">
               <Ellipse x:Name="BridgeStatusDotGlow" Width="14" Height="14" Fill="#4E4D72" Opacity="0.4">
                 <Ellipse.Effect><BlurEffect Radius="12" /></Ellipse.Effect>
@@ -396,53 +528,56 @@
         </Grid>
       </Border>
 
-      <Grid Grid.Row="1" ColumnDefinitions="Auto,*">
+      <Grid x:Name="ZenithAuthenticatedShell" Grid.Row="1" ColumnDefinitions="Auto,*" IsVisible="False">
         <!-- Original nav is 56px collapsed and 200px on hover. -->
         <Border x:Name="NavigationPanel" Grid.Column="0" Width="56"
-                Background="#08FFFFFF" BorderBrush="{StaticResource ZenithBorderSoft}"
-                BorderThickness="0,0,1,0" ClipToBounds="True"
+                Background="#08FFFFFF" BorderThickness="0" ClipToBounds="True"
                 PointerEntered="NavigationPanel_PointerEntered"
                 PointerExited="NavigationPanel_PointerExited">
           <Border.Transitions>
             <Transitions>
-              <DoubleTransition Property="Width" Duration="0:0:0.30" Easing="CubicEaseOut" />
+              <DoubleTransition Property="Width" Duration="0:0:0.30">
+                <DoubleTransition.Easing>
+                  <SplineEasing X1="0.4" Y1="0" X2="0.2" Y2="1" />
+                </DoubleTransition.Easing>
+              </DoubleTransition>
             </Transitions>
           </Border.Transitions>
           <Grid RowDefinitions="*,Auto" Margin="8">
             <StackPanel Grid.Row="0" Spacing="8">
               <Button x:Name="HomeNavButton" Classes="nav" Tag="Home" Click="NavButton_Click">
                 <Grid ColumnDefinitions="40,*">
-                  <Border x:Name="HomeNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" />
+                  <Border x:Name="HomeNavIndicator" Classes="nav-indicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" />
                   <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithHomeGlyph}" /></Canvas></Viewbox>
-                  <TextBlock Grid.Column="1" Text="Home" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                  <TextBlock Classes="nav-label" Grid.Column="1" Text="Home" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
                 </Grid>
               </Button>
               <Button x:Name="ExecutionNavButton" Classes="nav" Tag="Execution" Click="NavButton_Click">
                 <Grid ColumnDefinitions="40,*">
-                  <Border x:Name="ExecutionNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Border x:Name="ExecutionNavIndicator" Classes="nav-indicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
                   <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithExecutionGlyph}" /></Canvas></Viewbox>
-                  <TextBlock Grid.Column="1" Text="Execution" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                  <TextBlock Classes="nav-label" Grid.Column="1" Text="Execution" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
                 </Grid>
               </Button>
               <Button x:Name="ScriptHubNavButton" Classes="nav" Tag="ScriptHub" Click="NavButton_Click">
                 <Grid ColumnDefinitions="40,*">
-                  <Border x:Name="ScriptHubNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Border x:Name="ScriptHubNavIndicator" Classes="nav-indicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
                   <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithScriptHubGlyph}" /></Canvas></Viewbox>
-                  <TextBlock Grid.Column="1" Text="Script Hub" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                  <TextBlock Classes="nav-label" Grid.Column="1" Text="Script Hub" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
                 </Grid>
               </Button>
               <Button x:Name="DocumentationNavButton" Classes="nav" Tag="Documentation" Click="NavButton_Click">
                 <Grid ColumnDefinitions="40,*">
-                  <Border x:Name="DocumentationNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Border x:Name="DocumentationNavIndicator" Classes="nav-indicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
                   <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithDocumentationGlyph}" /></Canvas></Viewbox>
-                  <TextBlock Grid.Column="1" Text="Documentation" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                  <TextBlock Classes="nav-label" Grid.Column="1" Text="Documentation" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
                 </Grid>
               </Button>
             </StackPanel>
             <StackPanel Grid.Row="1" Spacing="8">
               <Button x:Name="HelpNavButton" Classes="nav" Tag="Help" Click="NavButton_Click">
                 <Grid ColumnDefinitions="40,*">
-                  <Border x:Name="HelpNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Border x:Name="HelpNavIndicator" Classes="nav-indicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
                   <Viewbox Grid.Column="0" Width="24" Height="24">
                     <Canvas Width="24" Height="24">
                       <Ellipse Canvas.Left="2" Canvas.Top="2" Width="20" Height="20"
@@ -453,14 +588,14 @@
                             Stroke="#BF9A9A9A" StrokeThickness="2" StrokeLineCap="Round" />
                     </Canvas>
                   </Viewbox>
-                  <TextBlock Grid.Column="1" Text="Help" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                  <TextBlock Classes="nav-label" Grid.Column="1" Text="Help" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
                 </Grid>
               </Button>
               <Button x:Name="SettingsNavButton" Classes="nav" Tag="Settings" Click="NavButton_Click">
                 <Grid ColumnDefinitions="40,*">
-                  <Border x:Name="SettingsNavIndicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
+                  <Border x:Name="SettingsNavIndicator" Classes="nav-indicator" Grid.Column="0" Width="3" Height="40" HorizontalAlignment="Left" VerticalAlignment="Center" Background="{StaticResource ZenithSidebarGradient}" CornerRadius="20,0,0,20" Opacity="0" />
                   <Viewbox Grid.Column="0" Width="24" Height="24"><Canvas Width="24" Height="24"><Path Fill="#BF9A9A9A" Data="{StaticResource ZenithSettingsGlyph}" /></Canvas></Viewbox>
-                  <TextBlock Grid.Column="1" Text="Settings" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
+                  <TextBlock Classes="nav-label" Grid.Column="1" Text="Settings" Foreground="#E69A9A9A" FontSize="16" FontWeight="Medium" LineHeight="19.2" VerticalAlignment="Center" Margin="4,0,12,0" />
                 </Grid>
               </Button>
             </StackPanel>
@@ -506,7 +641,7 @@
                       </LinearGradientBrush>
                     </Border.Background>
                   </Border>
-                  <StackPanel Margin="0,-3,0,0">
+                  <StackPanel x:Name="HomeChangelogContent" Margin="0,-3,0,0">
                     <TextBlock Text="Changelog" FontSize="20" LineHeight="24" FontWeight="SemiBold" Foreground="{StaticResource ZenithSecondary}" />
                     <TextBlock Text="Below you can find a changelog for the last few updates." FontSize="14" LineHeight="16.8" Foreground="{StaticResource ZenithMuted}" />
                     <TextBlock Text="You're all caught up! 🎊" Margin="0,25,0,0" HorizontalAlignment="Center" FontSize="14" LineHeight="16.8" Foreground="{StaticResource ZenithMuted}" />
@@ -526,7 +661,7 @@
                       </LinearGradientBrush>
                     </Border.Background>
                   </Border>
-                  <StackPanel Margin="0,-3,0,0">
+                  <StackPanel x:Name="HomeNewsContent" Margin="0,-3,0,0">
                     <TextBlock Text="News" FontSize="20" LineHeight="24" FontWeight="SemiBold" Foreground="{StaticResource ZenithSecondary}" />
                     <TextBlock Text="Right now, there's no news to be seen. Come back later." FontSize="14" LineHeight="16.8" FontWeight="Medium" Foreground="{StaticResource ZenithSecondary}" />
                   </StackPanel>
@@ -585,7 +720,7 @@
 
           -->
           <Grid x:Name="ExecutionPage" IsVisible="False" RowDefinitions="46,8,*,8,36">
-            <Border Grid.Row="0" Background="{StaticResource ZenithCard}" CornerRadius="12" ClipToBounds="True">
+            <Border x:Name="ExecutionTabStrip" Grid.Row="0" Background="{StaticResource ZenithCard}" CornerRadius="12" ClipToBounds="True">
               <Grid ColumnDefinitions="*,Auto">
                 <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
                   <StackPanel x:Name="ZenithTabBar" Orientation="Horizontal" Spacing="4" Margin="12,0,4,0" />
@@ -657,7 +792,7 @@
               </Border>
             </Grid>
 
-            <Grid Grid.Row="4" ColumnDefinitions="Auto,8,Auto,*,Auto,8,Auto,8,Auto">
+            <Grid x:Name="ExecutionButtonRow" Grid.Row="4" ColumnDefinitions="Auto,8,Auto,*,Auto,8,Auto,8,Auto">
               <Button x:Name="ZenithAttachButton" Grid.Column="0" Classes="action" Width="92" Click="Attach_Click">
                 <Grid>
                   <Canvas IsHitTestVisible="False">
@@ -748,7 +883,7 @@
 
           <!-- SCRIPT HUB -->
           <Grid x:Name="ScriptHubPage" IsVisible="False" RowDefinitions="73,12,40,12,*">
-            <Border Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
+            <Border x:Name="ScriptHubHeader" Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
               <Grid>
                 <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="0,-30,-30,0" CornerRadius="68.5" Background="#39A2FF" Opacity="0.25"
@@ -772,7 +907,7 @@
                 </StackPanel>
               </Grid>
             </Border>
-            <Grid Grid.Row="2" Margin="12,0" ColumnDefinitions="*,12,174,8,Auto">
+            <Grid x:Name="ScriptHubToolbar" Grid.Row="2" Margin="12,0" ColumnDefinitions="*,12,174,8,Auto">
               <Grid Grid.Column="0">
                 <TextBox x:Name="ZenithHubSearchBox" Classes="search" PlaceholderText="Search for scripts..."
                          TextChanged="ZenithHubSearchBox_TextChanged" />
@@ -833,7 +968,7 @@
 
           <!-- DOCUMENTATION -->
           <Grid x:Name="DocumentationPage" IsVisible="False" RowDefinitions="73,12,*">
-            <Border Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
+            <Border x:Name="DocumentationHeader" Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
               <Grid>
                 <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="0,-30,-30,0" CornerRadius="68.5" Background="#39A2FF" Opacity="0.25"
@@ -848,12 +983,12 @@
               </Grid>
             </Border>
             <Grid Grid.Row="2" ColumnDefinitions="224,12,*">
-              <Border Grid.Column="0" Classes="card" Padding="12">
+              <Border x:Name="DocumentationSidebar" Grid.Column="0" Classes="card" Padding="12">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                   <StackPanel x:Name="DocumentationCategoryPanel" Spacing="8" />
                 </ScrollViewer>
               </Border>
-              <Border Grid.Column="2" Classes="card">
+              <Border x:Name="DocumentationBody" Grid.Column="2" Classes="card">
                 <Grid RowDefinitions="Auto,*">
                   <Border x:Name="DocumentationSearchShell" Grid.Row="0" Padding="12"
                           BorderBrush="{StaticResource ZenithBorderSoft}" BorderThickness="0,0,0,1">
@@ -876,7 +1011,7 @@
 
           <!-- HELP -->
           <Grid x:Name="HelpPage" IsVisible="False" RowDefinitions="73,12,*">
-            <Border Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
+            <Border x:Name="HelpHeader" Grid.Row="0" Classes="card" Padding="12" ClipToBounds="False">
               <Grid>
                 <Border Width="137" Height="139" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Margin="0,-30,-30,0" CornerRadius="68.5" Background="#39A2FF" Opacity="0.25"
@@ -891,7 +1026,7 @@
               </Grid>
             </Border>
             <Grid Grid.Row="2" ColumnDefinitions="256,12,*">
-              <Border Grid.Column="0" Classes="card" Padding="12">
+              <Border x:Name="HelpSidebar" Grid.Column="0" Classes="card" Padding="12">
                 <Grid RowDefinitions="36,12,*">
                   <Grid>
                     <TextBox x:Name="HelpSearchBox" Classes="search" Height="36" Padding="36,0,12,0" PlaceholderText="Search articles..." />
@@ -904,7 +1039,7 @@
                   </ScrollViewer>
                 </Grid>
               </Border>
-              <Border Grid.Column="2" Classes="card">
+              <Border x:Name="HelpBody" Grid.Column="2" Classes="card">
                 <ScrollViewer x:Name="HelpContentScroll" VerticalScrollBarVisibility="Auto">
                   <StackPanel x:Name="HelpContentPanel" Margin="32" Spacing="17"
                               MaxWidth="896" HorizontalAlignment="Left" />
@@ -916,18 +1051,18 @@
           <!-- SETTINGS -->
           <Grid x:Name="SettingsPage" IsVisible="False">
             <Grid x:Name="SettingsMainPage" RowDefinitions="78,40,12,*">
-              <StackPanel Grid.Row="0" Margin="4,7,0,0" Spacing="6">
+              <StackPanel x:Name="SettingsMainHeader" Grid.Row="0" Margin="4,7,0,0" Spacing="6">
                 <TextBlock Text="Settings" FontSize="25" Foreground="White" />
                 <TextBlock Text="Configure Zeniths execution and appearance  (Help?)" FontSize="14" Foreground="{StaticResource ZenithMuted}" />
               </StackPanel>
-              <Grid Grid.Row="1">
+              <Grid x:Name="SettingsMainSearch" Grid.Row="1">
                 <TextBox Classes="search" PlaceholderText="Search all settings..." />
                 <Viewbox Width="18" Height="18" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
                   <Canvas Width="24" Height="24"><Path Stroke="#929292" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
                 </Viewbox>
                 <Border HorizontalAlignment="Right" Margin="0,0,12,0" Padding="6,2" BorderBrush="#363636" BorderThickness="1" CornerRadius="3" VerticalAlignment="Center"><TextBlock Text="Ctrl+K" FontSize="10" FontFamily="Consolas" Foreground="#777"/></Border>
               </Grid>
-              <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+              <ScrollViewer x:Name="SettingsMainContent" Grid.Row="3" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="16" Margin="0,0,8,0">
                   <Button Classes="setting-card" Tag="Execution Settings" Click="SettingsSection_Click">
                     <Grid ColumnDefinitions="*,Auto"><StackPanel Spacing="6"><TextBlock Text="Execution Settings" FontSize="16" Foreground="White"/><TextBlock Text="Configure how scripts are executed and your preferences" FontSize="14" Foreground="{StaticResource ZenithMuted}"/></StackPanel><TextBlock Grid.Column="1" Text="›" FontSize="28" Foreground="#888" VerticalAlignment="Center"/></Grid>
@@ -947,23 +1082,68 @@
             </Grid>
 
             <Grid x:Name="SettingsSectionPage" IsVisible="False" RowDefinitions="55,40,12,*">
-              <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="13" VerticalAlignment="Center">
+              <StackPanel x:Name="SettingsSectionHeader" Grid.Row="0" Orientation="Horizontal" Spacing="13" VerticalAlignment="Center">
                 <Button Classes="chrome" Width="38" Height="38" Click="SettingsBack_Click" ToolTip.Tip="Go back to main settings"><TextBlock Text="‹" FontSize="31" Foreground="#999" Margin="0,-4,0,0"/></Button>
                 <TextBlock x:Name="SettingsSectionTitle" Text="Execution Settings" FontSize="25" Foreground="White" VerticalAlignment="Center" />
               </StackPanel>
-              <Grid Grid.Row="1">
+              <Grid x:Name="SettingsSectionSearch" Grid.Row="1">
                 <TextBox Classes="search" PlaceholderText="Search settings..." />
                 <Viewbox Width="18" Height="18" Margin="13,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center">
                   <Canvas Width="24" Height="24"><Path Stroke="#929292" StrokeThickness="1.5" StrokeLineCap="Round" StrokeJoin="Round" Data="{StaticResource ZenithSearchGlyph}" /></Canvas>
                 </Viewbox>
               </Grid>
-              <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+              <ScrollViewer x:Name="SettingsSectionContent" Grid.Row="3" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="SettingsRowsPanel" Spacing="16" Margin="0,0,8,0" />
               </ScrollViewer>
             </Grid>
           </Grid>
         </Grid>
       </Grid>
+
+      <!-- Native recreation of Zenith V2's login state. Authentication is intentionally fake. -->
+      <Border x:Name="ZenithLoginPage" Grid.Row="1" Margin="12"
+              Classes="card" ZIndex="45">
+        <StackPanel Width="216" Spacing="8"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock Text="Login" Foreground="#E6FFFFFF"
+                     FontSize="18" FontWeight="SemiBold" LineHeight="21.6"
+                     HorizontalAlignment="Center" />
+          <TextBox x:Name="ZenithLoginUsername" Classes="zenith-login-input"
+                   PlaceholderText="Username" KeyDown="ZenithLoginUsername_KeyDown" />
+          <Grid Width="216" Height="38">
+            <TextBox x:Name="ZenithLoginPassword" Classes="zenith-login-input"
+                     Padding="8,0,40,0" PasswordChar="●"
+                     PlaceholderText="••••phrase" KeyDown="ZenithLoginPassword_KeyDown" />
+            <Button x:Name="ZenithPasswordToggle" Classes="zenith-password-toggle"
+                    HorizontalAlignment="Right" Click="ZenithPasswordToggle_Click"
+                    ToolTip.Tip="Show password">
+              <Viewbox Width="16" Height="16">
+                <Canvas Width="24" Height="24">
+                  <Path x:Name="ZenithLoginEye" IsVisible="False"
+                        Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                        StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                        Data="{StaticResource ZenithLoginEyeGlyph}" />
+                  <Path x:Name="ZenithLoginEyeOff"
+                        Fill="Transparent" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                        StrokeThickness="2" StrokeLineCap="Round" StrokeJoin="Round"
+                        Data="{StaticResource ZenithLoginEyeOffGlyph}" />
+                </Canvas>
+              </Viewbox>
+            </Button>
+          </Grid>
+          <Button x:Name="ZenithFakeLoginButton" Classes="zenith-login-button"
+                  Click="ZenithFakeLogin_Click">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Viewbox Width="20" Height="20">
+                <Canvas Width="24" Height="24">
+                  <Path Fill="#BF9A9A9A" Data="{StaticResource ZenithLoginUserGlyph}" />
+                </Canvas>
+              </Viewbox>
+              <TextBlock Text="Login" FontSize="16" Foreground="#DEDEDE" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
 
       <!-- Original ScriptBlox notice, shown once before the hub is used. -->
       <Border x:Name="ScriptHubNotice" Grid.RowSpan="2" IsVisible="False"

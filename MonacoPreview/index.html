@@ -17,6 +17,12 @@
         color-scheme: dark;
         --editor-bg: transparent;
         --editor-radius: 0px;
+        --orion-window-start: #181a1b;
+        --orion-window-end: #08090a;
+        --orion-widget: #181b1d;
+        --orion-widget-selection: #292d32;
+        --orion-widget-hover: #22262a;
+        --orion-widget-border: #303235;
         background: var(--editor-bg);
       }
 
@@ -75,8 +81,8 @@
            surface through WebView2's Windows airspace. */
         background-image: linear-gradient(
           122.2466557642525deg,
-          #181a1b 0%,
-          #08090a 37.019%
+          var(--orion-window-start) 0%,
+          var(--orion-window-end) 37.019%
         ) !important;
         background-size: 896.4px 558px !important;
         background-position: -10.8px -120.6px !important;
@@ -89,7 +95,7 @@
       }
 
       .suggest-widget {
-        border: 1px solid #303235 !important;
+        border: 1px solid var(--orion-widget-border) !important;
         border-radius: 6px !important;
         overflow: hidden !important;
         box-shadow: 0 10px 28px #00000066 !important;
@@ -97,15 +103,15 @@
 
       .suggest-widget .monaco-list,
       .suggest-widget .monaco-list-rows {
-        background: #181b1d !important;
+        background: var(--orion-widget) !important;
       }
 
       .suggest-widget .monaco-list-row.focused {
-        background: #292d32 !important;
+        background: var(--orion-widget-selection) !important;
       }
 
       .suggest-widget .monaco-list-row:hover:not(.focused) {
-        background: #22262a !important;
+        background: var(--orion-widget-hover) !important;
       }
 
       .suggest-widget .details-label,
@@ -635,6 +641,59 @@
             padding: { top: 0, bottom: 0 }
           } : {})
         });
+
+        // Theme Studio updates the native shell without navigating this
+        // WebView. Monaco stays transparent while its readable chrome follows
+        // the active Orion palette, preserving the model and cursor.
+        const toMonacoColour = (value, fallback) => {
+          if (typeof value !== "string") return fallback;
+          if (/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value)) return value;
+          const match = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/i);
+          if (!match) return fallback;
+          const hex = [match[1], match[2], match[3]]
+            .map((channel) => Math.max(0, Math.min(255, Number(channel))).toString(16).padStart(2, "0"))
+            .join("");
+          const alpha = Math.round(Math.max(0, Math.min(1, Number(match[4] ?? 1))) * 255)
+            .toString(16)
+            .padStart(2, "0");
+          return `#${hex}${alpha}`;
+        };
+
+        window.orionApplyTheme = (theme) => {
+          if (!theme || !isOrionSurface) return;
+          document.documentElement.style.setProperty("--orion-window-start", theme.windowStart || "#181a1b");
+          document.documentElement.style.setProperty("--orion-window-end", theme.windowEnd || "#08090a");
+          document.documentElement.style.setProperty("--orion-widget", theme.widget || "#181b1d");
+          document.documentElement.style.setProperty("--orion-widget-selection", theme.widgetSelection || "#292d32");
+          document.documentElement.style.setProperty("--orion-widget-hover", theme.widgetSelection || "#22262a");
+          document.documentElement.style.setProperty("--orion-widget-border", theme.border || "#303235");
+          const primaryText = toMonacoColour(theme.text, "#FFFFFFFF");
+
+          const liveTheme = {
+            ...editorThemeDefinition,
+            rules: [...(editorThemeDefinition.rules || [])],
+            colors: {
+              ...(editorThemeDefinition.colors || {}),
+              "editor.background": "#00000000",
+              "editorGutter.background": "#00000000",
+              "editorPane.background": "#00000000",
+              "minimap.background": "#00000000",
+              "editor.foreground": primaryText,
+              "editorCursor.foreground": primaryText,
+              "editorLineNumber.activeForeground": primaryText,
+              "editor.lineHighlightBackground": toMonacoColour(theme.lineHighlight, "#FFFFFF0A"),
+              "editorWidget.background": toMonacoColour(theme.widget, "#181B1DFA"),
+              "editorWidget.border": toMonacoColour(theme.border, "#303235FF"),
+              "editorSuggestWidget.background": toMonacoColour(theme.widget, "#181B1DFA"),
+              "editorSuggestWidget.border": toMonacoColour(theme.border, "#303235FF"),
+              "editorSuggestWidget.foreground": primaryText,
+              "editorSuggestWidget.selectedBackground": toMonacoColour(theme.widgetSelection, "#8DB7FF33")
+            }
+          };
+          monaco.editor.defineTheme("orion-live", liveTheme);
+          monaco.editor.setTheme("orion-live");
+          editor.layout();
+        };
 
         editor.addCommand(
           monaco.KeyCode.Tab,

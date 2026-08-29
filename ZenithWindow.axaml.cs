@@ -7,6 +7,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Media.Transformation;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -39,6 +40,12 @@ public sealed partial class ZenithWindow : Window
 
     private readonly Border _chrome;
     private readonly Border _navigationPanel;
+    private readonly Grid _authenticatedShell;
+    private readonly Border _loginPage;
+    private readonly TextBox _loginUsername;
+    private readonly TextBox _loginPassword;
+    private readonly ShapePath _loginEye;
+    private readonly ShapePath _loginEyeOff;
     private readonly NativeWebView _editor;
     private readonly StackPanel _tabBar;
     private readonly StackPanel _fileList;
@@ -86,6 +93,8 @@ public sealed partial class ZenithWindow : Window
     private string _currentPage = "Home";
     private bool _editorReady;
     private bool _editorSourceAssigned;
+    private bool _fakeLoggedIn;
+    private bool _loginPasswordVisible;
     private bool _closingForOrion;
     private bool _returnRequested;
     private bool _outputExpanded = true;
@@ -105,6 +114,7 @@ public sealed partial class ZenithWindow : Window
     private int _zenithHubColumnCount;
     private CancellationTokenSource? _zenithHubLoadCancellation;
     private CancellationTokenSource? _zenithHubSearchCancellation;
+    private CancellationTokenSource? _pageAnimationCancellation;
 
     public ZenithWindow() : this(
         new Uri("http://127.0.0.1:1/index.html"),
@@ -140,6 +150,12 @@ public sealed partial class ZenithWindow : Window
 
         _chrome = Required<Border>("ZenithChrome");
         _navigationPanel = Required<Border>("NavigationPanel");
+        _authenticatedShell = Required<Grid>("ZenithAuthenticatedShell");
+        _loginPage = Required<Border>("ZenithLoginPage");
+        _loginUsername = Required<TextBox>("ZenithLoginUsername");
+        _loginPassword = Required<TextBox>("ZenithLoginPassword");
+        _loginEye = Required<ShapePath>("ZenithLoginEye");
+        _loginEyeOff = Required<ShapePath>("ZenithLoginEyeOff");
         _editor = Required<NativeWebView>("ZenithEditorWebView");
         _tabBar = Required<StackPanel>("ZenithTabBar");
         _fileList = Required<StackPanel>("ZenithFileList");
@@ -282,6 +298,56 @@ public sealed partial class ZenithWindow : Window
             await Task.Delay(180);
             _loadingOverlay.IsVisible = false;
         }
+
+        if (!_fakeLoggedIn)
+        {
+            _loginUsername.Focus();
+        }
+    }
+
+    private void ZenithFakeLogin_Click(object? sender, RoutedEventArgs e)
+        => CompleteFakeLogin();
+
+    private void ZenithLoginUsername_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        _loginPassword.Focus();
+        e.Handled = true;
+    }
+
+    private void ZenithLoginPassword_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        CompleteFakeLogin();
+        e.Handled = true;
+    }
+
+    private void ZenithPasswordToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        _loginPasswordVisible = !_loginPasswordVisible;
+        _loginPassword.PasswordChar = _loginPasswordVisible ? '\0' : '●';
+        _loginEye.IsVisible = _loginPasswordVisible;
+        _loginEyeOff.IsVisible = !_loginPasswordVisible;
+        ToolTip.SetTip(Required<Button>("ZenithPasswordToggle"),
+            _loginPasswordVisible ? "Hide password" : "Show password");
+        _loginPassword.Focus();
+    }
+
+    private void CompleteFakeLogin()
+    {
+        _fakeLoggedIn = true;
+        _loginPage.IsVisible = false;
+        _authenticatedShell.IsVisible = true;
+        SetPage("Home", force: true);
+        ApplyBridgeState(_bridge.IsConnected);
     }
 
     private void ZenithWindow_Closed(object? sender, EventArgs e)
@@ -295,6 +361,7 @@ public sealed partial class ZenithWindow : Window
         _pendingSnapshot?.TrySetCanceled();
         _zenithHubLoadCancellation?.Cancel();
         _zenithHubSearchCancellation?.Cancel();
+        _pageAnimationCancellation?.Cancel();
         _zenithHubLoadCancellation?.Dispose();
         _zenithHubSearchCancellation?.Dispose();
         _zenithHubService.Dispose();
@@ -397,7 +464,7 @@ public sealed partial class ZenithWindow : Window
     private void NavigationPanel_PointerEntered(object? sender, PointerEventArgs e)
     {
         _navigationCloseTimer.Stop();
-        _navigationPanel.Width = 200;
+        SetNavigationExpanded(true);
     }
 
     private void NavigationPanel_PointerExited(object? sender, PointerEventArgs e)
@@ -409,7 +476,18 @@ public sealed partial class ZenithWindow : Window
     private void NavigationCloseTimer_Tick(object? sender, EventArgs e)
     {
         _navigationCloseTimer.Stop();
-        _navigationPanel.Width = 56;
+        SetNavigationExpanded(false);
+    }
+
+    private void SetNavigationExpanded(bool expanded)
+    {
+        _navigationPanel.Width = expanded ? 200 : 56;
+        foreach (var label in _navigationPanel.GetVisualDescendants()
+                     .OfType<TextBlock>()
+                     .Where(control => control.Classes.Contains("nav-label")))
+        {
+            label.Opacity = expanded ? 1 : 0;
+        }
     }
 
     private void NavButton_Click(object? sender, RoutedEventArgs e)
@@ -420,12 +498,28 @@ public sealed partial class ZenithWindow : Window
         }
     }
 
-    private void SetPage(string page)
+    private void SetPage(string page, bool force = false)
     {
         if (!_pages.ContainsKey(page))
         {
             return;
         }
+
+        if (!force && string.Equals(_currentPage, page, StringComparison.Ordinal) &&
+            _pages[page].IsVisible)
+        {
+            return;
+        }
+
+        _pageAnimationCancellation?.Cancel();
+        _pageAnimationCancellation?.Dispose();
+        _pageAnimationCancellation = new CancellationTokenSource();
+        var animationToken = _pageAnimationCancellation.Token;
+
+        // A native WebView is a child HWND and must be explicitly hidden before
+        // another native page is mounted. Zenith's web build remounts the editor
+        // at this point, so delaying its reveal also preserves the source timing.
+        _editor.IsVisible = false;
 
         _currentPage = page;
         foreach (var pair in _pages)
@@ -437,28 +531,198 @@ public sealed partial class ZenithWindow : Window
         {
             var active = pair.Key == page;
             pair.Value.Indicator.Opacity = active ? 1 : 0;
+            pair.Value.Indicator.RenderTransform = TransformOperations.Parse(
+                active ? "scale(1,1)" : "scale(1,0.5)");
             pair.Value.Button.Background = Brushes.Transparent;
             ToolTip.SetIsOpen(pair.Value.Button, false);
         }
 
-        if (page == "Execution")
+        if (page == "Settings")
+        {
+            ShowSettingsMain(animate: false);
+        }
+
+        if (page == "ScriptHub")
+        {
+            if (!_zenithHubLoaded)
+            {
+                _ = ReloadZenithHubAsync();
+            }
+            else if (_zenithHubCards.Count > 0)
+            {
+                // The Svelte page remounts its cards and replays their 20ms
+                // stagger whenever Script Hub is entered.
+                RenderZenithHubCards(animate: true);
+            }
+        }
+
+        _ = AnimateZenithPageEntranceAsync(page, animationToken);
+    }
+
+    private async Task AnimateZenithPageEntranceAsync(string page, CancellationToken cancellationToken)
+    {
+        var fades = new List<(Control Control, double Delay, double Duration, double Offset, bool CssEaseOut)>();
+
+        void Add(string controlName, double delay, double duration, double offset = 3, bool cssEaseOut = false)
+        {
+            if (this.FindControl<Control>(controlName) is { } control)
+            {
+                fades.Add((control, delay, duration, offset, cssEaseOut));
+            }
+        }
+
+        switch (page)
+        {
+            case "Home":
+                // Changelog and News use the shared in-view fade component.
+                Add("HomeChangelogContent", .3, .3);
+                Add("HomeNewsContent", .2, .3);
+                break;
+            case "Execution":
+                // Exact source stack: tabs 200ms, editor 300ms + 100ms,
+                // controls 300ms + 200ms.
+                Add("ExecutionTabStrip", 0, .2, cssEaseOut: true);
+                Add("ZenithEditorSplit", .1, .3, cssEaseOut: true);
+                Add("ExecutionButtonRow", .2, .3, cssEaseOut: true);
+                break;
+            case "ScriptHub":
+                Add("ScriptHubHeader", 0, .2, 2, cssEaseOut: true);
+                Add("ScriptHubToolbar", 0, .3, 2, cssEaseOut: true);
+                break;
+            case "Documentation":
+                Add("DocumentationHeader", .1, .3);
+                Add("DocumentationSidebar", .2, .3);
+                Add("DocumentationBody", .3, .3);
+                break;
+            case "Help":
+                Add("HelpHeader", .1, .3);
+                Add("HelpSidebar", .2, .3);
+                Add("HelpBody", .3, .3);
+                break;
+            case "Settings":
+                Add("SettingsMainHeader", .1, .3);
+                Add("SettingsMainSearch", .1, .3);
+                Add("SettingsMainContent", .2, .3);
+                break;
+        }
+
+        // Set every start state synchronously so no element flashes for one
+        // frame before its original delay begins.
+        var prepared = fades.Select(fade =>
+        {
+            var translation = new TranslateTransform(0, fade.Offset);
+            fade.Control.Opacity = 0;
+            fade.Control.RenderTransform = translation;
+            return (fade.Control, fade.Delay, fade.Duration, fade.Offset, fade.CssEaseOut, Translation: translation);
+        }).ToArray();
+
+        try
+        {
+            var animationTasks = prepared
+                .Select(fade => AnimateZenithFadeAsync(
+                    fade.Control,
+                    fade.Translation,
+                    fade.Delay,
+                    fade.Duration,
+                    fade.Offset,
+                    fade.CssEaseOut,
+                    cancellationToken))
+                .ToList();
+
+            if (page == "Execution")
+            {
+                animationTasks.Add(RevealZenithEditorAfterSourceDelayAsync(cancellationToken));
+            }
+
+            await Task.WhenAll(animationTasks);
+        }
+        catch (OperationCanceledException)
+        {
+            // A different page owns the visual tree now.
+        }
+    }
+
+    private async Task RevealZenithEditorAfterSourceDelayAsync(CancellationToken cancellationToken)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(.1), cancellationToken);
+        if (!cancellationToken.IsCancellationRequested && _currentPage == "Execution")
         {
             RevealEditor();
         }
-        else
+    }
+
+    private static async Task AnimateZenithFadeAsync(
+        Control control,
+        TranslateTransform translation,
+        double delaySeconds,
+        double durationSeconds,
+        double offset,
+        bool cssEaseOut,
+        CancellationToken cancellationToken)
+    {
+        if (delaySeconds > 0)
         {
-            _editor.IsVisible = false;
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
         }
 
-        if (page == "Settings")
+        var stopwatch = Stopwatch.StartNew();
+        var duration = Math.Max(.001, durationSeconds);
+        while (true)
         {
-            ShowSettingsMain();
+            cancellationToken.ThrowIfCancellationRequested();
+            var progress = Math.Clamp(stopwatch.Elapsed.TotalSeconds / duration, 0, 1);
+            var eased = cssEaseOut
+                ? EvaluateCubicBezier(progress, 0, 0, .58, 1)
+                : EvaluateCubicBezier(progress, .25, .1, .25, 1);
+            control.Opacity = eased;
+            translation.Y = offset * (1 - eased);
+
+            if (progress >= 1)
+            {
+                break;
+            }
+
+            await Task.Delay(16, cancellationToken);
         }
 
-        if (page == "ScriptHub" && !_zenithHubLoaded)
+        control.Opacity = 1;
+        translation.Y = 0;
+    }
+
+    private static double EvaluateCubicBezier(
+        double progress,
+        double x1,
+        double y1,
+        double x2,
+        double y2)
+    {
+        static double Sample(double t, double first, double second)
         {
-            _ = ReloadZenithHubAsync();
+            var inverse = 1 - t;
+            return 3 * inverse * inverse * t * first +
+                   3 * inverse * t * t * second +
+                   t * t * t;
         }
+
+        static double Derivative(double t, double first, double second)
+            => 3 * (1 - t) * (1 - t) * first +
+               6 * (1 - t) * t * (second - first) +
+               3 * t * t * (1 - second);
+
+        var parameter = progress;
+        for (var iteration = 0; iteration < 6; iteration++)
+        {
+            var error = Sample(parameter, x1, x2) - progress;
+            var derivative = Derivative(parameter, x1, x2);
+            if (Math.Abs(derivative) < .000001)
+            {
+                break;
+            }
+
+            parameter = Math.Clamp(parameter - error / derivative, 0, 1);
+        }
+
+        return Sample(parameter, y1, y2);
     }
 
     private void RevealEditor()
@@ -1860,6 +2124,22 @@ public sealed partial class ZenithWindow : Window
     private void ApplyBridgeState(bool connected)
     {
         var live = connected && _bridge.GetConnectedClients().Count > 0;
+        if (!_fakeLoggedIn)
+        {
+            var loggedOut = Color.Parse("#C252FF");
+            _bridgeStatusText.Text = "Logged Out - Fake Login, Use Any User/Pass";
+            _bridgeStatusText.Foreground = Brush.Parse("#9A9A9A");
+            _bridgeStatusGlow.Background = CreateStatusGlowBrush(loggedOut);
+            _bridgeStatusDot.Fill = new SolidColorBrush(loggedOut);
+            _bridgeStatusDotGlow.Fill = new SolidColorBrush(loggedOut);
+            _executeButton.IsEnabled = true;
+            _executeButton.IsHitTestVisible = live;
+            _executeButton.Focusable = live;
+            _executeButton.Opacity = 1;
+            _attachLabel.Text = live ? "Attached" : "Attach";
+            return;
+        }
+
         var statusColor = Color.Parse(live ? "#2CFF35" : "#4E4D72");
         _bridgeStatusText.Text = live ? "Attached" : "Inactive";
         _bridgeStatusText.Foreground = Brush.Parse("#9A9A9A");
@@ -1993,14 +2273,68 @@ public sealed partial class ZenithWindow : Window
         }
         _settingsMainPage.IsVisible = false;
         _settingsSectionPage.IsVisible = true;
+        BeginSettingsPanelEntrance(main: false);
     }
 
     private void SettingsBack_Click(object? sender, RoutedEventArgs e) => ShowSettingsMain();
 
-    private void ShowSettingsMain()
+    private void ShowSettingsMain(bool animate = true)
     {
         _settingsSectionPage.IsVisible = false;
         _settingsMainPage.IsVisible = true;
+        if (animate)
+        {
+            BeginSettingsPanelEntrance(main: true);
+        }
+    }
+
+    private void BeginSettingsPanelEntrance(bool main)
+    {
+        _pageAnimationCancellation?.Cancel();
+        _pageAnimationCancellation?.Dispose();
+        _pageAnimationCancellation = new CancellationTokenSource();
+        var token = _pageAnimationCancellation.Token;
+
+        var names = main
+            ? new[] { "SettingsMainHeader", "SettingsMainSearch", "SettingsMainContent" }
+            : new[] { "SettingsSectionHeader", "SettingsSectionSearch", "SettingsSectionContent" };
+        var controls = names
+            .Select(name => this.FindControl<Control>(name))
+            .Where(control => control is not null)
+            .Cast<Control>()
+            .ToArray();
+
+        var prepared = controls.Select((control, index) =>
+        {
+            var translation = new TranslateTransform(0, 3);
+            control.Opacity = 0;
+            control.RenderTransform = translation;
+            var delay = index < 2 ? .1 : .2;
+            return (Control: control, Translation: translation, Delay: delay);
+        }).ToArray();
+
+        _ = AnimateSettingsPanelEntranceAsync(prepared, token);
+    }
+
+    private static async Task AnimateSettingsPanelEntranceAsync(
+        IEnumerable<(Control Control, TranslateTransform Translation, double Delay)> controls,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.WhenAll(controls.Select(item => AnimateZenithFadeAsync(
+                item.Control,
+                item.Translation,
+                item.Delay,
+                .3,
+                3,
+                cssEaseOut: false,
+                cancellationToken)));
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a page or settings-section navigation.
+        }
     }
 
     private Control CreateSettingRow(ZenithSettingDefinition definition)
