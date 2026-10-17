@@ -33,11 +33,31 @@ Win32 ownership and modal owner-input disabling apply to companion windows.
 Deferred destruction bypasses the close-confirmation interception only after
 Dart has flushed documents. Rounded regions also clip native input corners.
 
-Windows uses Orion's authored Flutter glass materials and window opacity. The
-DWM transient backdrop is not used because it sits behind Flutter's child
-window while suppressing the visible glass scene. The GNOME edge-lens extension
-is specific to Linux. Desktop capture exclusion is deliberately not used, so
-ordinary screenshots and recordings continue working.
+`windows_alpha.cpp` adapts Flutter's bundled ANGLE presentation to a
+premultiplied-alpha DirectComposition swapchain. This process-local DXGI
+compatibility layer applies to Flutter child windows, allowing their per-pixel
+alpha and smooth corners to reach DWM while keeping the foreground sharp. It
+falls back to ordinary Flutter presentation if composition setup fails.
+
+`desktop_backdrop.cpp` obtains live desktop shared visuals through private DWM
+and interop-compositor interfaces. `windows_glass.cpp` samples that visual with
+`CompositionVisualSurface`, applies mild frost, and refracts it through a GPU
+`SceneMesh`. `glass_optics.h` ports the Linux shader's rounded lens, whole-sheet
+distortion, and edge-lighting profile. CPU work prepares geometry and static
+edge material when size or DPI changes; live desktop frames stay on the GPU.
+The Linux compositor implementation remains separate.
+
+The glass material attaches to Orion's main HWND beneath the alpha-composited
+Flutter child, so window movement, stacking, minimization, and close apply to
+the entire material and foreground together. The shared-visual source excludes
+Orion to avoid visual feedback. Only a cloaked helper has live preview exclusion
+enabled. The actual Orion window retains `WDA_NONE`, so screenshots, recordings,
+and screen sharing can include the application.
+
+Private DWM interfaces can vary between Windows builds. The native desktop
+glass path requires Windows 11 and falls back when its shared-visual APIs are
+unavailable. Older Windows versions retain the authored Flutter glass and
+window-opacity fallback.
 
 `windows_rain.cpp` translates the authored Linux OpenGL water shader to a
 Direct3D 11 / DirectComposition alpha overlay. Dart drives the same droplet
@@ -57,9 +77,21 @@ removes its temporary tray icon after dismissal.
 
 ## Validation
 
-The GitHub Windows job compiles with MSVC and runs native integration tests
-against the actual runner. Linux-hosted development also syntax-checks the
-new C++ sources against Windows x64 headers and the pinned WebView2 SDK; both
-HLSL entry points have been compiled to shader-model 5 DXBC. The Direct3D rain
-implementation must remain separate from `linux/runner/rain_effect.cc` so
-Linux release behavior and dependencies are unchanged.
+The GitHub Windows job compiles with MSVC and runs `tool/desktop_smoke.dart`
+against the actual runner, covering Monaco, bridge clients, themes, companion
+windows, and production close. It rebuilds the normal app before packaging.
+
+`windows/tests/desktop_glass_test.cpp` provides a controlled checkerboard
+underlay. Its Flutter-app mode compares normal and inverted phases to check
+live desktop response, filtered transitions, and lens displacement. Two further
+captures check that a stationary desktop remains stable. The helper preserves
+images for visual review and checks screenshot affinity and glass hide/restore
+on minimize.
+`tool/glass_visual_smoke.dart` exercises both glass presets in an isolated
+workspace. These visual checks must establish actual desktop glass; a native
+backend reporting active is insufficient.
+
+`scripts/test-windows-package.ps1` launches the final portable executable with
+opaque, glass, and rain themes, measures visible close latency, and checks clean
+process exit. The Windows effects remain independent of
+`linux/runner/rain_effect.cc` and the GNOME glass extension.

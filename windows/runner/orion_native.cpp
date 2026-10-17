@@ -1,5 +1,7 @@
 #include "orion_native.h"
 #include "windows_rain.h"
+#include "windows_glass.h"
+#include "windows_alpha.h"
 #include "resource.h"
 
 #include <WebView2.h>
@@ -126,6 +128,7 @@ struct State {
   RECT previous_shape{};
   int previous_shape_radius = -1;
   bool desktop_frame_cleared = false;
+  bool desktop_glass_active = false;
   std::string backdrop_geometry;
   void ClearNotification() {
     if (fallback_notification_added) Shell_NotifyIconW(NIM_DELETE, &fallback_notification);
@@ -206,13 +209,20 @@ struct State {
     if (!IsWindow(root)) return;
     RECT area{}; GetWindowRect(root, &area);
     const int radius = IsZoomed(root) ? 0 : static_cast<int>(std::round(corner_radius * dpi()));
-    if (previous_shape_radius == radius && previous_shape.right == area.right - area.left && previous_shape.bottom == area.bottom - area.top) return;
-    previous_shape_radius = radius;
+    const int shape_key = desktop_glass_active ? -1000-radius : radius;
+    if (previous_shape_radius == shape_key && previous_shape.right == area.right - area.left && previous_shape.bottom == area.bottom - area.top) return;
+    previous_shape_radius = shape_key;
     previous_shape = RECT{0, 0, area.right - area.left, area.bottom - area.top};
     // This also makes transparent corners stop accepting input on Windows 10.
-    HRGN region = CreateRoundRectRgn(0, 0, area.right - area.left + 1, area.bottom - area.top + 1, radius * 2, radius * 2);
+    // A binary region must stay outside the compositor's antialias fringe.
+    // The expanded region only rejects input in empty corners; the GPU paints
+    // the exact authored radius with fractional coverage, once.
+    const int margin = desktop_glass_active ? 2 : 0;
+    HRGN region = CreateRoundRectRgn(-margin, -margin,
+        area.right - area.left + 1 + margin, area.bottom - area.top + 1 + margin,
+        (radius + margin) * 2, (radius + margin) * 2);
     if (!SetWindowRgn(root, region, TRUE)) DeleteObject(region);
-    DWORD corner = radius > 0 ? 2 : 1;  // DWMWCP_ROUND / DWMWCP_DONOTROUND
+    DWORD corner = 1;  // Orion owns the curve, not Windows 11's fixed radius.
     DwmSetWindowAttribute(root, 33, &corner, sizeof(corner));
   }
 };
@@ -230,7 +240,8 @@ class OrionNative : public flutter::Plugin {
  public:
   explicit OrionNative(flutter::PluginRegistrarWindows* registrar, flutter::FlutterViewController* view_controller)
       : registrar_(registrar), state_(std::make_shared<State>()),
-        rain_(GetAncestor(registrar->GetView()->GetNativeWindow(), GA_ROOT)) {
+        rain_(GetAncestor(registrar->GetView()->GetNativeWindow(), GA_ROOT)),
+        glass_(GetAncestor(registrar->GetView()->GetNativeWindow(), GA_ROOT)) {
     state_->view_controller = view_controller;
     state_->flutter = registrar->GetView()->GetNativeWindow();
     state_->root = GetAncestor(state_->flutter, GA_ROOT);
@@ -261,8 +272,11 @@ class OrionNative : public flutter::Plugin {
         return 0;
       }
       if (window == state_->root && (message == WM_SIZE || message == WM_DPICHANGED)) {
-        state_->ApplyEditor(); state_->Shape(); rain_.Resize();
+        state_->ApplyEditor(); state_->Shape(); rain_.Resize(); glass_.Resize();
         if (state_->follow_resize) state_->CenterStartup();
+      }
+      if (window == state_->root && (message == WM_WINDOWPOSCHANGED || message == WM_SHOWWINDOW)) {
+        glass_.Resize();
       }
       if (window == state_->root &&
           (message == WM_DWMCOMPOSITIONCHANGED || message == WM_THEMECHANGED)) {
@@ -477,12 +491,7 @@ class OrionNative : public flutter::Plugin {
       state_->corner_radius = std::clamp(Number(Get(args, "radius"), 16), 0.0, 64.0); state_->Shape(); result->Success();
     } else if (method == "configureDesktopGlass") {
       const bool enabled = Boolean(Get(args, "enabled"));
-      state_->corner_radius = std::clamp(Number(Get(args, "cornerRadius"), 16), 0.0, 64.0); state_->Shape();
-      // A DWM system backdrop sits behind Flutter's child HWND, so reporting
-      // it active suppresses Orion's own refractive scene without showing any
-      // desktop glass. Extending that backdrop into a layered window also
-      // destabilizes theme changes on some Windows 11 drivers. Keep the native
-      // frame clear and let the shared Flutter glass and opacity path render.
+      state_->corner_radius = std::clamp(Number(Get(args, "cornerRadius"), 16), 0.0, 64.0);
       if (!state_->desktop_frame_cleared) {
         // Polling the optional backend should not repeatedly rebuild DWM's
         // frame while opacity and the Flutter glass scene are changing.
@@ -492,9 +501,15 @@ class OrionNative : public flutter::Plugin {
         MARGINS margins{0, 0, 0, 0};
         DwmExtendFrameIntoClientArea(state_->root, &margins);
       }
-      result->Success(Value(enabled
-          ? "{\"ok\":true,\"active\":false,\"mode\":\"flutter-glass\",\"reason\":\"windows-authored-glass\"}"
-          : "{\"ok\":true,\"active\":false,\"mode\":\"none\"}"));
+      std::string error;
+      const bool alpha_ready = !enabled || OrionHasAlphaComposition(state_->root);
+      glass_.Configure(enabled && alpha_ready, state_->corner_radius, &error);
+      if (!alpha_ready) error = "waiting-window";
+      state_->desktop_glass_active = glass_.active();
+      state_->Shape();
+      result->Success(Value(state_->desktop_glass_active
+          ? "{\"ok\":true,\"active\":true,\"mode\":\"windows-compositor-lens\"}"
+          : "{\"ok\":true,\"active\":false,\"mode\":\"flutter-glass\",\"reason\":" + JsonString(error) + "}"));
     } else result->NotImplemented();
   }
   void Notification(const flutter::MethodCall<Value>& call, std::unique_ptr<Result> result) {
@@ -544,6 +559,7 @@ class OrionNative : public flutter::Plugin {
   flutter::PluginRegistrarWindows* registrar_;
   std::shared_ptr<State> state_;
   WindowsRain rain_;
+  WindowsGlass glass_;
   std::unique_ptr<Channel> window_channel_, notification_channel_, rain_channel_;
   int delegate_id_ = -1;
 };

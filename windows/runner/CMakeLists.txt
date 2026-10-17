@@ -11,6 +11,10 @@ add_executable(${BINARY_NAME} WIN32
   "main.cpp"
   "orion_native.cpp"
   "windows_rain.cpp"
+  "windows_glass.cpp"
+  "windows_alpha.cpp"
+  "desktop_backdrop.cpp"
+  "glass_rim.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -61,6 +65,7 @@ target_link_libraries(${BINARY_NAME} PRIVATE
   "${orion_webview2_SOURCE_DIR}/build/native/${ORION_WEBVIEW_ARCH}/WebView2Loader.dll.lib"
   d3d11.lib dxgi.lib dcomp.lib d3dcompiler.lib windowscodecs.lib shlwapi.lib shell32.lib ole32.lib
   desktop_multi_window_plugin)
+target_link_libraries(${BINARY_NAME} PRIVATE windowsapp.lib CoreMessaging.lib dxguid.lib d2d1.lib)
 # Flutter's install prefix contains a generator expression. Relative install
 # destinations would leave that expression literal in cmake_install.cmake.
 # Explicit target paths are resolved by CMake when generating the install rules.

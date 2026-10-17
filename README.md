@@ -186,10 +186,15 @@ Wayland placement, and topmost integration on supported GNOME sessions. Install
 it using the [GNOME integration guide](linux/gnome/README.md). On other desktops,
 Orion uses its available fallback materials.
 
-Windows uses native window management, WebView2, and Orion's authored Flutter
-glass materials. Windows rain uses a native Direct3D rendering path. Live
-behind-window refraction requires the optional GNOME companion on Linux;
-Windows uses its translucent glass material and window opacity instead.
+Windows glass ports the Linux lens profile to a native compositor mesh, with
+live desktop refraction, light frost, and smooth authored corners. Flutter's
+controls and the WebView2 editor stay sharp, and ordinary screenshots and
+screen sharing remain available. Windows rain uses a native Direct3D path.
+
+The live desktop source uses private DWM interop on Windows 11. On older Windows
+versions or when that interop is unavailable, Orion uses its authored Flutter
+glass material. See the [Windows native host
+notes](windows/runner/NATIVE_WINDOWS.md) for implementation and validation details.
 
 Flatpak permits network access for the bridge and script search, home and mounted
 folders for your files, and the session bus for authenticated GNOME integration.

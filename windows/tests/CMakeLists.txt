@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.20)
+project(orion_glass_tests LANGUAGES CXX)
+add_executable(desktop_glass_test desktop_glass_test.cpp ../runner/windows_glass.cpp ../runner/desktop_backdrop.cpp ../runner/glass_rim.cpp)
+target_compile_features(desktop_glass_test PRIVATE cxx_std_17)
+target_compile_definitions(desktop_glass_test PRIVATE UNICODE _UNICODE NOMINMAX)
+target_compile_options(desktop_glass_test PRIVATE /W4 /WX /wd4100 /EHsc)
+target_link_libraries(desktop_glass_test PRIVATE windowsapp user32 gdi32 dwmapi dcomp d3d11 d2d1 dxguid CoreMessaging)
+
+add_executable(glass_optics_test glass_optics_test.cpp)
+target_compile_features(glass_optics_test PRIVATE cxx_std_17)
+target_compile_definitions(glass_optics_test PRIVATE UNICODE _UNICODE NOMINMAX)
+target_compile_options(glass_optics_test PRIVATE /W4 /WX /EHsc)
+target_link_libraries(glass_optics_test PRIVATE windowsapp)

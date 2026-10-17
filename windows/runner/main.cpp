@@ -4,6 +4,7 @@
 
 #include "flutter_window.h"
 #include "utils.h"
+#include "windows_alpha.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
@@ -16,6 +17,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
   ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+  OrionEnableAlphaComposition();
 
   // Portable launches may have an unrelated working directory. Plugins and
   // companion engines resolve the data directory relative to the executable.
@@ -25,6 +27,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   directory.resize(directory.find_last_of(L"\\/"));
   SetCurrentDirectoryW(directory.c_str());
   flutter::DartProject project(L"data");
+  project.set_impeller_switch(flutter::ImpellerSwitch::Disabled);
   project.set_ui_thread_policy(flutter::UIThreadPolicy::RunOnSeparateThread);
 
   std::vector<std::string> command_line_arguments =
@@ -49,6 +52,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Native editor and Flutter teardown require COM and can send synchronous
   // window messages. Finish while the runner and its derived handlers live.
   window.Destroy();
+  OrionDisableAlphaComposition();
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }

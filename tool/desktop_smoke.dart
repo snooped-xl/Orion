@@ -113,9 +113,16 @@ Future<void> main(List<String> arguments) async {
     );
     await step('workspace-files-and-bridge');
 
-    await NativeWindowService.setAlwaysOnTop(true);
-    _require(await windowManager.isAlwaysOnTop(), 'Native topmost');
-    await NativeWindowService.setAlwaysOnTop(false);
+    controller.setAlwaysOnTop(true);
+    await _until(
+      () => windowManager.isAlwaysOnTop(),
+      'Native topmost preference',
+    );
+    controller.setAlwaysOnTop(false);
+    await _until(
+      () async => !await windowManager.isAlwaysOnTop(),
+      'Native topmost reset',
+    );
     await NativeWindowService.setCornerRadius(24);
     final original = await windowManager.getBounds();
     await windowManager.setSize(
