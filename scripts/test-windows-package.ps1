@@ -2,7 +2,8 @@
 param(
   [string]$Executable = 'dist/Orion.exe',
   [string[]]$Themes = @('expressive', 'liquid-glass', 'blue-glass', 'material-rain'),
-  [int]$MaxCloseVisibilityMilliseconds = 1000
+  [int]$MaxCloseVisibilityMilliseconds = 1000,
+  [string]$VisibleTextHelper = ''
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -43,6 +44,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 $directory = [IO.Path]::GetFullPath('build/package-smoke/portable')
 New-Item -ItemType Directory -Force $directory | Out-Null
 $executablePath = [IO.Path]::GetFullPath($Executable)
+if ($VisibleTextHelper) { $VisibleTextHelper = (Resolve-Path $VisibleTextHelper).Path }
 $originalWorkspace = $env:ORION_WORKSPACE
 $results = [Collections.Generic.List[object]]::new()
 $failure = $null
@@ -114,6 +116,11 @@ try {
       $runtime = Split-Path $inner -Parent
       if (-not (Test-Path "$runtime/data/webview2/msedgewebview2.exe")) { throw 'Portable package did not extract its offline browser' }
 
+      if ($VisibleTextHelper) {
+        & $VisibleTextHelper $app.Id (Join-Path $caseDirectory 'displayed-editor.bmp')
+        if ($LASTEXITCODE -ne 0) { throw "Portable $theme editor text is not visible" }
+      }
+
       $close = [Diagnostics.Stopwatch]::StartNew()
       if (-not [OrionPackageSmokeNative]::PostMessage($appWindow, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) {
         throw 'Portable window rejected WM_CLOSE'
@@ -133,6 +140,7 @@ try {
         nativeWindowHandle = $appWindow.ToInt64()
         offlineWebView2Bundled = $true
         workspaceProvisioned = $true
+        displayedTextChecked = [bool]$VisibleTextHelper
         visibleCloseMilliseconds = $visibleCloseMilliseconds
         processCloseMilliseconds = $close.ElapsedMilliseconds
         exitCode = $(if ($appExited) { $app.ExitCode } else { $null })

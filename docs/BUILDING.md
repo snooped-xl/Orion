@@ -225,6 +225,29 @@ flutter build windows --release --no-tree-shake-icons --target lib/main.dart
 ./scripts/test-windows-package.ps1
 ```
 
+Native browser snapshots cannot prove that text is visible in the final desktop
+composition. For that check on Windows, use an interactive desktop and run:
+
+```powershell
+cmake -S windows/tests -B build/glass-tests -A x64
+cmake --build build/glass-tests --config Release --target monaco_visible_test
+flutter build windows --release --no-tree-shake-icons --target tool/monaco_visibility_smoke.dart
+./scripts/test-monaco-visibility.ps1
+# Restore the actual app before packaging:
+flutter build windows --release --no-tree-shake-icons --target lib/main.dart
+```
+
+The fixture launches its own workspace, measures displayed text outside the
+line-number gutter, and checks cold start, both glass themes, rain, theme return,
+overlay return, and minimize/restore. The helper captures only the editor of the
+fixture process over a controlled dark background. The equivalent Linux helper,
+`tool/monaco_visible_test.py`, requires a privately owned Xvfb session identified
+by `ORION_TEST_XVFB_PID`; the shared fixture receives its helper and output paths
+through `ORION_MONACO_VISIBLE_HELPER` and `ORION_MONACO_VISIBLE_OUTPUT`.
+After packaging the normal Windows entry point, run
+`./scripts/test-windows-package.ps1 -VisibleTextHelper build/glass-tests/Release/monaco_visible_test.exe`
+to check the actual portable download's displayed text as well.
+
 Linux CI privately installs and launches the actual Flatpak bundle under a
 disposable desktop session. It verifies resolved runtime dependencies, first-run
 provisioning, and the genuine native WebKit editor process. Both platforms

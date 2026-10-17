@@ -1,7 +1,7 @@
 name: orion
 description: A native Material 3 script workspace with a live script hub.
 publish_to: none
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.9.0 <4.0.0'

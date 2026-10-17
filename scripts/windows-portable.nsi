@@ -13,10 +13,10 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 CRCCheck force
 Icon "../windows/runner/resources/app_icon.ico"
-VIProductVersion "1.0.1.2"
+VIProductVersion "1.0.2.3"
 VIAddVersionKey /LANG=1033 "ProductName" "Orion"
 VIAddVersionKey /LANG=1033 "FileDescription" "Orion portable workspace"
-VIAddVersionKey /LANG=1033 "FileVersion" "1.0.1"
+VIAddVersionKey /LANG=1033 "FileVersion" "1.0.2"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "Orion contributors"
 Var Arguments
 Var Lock

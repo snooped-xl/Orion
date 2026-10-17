@@ -122,8 +122,11 @@ HRESULT STDMETHODCALLTYPE CreateTransparentSwapchain(IDXGIFactory2* factory,
         candidate->graphics_identity = graphics_identity;
         status = DCompositionCreateDevice(dxgi_device.Get(),
             IID_PPV_ARGS(&candidate->device));
+        // Monaco's WebView2 host is a child of FLUTTERVIEW. The Flutter visual
+        // belongs below child HWND content; a topmost composition target draws
+        // opaque Flutter editor backgrounds over the otherwise healthy browser.
         if (SUCCEEDED(status)) status = candidate->device->CreateTargetForHwnd(
-            window, TRUE, &candidate->target);
+            window, FALSE, &candidate->target);
         if (SUCCEEDED(status)) status = candidate->device->CreateVisual(
             &candidate->visual);
         if (SUCCEEDED(status)) status = candidate->target->SetRoot(
