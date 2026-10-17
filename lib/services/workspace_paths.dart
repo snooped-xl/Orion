@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'file_paths.dart';
+
 /// The writable workspace lives outside the application bundle. This is also
 /// true for a read-only Flatpak or a self-extracting Windows executable.
 class WorkspacePaths {
@@ -127,7 +129,7 @@ class WorkspacePaths {
           // A first installation has no old support folder to migrate.
         }
       }
-      if (legacy != null && legacy.absolute.path != root.path) {
+      if (legacy != null && !FilePaths.same(legacy.absolute.path, root.path)) {
         await _migrate(legacy.absolute, root);
       }
     }
@@ -256,13 +258,25 @@ class WorkspacePaths {
     }
     if (value is String &&
         {'filePath', 'scriptsDirectory', 'scriptPath'}.contains(key)) {
-      final prefix = '${legacy.path}${Platform.pathSeparator}';
-      if (value.startsWith(prefix)) {
-        var relative = value.substring(prefix.length).replaceAll('\\', '/');
-        if (relative == 'Scripts' || relative.startsWith('Scripts/')) {
+      final legacyPath = Platform.isWindows
+          ? legacy.path.replaceAll('\\', '/')
+          : legacy.path;
+      final savedPath = Platform.isWindows
+          ? value.replaceAll('\\', '/')
+          : value;
+      final prefix = '${legacyPath.replaceFirst(RegExp(r'/+$'), '')}/';
+      final inside = Platform.isWindows
+          ? savedPath.toLowerCase().startsWith(prefix.toLowerCase())
+          : savedPath.startsWith(prefix);
+      if (inside) {
+        var relative = savedPath.substring(prefix.length);
+        final folder = relative.split('/').first;
+        if (folder == 'Scripts' ||
+            (Platform.isWindows && folder.toLowerCase() == 'scripts')) {
           relative = 'scripts${relative.substring(7)}';
         }
-        if (relative == 'AutoExec' || relative.startsWith('AutoExec/')) {
+        if (folder == 'AutoExec' ||
+            (Platform.isWindows && folder.toLowerCase() == 'autoexec')) {
           relative = 'autoexec${relative.substring(8)}';
         }
         return '${root.path}/$relative';
@@ -281,7 +295,7 @@ class WorkspacePaths {
     }
     await _ensureDirectory(destination);
     await for (final entity in source.list(followLinks: false)) {
-      final name = entity.path.split(Platform.pathSeparator).last;
+      final name = FilePaths.basename(entity.path);
       final target = '${destination.path}/$name';
       if (entity is Directory) {
         await _mergeDirectory(entity, Directory(target));

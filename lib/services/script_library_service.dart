@@ -478,7 +478,8 @@ class ScriptLibraryService extends ChangeNotifier {
         _watchers[path] = watcher;
         watcher.subscription = Directory(path).watch().listen(
           (event) {
-            if (path == directory.parent.path && event.path != directory.path) {
+            if (FilePaths.same(path, directory.parent.path) &&
+                !FilePaths.same(event.path, directory.path)) {
               return;
             }
             final name = event.path.split(Platform.pathSeparator).last;

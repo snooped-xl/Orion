@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:orion/services/file_paths.dart';
 import 'package:orion/models/local_script.dart';
 import 'package:orion/models/orion_theme_preferences.dart';
 import 'package:orion/services/script_library_service.dart';
@@ -269,7 +270,10 @@ void main() {
       }
       expect(opened, isNotEmpty, reason: 'The created script must open');
       await tester.pumpAndSettle();
-      expect(opened.single, '${directory.path}/Utilities/fresh.luau');
+      expect(
+        FilePaths.same(opened.single, '${directory.path}/Utilities/fresh.luau'),
+        isTrue,
+      );
       expect(await tester.runAsync(() => File(opened.single).exists()), isTrue);
       expect(
         find.byKey(const ValueKey('script-file:Utilities/fresh.luau')),
@@ -301,7 +305,13 @@ void main() {
         find.descendant(of: row, matching: find.byType(Tooltip)),
       );
       expect(pathTooltip.constraints!.maxWidth, lessThanOrEqualTo(124));
-      expect(pathTooltip.message, '${directory.path}/Special/Orion Bridge.lua');
+      expect(
+        FilePaths.same(
+          pathTooltip.message!,
+          '${directory.path}/Special/Orion Bridge.lua',
+        ),
+        isTrue,
+      );
       final special = tester.widget<ScriptCodeText>(
         find.descendant(
           of: find.byKey(const ValueKey('script-folder:Special')),
@@ -312,7 +322,13 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(row);
       await tester.pumpAndSettle();
-      expect(opened.single, '${directory.path}/Special/Orion Bridge.lua');
+      expect(
+        FilePaths.same(
+          opened.single,
+          '${directory.path}/Special/Orion Bridge.lua',
+        ),
+        isTrue,
+      );
       await tester.pumpWidget(const SizedBox());
     });
   });

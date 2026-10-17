@@ -14,6 +14,7 @@ import '../models/interface_preset.dart';
 import '../models/companion_window.dart';
 import '../models/orion_models.dart';
 import '../services/desktop_close_service.dart';
+import '../services/file_paths.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/native_window_service.dart';
 import '../state/orion_controller.dart';
@@ -531,7 +532,7 @@ class SynapseXShellState extends State<SynapseXShell>
       if (selected == null || !mounted) return;
       final body = await selected.readAsString();
       if (!mounted) return;
-      c.executeSource(body, name: selected.name);
+      c.executeSource(body, name: FilePaths.basename(selected.path));
     } catch (e) {
       _message(e.toString());
     }

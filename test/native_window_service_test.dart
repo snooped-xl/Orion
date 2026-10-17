@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orion/services/native_window_service.dart';
@@ -113,6 +115,17 @@ void main() {
         return '{"ok":true,"requested":true,"above":true,"active":true,"mode":"gnome-window-policy"}';
       });
       final result = await NativeWindowService.setAlwaysOnTop(true);
+      if (!Platform.isLinux) {
+        expect(calls.map((call) => call.$1), ['plugin']);
+        expect(calls.single.$2.method, 'setAlwaysOnTop');
+        expect(calls.single.$2.arguments, {'isAlwaysOnTop': true});
+        expect(result, {
+          'ok': true,
+          'requested': true,
+          'mode': 'platform-hint',
+        });
+        return;
+      }
       expect(calls.map((call) => call.$1), ['plugin', 'native']);
       expect(calls.map((call) => call.$2.method), [
         'setAlwaysOnTop',
@@ -135,9 +148,15 @@ void main() {
     expect(result['ok'], false);
     expect(result['active'], false);
     expect(result['reason'], 'unavailable');
-  });
+  }, skip: !Platform.isLinux);
   test('disabling topmost sends only the window-policy switch', () async {
     final result = await NativeWindowService.setAlwaysOnTop(false);
+    if (!Platform.isLinux) {
+      expect(calls.map((call) => call.$2.method), ['setAlwaysOnTop']);
+      expect(calls.single.$2.arguments, {'isAlwaysOnTop': false});
+      expect(result['ok'], true);
+      return;
+    }
     expect(calls.map((call) => call.$2.method), [
       'setAlwaysOnTop',
       'setAlwaysOnTop',
@@ -158,7 +177,7 @@ void main() {
     final result = await NativeWindowService.setAlwaysOnTop(false);
     expect(result['ok'], false);
     expect(result['reason'], 'native-window-policy-unavailable');
-  });
+  }, skip: !Platform.isLinux);
 
   test(
     'minimum size reaches plugin then internal GTK channel for each source profile',
@@ -171,7 +190,10 @@ void main() {
       ]) {
         calls.clear();
         await NativeWindowService.setMinimumSize(size);
-        expect(calls.map((c) => c.$1), ['plugin', 'native']);
+        expect(calls.map((c) => c.$1), [
+          'plugin',
+          if (Platform.isLinux) 'native',
+        ]);
         expect(calls.every((c) => c.$2.method == 'setMinimumSize'), true);
         for (final call in calls) {
           expect((call.$2.arguments as Map)['width'], size.width);

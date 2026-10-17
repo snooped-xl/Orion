@@ -662,6 +662,14 @@ class OrionBridgeService extends ChangeNotifier {
         }
         bytes.add(chunk);
       }
+    } on _RequestFailure catch (error) {
+      // Cancelling an unread HTTP body can close its socket on Windows. Send
+      // the bounded error response before cancellation so clients receive 413
+      // and know to reconnect instead of seeing an interrupted header.
+      request.response.persistentConnection = false;
+      await _errorResponse(request, error.status, error.message);
+      await request.response.close();
+      rethrow;
     } finally {
       await iterator.cancel();
     }

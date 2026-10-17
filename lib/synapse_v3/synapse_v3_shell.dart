@@ -15,6 +15,7 @@ import '../models/interface_preset.dart';
 import '../models/companion_window.dart';
 import '../models/remote_script.dart';
 import '../services/desktop_close_service.dart';
+import '../services/file_paths.dart';
 import '../services/monaco_editor_service.dart';
 import '../state/orion_controller.dart';
 import '../models/synapse_studio_theme.dart';
@@ -388,7 +389,7 @@ class SynapseV3ShellState extends State<SynapseV3Shell> with WindowListener {
       if (file == null || !mounted) return;
       final source = await file.readAsString();
       if (!mounted) return;
-      c.execute(source: source, name: file.name);
+      c.execute(source: source, name: FilePaths.basename(file.path));
     } catch (error) {
       _message('Could not read script: $error');
     } finally {

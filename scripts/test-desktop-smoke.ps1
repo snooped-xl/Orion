@@ -9,7 +9,9 @@ $originalWorkspace = $env:ORION_WORKSPACE
 $env:ORION_WORKSPACE = Join-Path $directory 'workspace'
 $report = Join-Path $directory 'report.json'
 if (Test-Path $report) { Remove-Item $report -Force }
-$process = Start-Process (Join-Path (Resolve-Path $Bundle).Path 'orion.exe') -ArgumentList @('--report', "`"$report`"") -PassThru -WindowStyle Hidden `
+# This is the visible GUI under test. SW_HIDE in STARTUPINFO overrides its first
+# ShowWindow call and would make the visibility checks test the launcher flag.
+$process = Start-Process (Join-Path (Resolve-Path $Bundle).Path 'orion.exe') -ArgumentList @('--report', "`"$report`"") -PassThru `
   -RedirectStandardOutput (Join-Path $directory 'stdout.log') `
   -RedirectStandardError (Join-Path $directory 'stderr.log')
 try {

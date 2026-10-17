@@ -171,17 +171,17 @@ void main() {
       c.setAlwaysOnTop(false);
       await tester.pumpAndSettle();
       expect(calls, [true, false]);
-      expect(nativeCalls, [true, false]);
+      expect(nativeCalls, Platform.isLinux ? [true, false] : isEmpty);
       c.setInterface(InterfacePreset.synapseX);
       c.setAlwaysOnTop(true);
       await tester.pumpAndSettle();
       expect(calls, [true, false]);
-      expect(nativeCalls, [true, false]);
+      expect(nativeCalls, Platform.isLinux ? [true, false] : isEmpty);
       await tester.pumpWidget(const SizedBox.shrink());
       c.setAlwaysOnTop(false);
       await tester.pumpAndSettle();
       expect(calls, [true, false]);
-      expect(nativeCalls, [true, false]);
+      expect(nativeCalls, Platform.isLinux ? [true, false] : isEmpty);
       expect(tester.takeException(), isNull);
     },
   );

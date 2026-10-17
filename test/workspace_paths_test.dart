@@ -246,6 +246,35 @@ void main() {
     },
   );
 
+  test(
+    'Windows migration accepts native separators and case differences',
+    () async {
+      await Directory('${legacy.path}/Scripts').create(recursive: true);
+      await File('${legacy.path}/Scripts/kept.lua').writeAsString('-- kept');
+      final nativeLegacy = legacy.path.replaceAll('/', '\\').toUpperCase();
+      final outside = '${legacy.path}-other/Scripts/outside.lua';
+      await File('${legacy.path}/orion-workspace.json').writeAsString(
+        jsonEncode({
+          'documents': [
+            {'filePath': '$nativeLegacy\\SCRIPTS\\kept.lua'},
+            {'filePath': outside},
+          ],
+        }),
+      );
+      await prepare();
+      final state = jsonDecode(
+        await workspaceFile('orion-workspace.json').readAsString(),
+      );
+      expect(
+        state['documents'][0]['filePath'],
+        '${root.path}/scripts/kept.lua',
+      );
+      expect(state['documents'][1]['filePath'], outside);
+      expect(await workspaceFile('scripts/kept.lua').readAsString(), '-- kept');
+    },
+    skip: !Platform.isWindows,
+  );
+
   test('migration keeps existing destination files and profile', () async {
     await Directory('${legacy.path}/scripts').create(recursive: true);
     await File('${legacy.path}/scripts/same.lua').writeAsString('-- old');

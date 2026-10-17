@@ -67,19 +67,20 @@ class LiquidGlassShaders {
     false: 'lib/assets/shaders/metaball_glass_skia.frag',
   };
 
-  // Impeller on desktop GLES (Windows through ANGLE, Linux on the system
-  // driver). ANGLE's shader compiler takes minutes on the default entries;
-  // these build lighter code for it, with the analytic gradient.
+  // Windows uses ANGLE even when a lens samples a captured image (impeller
+  // false). That flag selects the lens pipeline, not the engine/driver: using
+  // the general Skia entry there stalls ANGLE compiling duplicated branches.
+  // Both Windows pipelines need the lighter analytic desktop entries. Linux
+  // retains its existing desktop-Impeller and Skia choices.
   static const String _mainDesktopAsset =
       'lib/assets/shaders/liquid_glass_desktop.frag';
   static const String _metaballDesktopAsset =
       'lib/assets/shaders/metaball_glass_desktop.frag';
 
   static bool _desktopEntries(bool impeller) =>
-      impeller &&
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.linux);
+          (impeller && defaultTargetPlatform == TargetPlatform.linux));
 
   static String _mainAssetFor(bool impeller) =>
       _desktopEntries(impeller) ? _mainDesktopAsset : _mainAsset[impeller]!;

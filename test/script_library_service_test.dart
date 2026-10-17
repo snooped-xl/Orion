@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orion/models/local_script.dart';
+import 'package:orion/services/file_paths.dart';
 import 'package:orion/services/script_library_service.dart';
 
 void main() {
@@ -55,7 +56,10 @@ void main() {
       expect(entry(service, 'Special').code, ScriptColorCode.special);
       final bridge = entry(service, 'Special/Orion Bridge.lua');
       expect(bridge.name, 'Orion Bridge.lua');
-      expect(bridge.path, '${scripts.path}/Special/Orion Bridge.lua');
+      expect(
+        FilePaths.same(bridge.path, '${scripts.path}/Special/Orion Bridge.lua'),
+        isTrue,
+      );
       expect(bridge.code, ScriptColorCode.special);
       expect(
         await File(bridge.path).readAsString(),
@@ -119,10 +123,11 @@ void main() {
       final outside = Directory('${temporary.path}/outside');
       await outside.create();
       await File('${outside.path}/outside.lua').writeAsString('-- outside');
-      await Link('${scripts.path}/linked-folder').create(outside.path);
-      await Link(
-        '${scripts.path}/linked.lua',
-      ).create('${outside.path}/outside.lua');
+      if (await _tryCreateLink('${scripts.path}/linked-folder', outside.path)) {
+        await Link(
+          '${scripts.path}/linked.lua',
+        ).create('${outside.path}/outside.lua');
+      }
       final service = library();
       await service.initialize();
       expect(service.entries.map((item) => item.relativePath), [
@@ -396,7 +401,10 @@ void main() {
       await outside.create();
       final external = File('${outside.path}/untouched.lua');
       await external.writeAsString('-- untouched');
-      await Link('${scripts.path}/linked').create(outside.path);
+      if (!await _tryCreateLink('${scripts.path}/linked', outside.path)) {
+        markTestSkipped('Windows symlink creation privilege is unavailable.');
+        return;
+      }
       await Link('${scripts.path}/linked.lua').create(external.path);
       await expectLater(
         service.createScript('linked/new.lua'),
@@ -431,7 +439,10 @@ void main() {
       await scripts.create();
       final outside = Directory('${temporary.path}/outside');
       await outside.create();
-      await Link('${scripts.path}/Special').create(outside.path);
+      if (!await _tryCreateLink('${scripts.path}/Special', outside.path)) {
+        markTestSkipped('Windows symlink creation privilege is unavailable.');
+        return;
+      }
       final service = library();
       await service.initialize();
       expect(service.error, isNotNull);
@@ -542,13 +553,25 @@ Future<void> _eventually(bool Function() predicate) async {
   }
 }
 
+Future<bool> _tryCreateLink(String path, String target) async {
+  try {
+    await Link(path).create(target);
+    return true;
+  } on FileSystemException catch (error) {
+    if (Platform.isWindows && error.osError?.errorCode == 1314) return false;
+    rethrow;
+  }
+}
+
 final class _DeniedListingOverrides extends IOOverrides {
   _DeniedListingOverrides(this.deniedPath);
   final String deniedPath;
   @override
   Directory createDirectory(String path) {
     final directory = super.createDirectory(path);
-    return path == deniedPath ? _DeniedDirectory(directory) : directory;
+    return FilePaths.same(path, deniedPath)
+        ? _DeniedDirectory(directory)
+        : directory;
   }
 }
 
@@ -574,7 +597,9 @@ final class _FailedWatchOverrides extends IOOverrides {
   @override
   Directory createDirectory(String path) {
     final directory = super.createDirectory(path);
-    return path == deniedPath ? _FailedWatchDirectory(directory) : directory;
+    return FilePaths.same(path, deniedPath)
+        ? _FailedWatchDirectory(directory)
+        : directory;
   }
 }
 

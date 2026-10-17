@@ -10,6 +10,7 @@ import 'package:orion/models/interface_preset.dart';
 import 'package:orion/original_ports/awp_shell.dart';
 import 'package:orion/original_ports/awp_controls.dart';
 import 'package:orion/services/monaco_editor_service.dart';
+import 'package:orion/services/file_paths.dart';
 import 'package:orion/state/orion_controller.dart';
 import 'package:orion/widgets/ui_scale_viewport.dart';
 
@@ -388,7 +389,7 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(c.activeDocument.content, 'print("local disk")');
-      expect(c.activeDocument.filePath, file.path);
+      expect(FilePaths.same(c.activeDocument.filePath!, file.path), isTrue);
       await cleanup(tester, c);
     },
   );
@@ -435,7 +436,7 @@ void main() {
         c.documents.firstWhere((d) => d.id == first).content,
         'print("first")',
       );
-      expect(c.activeDocument.filePath, script.path);
+      expect(FilePaths.same(c.activeDocument.filePath!, script.path), isTrue);
       await cleanup(tester, c);
     },
   );
