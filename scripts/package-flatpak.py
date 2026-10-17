@@ -49,8 +49,13 @@ def main() -> None:
     files = build / "files"
     shutil.copytree(bundle, files / "orion", symlinks=False)
     (files / "bin").mkdir()
-    shutil.copy2(ROOT / "scripts/flatpak-launcher", files / "bin/orion")
+    # A Windows checkout may contain CRLF. Linux shebangs require LF even when
+    # the package is assembled through WSL from that checkout.
+    (files / "bin/orion").write_text(
+        (ROOT / "scripts/flatpak-launcher").read_text(), newline="\n")
     (files / "bin/orion").chmod(0o755)
+    glass_installer = files / "orion/install-gnome-glass.sh"
+    glass_installer.write_text(glass_installer.read_text(), newline="\n")
     applications = files / "share/applications"
     applications.mkdir(parents=True)
     template = (ROOT / "linux/packaging/dev.snooped.orion.desktop.in").read_text()
