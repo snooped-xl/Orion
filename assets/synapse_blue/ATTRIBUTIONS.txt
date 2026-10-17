@@ -1,0 +1,13 @@
+Synapse Blue visual definitions, logo and paths copied from snooped-xl/Synapse-Framework
+commit 6deb8ac99e8448188c7f14c02933f52aebc093a4.
+https://github.com/snooped-xl/Synapse-Framework
+
+Source: src/app/components/MainLayout.tsx, InitializationScreen.tsx, BlueSidebarChrome.tsx;
+src/app/pages/{EditorPage,SettingsPage,ScriptHubPage,ConsolePage,ThemesPage}.tsx;
+src/ui/{shellTheme,motion,progressVisual}.ts; src/imports/svg-puhpyzdadw.ts
+and svg-ylg03bb51c.ts; src/assets/logos/wordmark.png.
+The upstream project has no root licence file. Branding remains the property of its owners.
+
+Inter 300/900 static weights instantiated from official Google Fonts Inter variable outlines
+(optical size 14), SIL Open Font License 1.1; see Inter-OFL.txt. Other shared SynapseInter
+font weights and exact bundled Hub assets are registered in assets/synapse_v3.

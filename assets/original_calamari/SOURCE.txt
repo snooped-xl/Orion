@@ -1,0 +1,6 @@
+Source: https://github.com/snooped-xl/Orion
+Pinned revision: 1a674036d976d22b9b9efa6708627e819fdb107a
+Source files: CalamariWindow.axaml and CalamariWindow.axaml.cs.
+AppLogo.png, clipboard.png, play.png, showcase.jpg and local preset scripts copied unchanged from Assets/Calamari and Scripts/Calamari Defaults.
+Runtime dimensions were checked against a local frontend-only render of the original Avalonia source; Fluent min-height32 and source content-sized buttons are retained.
+No authentication or execution engine is bundled. Local Login accepts empty fields, as in the original preservation source, and credentials are never saved.

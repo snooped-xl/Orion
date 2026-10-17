@@ -1,0 +1,14 @@
+{
+  "uuid": "orion-glass@orion.local",
+  "name": "Orion Desktop Glass",
+  "description": "Compositor-side live background refraction only for windows explicitly requested by their owning Orion process. No desktop pixels leave GNOME Shell.",
+  "shell-version": [
+    "46",
+    "47",
+    "48",
+    "49",
+    "50",
+    "51"
+  ],
+  "url": "https://github.com/snooped-xl/Orion"
+}

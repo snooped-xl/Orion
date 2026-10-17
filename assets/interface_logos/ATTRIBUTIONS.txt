@@ -1,0 +1,41 @@
+Interface selection logos
+
+synapse-s.png (Synapse V3)
+Copied byte-for-byte from the user-supplied HDD project:
+/media/snooped/Multidrive/Project/src/assets/logos/synapse-icon.png
+The drive was mounted read-only to inspect Project/logo presets and the source assets.
+The plain multicolored Synapse S matches the family branding without an extra Framework F.
+Transparent RGBA PNG, 1537 x 2048. Visible alpha bounds: (17,206) to (1520,1842).
+Preserve the authored colors; display with contain and optical size adjustment.
+Same source project is available at https://github.com/snooped-xl/Synapse-Framework .
+
+synapse-s-2d.png (Synapse Blue and Synapse OG)
+Copied byte-for-byte from the existing source-authentic OG asset:
+assets/synapse_og/synapse-logo.png
+The same image is present in the user-supplied HDD project at:
+/media/snooped/Multidrive/Project/src/assets/synapse-original/synapse-logo.png
+Transparent RGBA PNG, 800 x 167. Whole-wordmark alpha bounds: (0,0) to (800,167).
+This is the authored flat 2D multicolored S with a white main letter, so it remains
+legible on dark surfaces without recoloring. It has flat colored polygons, without
+the V3 mark's extruded sides and highlights. See assets/synapse_og/ATTRIBUTIONS.txt.
+The selector frames the left S mark via code clipping; the bundled bitmap preserves
+all source pixels. The adjacent Y overlaps the S's rectangular bounds, so use the
+separator clip in the widget rather than a rectangular source crop alone.
+The HDD was mounted read-only for comparison and then unmounted.
+
+Other logos are reused from their existing asset locations and existing attributions:
+- Orion: assets/branding/orion-icon.png (user-supplied white orbit)
+- Synapse X: assets/synapse_x/logo.png (white S / orange X)
+- KRNL: assets/original_krnl/pictureBox1.png (white faceted K)
+- Calamari: assets/original_calamari/AppLogo.png (red squid)
+- Xeno: assets/original_xeno/xeno-icon.png (white whale)
+- AWP.GG: use the original Inter typography with white AWP/GG and gray #6a6a6a dot.
+  The original source window icon also exists at assets/original_awp/32x32.png.
+- Zenith V2: original source uses Nunito semibold V2, with horizontal gradient stops
+  #667EEA, #9C66FF, #FF6B96, #FFA87A, #667EEA at 0, .25, .5, .75, 1.
+  The code-native text mark can be reproduced without fabricating a raster logo.
+  See work/Orion-reference/ZenithWindow.axaml lines 505-514.
+  assets/original_zenith/zenith-icon.png is a separate gray application icon; it
+  is not the multicolored V2 mark and should not be used for the selector badge.
+
+No bitmap logos were generated, recolored, resized, or edited for the selector.

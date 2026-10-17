@@ -1,0 +1,34 @@
+Synapse X interface source
+
+Ported from snooped-xl/Synapse-Framework, pinned commit:
+6deb8ac99e8448188c7f14c02933f52aebc093a4
+
+Source paths:
+- src/app/synapse-x/ (chrome, editor, loader, Options, Script Hub, Console,
+  theme defaults, layout metrics, and transitions)
+- src/assets/synapse-x/logo.svg (original source vector; logo.png is a
+  rasterization of that same vector)
+- src/assets/script-hub/{dex.png,RemoteSpy.png,scriptdump.png,unnamedesp.png}
+- src/assets/synapse-original/script-preview.png
+- src/app/scriptHub/data/scriptDumperLegacy.lua
+- src/editor/synapseXNetMonacoTheme.ts (original net-theme-dark/light rules)
+- src/editor/monacoThemePack.ts and tomorrow-night-eighties.theme.json
+
+UI font: Inter (shared assets/synapse_v3/fonts). Original Linux browser
+reference reports Inter Regular via CSS.getPlatformFontsForNode for source
+chrome, actions, and tabs. License: fonts/Inter-OFL.txt (SIL Open Font License).
+
+Editor font: Liberation Mono Regular/Bold/Italic/BoldItalic. This reproduces
+Courier New's actual Linux fallback in the original Consolas/Courier New
+Monaco stack, confirmed by CSS.getPlatformFontsForNode on the source editor.
+License and copyright notices: fonts/LiberationMono-LICENSE.txt. Native
+Monaco serves identical fonts offline from assets/editor/fonts.
+
+Optional system Segoe UI fallback: Cantarell Regular/Bold. The source names
+Segoe UI in its WPF CSS; Cantarell is retained as a redistributable fallback.
+Actual source UI defaults use Inter as noted above. License and copyright
+notices: fonts/Cantarell-LICENSE.txt (SIL Open Font License).
+
+Original monaco-themes JSON package (MIT) is bundled offline in
+assets/editor/synapse-skins.js; its license is assets/editor/MONACO-THEMES-LICENSE.
+No execution backend or automatic attachment/open/execution is included.

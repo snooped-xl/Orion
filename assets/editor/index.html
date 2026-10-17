@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'">
+  <title>Orion Luau editor</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <div id="editor" aria-label="Luau script editor"></div>
+  <div id="loading" role="status">Loading editor…</div>
+  <div id="zenith-editor-hint" hidden>
+    Ctrl+S save&nbsp;·&nbsp;Ctrl+W close&nbsp;·&nbsp;Ctrl+P commands&nbsp;·&nbsp;<button id="zenith-editor-help" type="button">learn more →</button>
+  </div>
+  <script src="vs/loader.js"></script>
+  <script src="luau-language.js"></script>
+  <script src="synapse-diagnostics.js"></script>
+  <script src="synapse-theme.js"></script>
+  <script src="synapse-skins.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Orion
+Comment=Orion script workspace
+Exec=@ORION_EXEC@
+Icon=dev.snooped.orion
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=dev.snooped.orion
+StartupNotify=true
+DBusActivatable=false

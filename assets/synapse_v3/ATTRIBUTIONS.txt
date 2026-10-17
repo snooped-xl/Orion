@@ -1,0 +1,38 @@
+Synapse V3 visual assets and colour snapshots
+
+The V3 logo, legacy Script Hub artwork, Script Dumper source, settings SVG paths,
+and V3 visual definitions are copied from snooped-xl/Synapse-Framework at commit
+6deb8ac99e8448188c7f14c02933f52aebc093a4:
+https://github.com/snooped-xl/Synapse-Framework
+
+Source paths:
+- src/app/synapse-v3/remake-assets/v3-logo.png
+- src/app/synapse-v3/remake-assets/v3-loading-bg.png
+- src/app/synapse-v3/components/V3LoadingScreen.tsx
+- src/app/synapse-v3/remake-assets/v3HollywoodFluentIcons.ts
+- src/app/synapse-v3/remake-assets/settings-svg-paths/v3-settings-svg-paths.ts
+- src/app/synapse-v3/remake-assets/dormant-imports/RenameTabPopup/svg-ddjmdjxinv.ts
+- src/app/synapse-v3/v3Theme.ts and v3ThemeDerivation.ts
+- src/assets/script-hub/{dex.png, RemoteSpy.png, scriptdump.png, unnamedesp.png}
+- src/app/scriptHub/data/scriptDumperLegacy.lua
+
+Original branding and bundled artwork remain the property of their respective
+owners. The upstream project has no root licence file; its ATTRIBUTIONS.md
+attributes shadcn/ui (MIT) and Unsplash photos (Unsplash licence). No shadcn
+implementation or additional Unsplash photos are copied into this Flutter port.
+
+Microsoft Fluent UI System Icons
+https://github.com/microsoft/fluentui-system-icons
+Copyright (c) Microsoft Corporation. MIT licence: Fluent-Icons-MIT.txt.
+The source project attributes its Hollywood Fluent icon paths to Microsoft
+Fluent UI via Iconify; additional regular Fluent glyphs are copied from the
+official repository. SVG paths are mechanically converted into native Flutter
+Path operations, preserving their geometry. SVG audit exports are kept in icons/.
+
+Inter / Rubik fonts
+https://github.com/google/fonts/tree/main/ofl/inter
+https://github.com/google/fonts/tree/main/ofl/rubik
+Both fonts use the SIL Open Font License 1.1. Full texts: Inter-OFL.txt and
+Rubik-OFL.txt. Static 400/500/600/700 weights are instantiated from the official
+variable fonts without changing outlines (Inter optical size 14, Rubik weight
+axis only). Flutter family aliases are SynapseInter and SynapseRubik.

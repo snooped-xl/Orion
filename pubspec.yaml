@@ -1,0 +1,158 @@
+name: orion
+description: A native Material 3 script workspace with a live script hub.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.9.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  file_selector: ^1.0.3
+  path_provider: ^2.1.5
+  window_manager:
+    path: packages/window_manager
+  screen_retriever: ^0.2.2
+  path_drawing: ^1.0.1
+  desktop_multi_window:
+    path: packages/desktop_multi_window
+  liquid_glass_easy:
+    path: packages/liquid_glass_easy
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/orion-icon.png
+    - assets/branding/orion-logo.png
+    - assets/branding/orion-wordmark.png
+    - assets/bridge/
+    - assets/editor/synapse-syntax-themes.json
+    - assets/effects/
+    - assets/interface_logos/
+    - assets/fonts/OFL-RobotoFlex.txt
+    - assets/fonts/JetBrainsMono-OFL.txt
+    - assets/synapse_v3/
+    - assets/synapse_v3/legacy_hub/
+    - assets/synapse_blue/
+    - assets/synapse_x/
+    - assets/synapse_x/hub/
+    - assets/synapse_og/
+    - assets/original_awp/
+    - assets/original_xeno/
+    - assets/original_krnl/
+    - assets/original_calamari/
+    - assets/original_calamari/scripts/
+    - assets/original_zenith/
+    - assets/original_zenith/Data/
+    - assets/original_zenith/Help/
+    - assets/original_zenith/Fonts/
+    - assets/original_fonts/
+  fonts:
+    - family: RobotoFlex
+      fonts:
+        - asset: assets/fonts/RobotoFlex-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/RobotoFlex-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/RobotoFlex-Semibold.ttf
+          weight: 600
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+    - family: SynapseInter
+      fonts:
+        - asset: assets/synapse_blue/fonts/Inter-Light.ttf
+          weight: 300
+        - asset: assets/synapse_v3/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/synapse_v3/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/synapse_v3/fonts/Inter-Semibold.ttf
+          weight: 600
+        - asset: assets/synapse_v3/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/synapse_blue/fonts/Inter-Black.ttf
+          weight: 900
+    - family: SynapseRubik
+      fonts:
+        - asset: assets/synapse_v3/fonts/Rubik-Regular.ttf
+          weight: 400
+        - asset: assets/synapse_v3/fonts/Rubik-Medium.ttf
+          weight: 500
+        - asset: assets/synapse_v3/fonts/Rubik-Semibold.ttf
+          weight: 600
+        - asset: assets/synapse_v3/fonts/Rubik-Bold.ttf
+          weight: 700
+    - family: SynapseXUI
+      fonts:
+        - asset: assets/synapse_x/fonts/Cantarell-Regular.otf
+          weight: 400
+        - asset: assets/synapse_x/fonts/Cantarell-Bold.otf
+          weight: 700
+    - family: SynapseXMono
+      fonts:
+        - asset: assets/synapse_x/fonts/LiberationMono-Regular.ttf
+        - asset: assets/synapse_x/fonts/LiberationMono-Bold.ttf
+          weight: 700
+        - asset: assets/synapse_x/fonts/LiberationMono-Italic.ttf
+          style: italic
+        - asset: assets/synapse_x/fonts/LiberationMono-BoldItalic.ttf
+          weight: 700
+          style: italic
+    - family: OriginalNunito
+      fonts:
+        - asset: assets/original_zenith/Fonts/Nunito-Source-Regular.ttf
+    - family: OriginalAwpUI
+      fonts:
+        - asset: assets/original_awp/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/original_awp/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/original_awp/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/original_awp/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/original_awp/Inter-Bold.ttf
+          weight: 800
+    - family: OriginalXenoUI
+      fonts:
+        - asset: assets/original_xeno/NotoSans-Regular.ttf
+          weight: 400
+        - asset: assets/original_xeno/NotoSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/original_xeno/NotoSans-Black.ttf
+          weight: 900
+    - family: OriginalSegoeUI
+      fonts:
+        - asset: assets/synapse_x/fonts/Cantarell-Regular.otf
+        - asset: assets/synapse_x/fonts/Cantarell-Bold.otf
+          weight: 700
+    - family: OriginalSans
+      fonts:
+        - asset: assets/original_fonts/LiberationSans-Regular.ttf
+        - asset: assets/original_fonts/LiberationSans-Bold.ttf
+          weight: 700
+    - family: OriginalArial
+      fonts:
+        - asset: assets/original_fonts/LiberationSans-Regular.ttf
+        - asset: assets/original_fonts/LiberationSans-Bold.ttf
+          weight: 700
+    - family: OriginalConsolas
+      fonts:
+        - asset: assets/synapse_x/fonts/LiberationMono-Regular.ttf
+        - asset: assets/synapse_x/fonts/LiberationMono-Bold.ttf
+          weight: 700
+    - family: OriginalSymbols
+      fonts:
+        - asset: assets/original_fonts/DejaVuSans.ttf
+    - family: OriginalEmoji
+      fonts:
+        - asset: assets/original_fonts/NotoColorEmoji.ttf

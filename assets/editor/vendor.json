@@ -1,0 +1,18 @@
+{
+  "monaco": {
+    "version": "0.57.0",
+    "source": "https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.57.0.tgz",
+    "integrity": "sha512-5BkI9KGoqrNvBGUe15/QlZq3OooZ8WLg1AxTpaqHRCP3HNpzPPZKE2EDz8M7c+VRmCeUw1Brp4cx/PWm3kI/5A==",
+    "license": "MIT"
+  },
+  "roblox": {
+    "source": "https://github.com/Roblox/creator-docs",
+    "commit": "784c5e217446c65958d5d84f5c5f1d127951a8d7",
+    "license": "CC-BY-4.0",
+    "transform": "Public scriptable members, signatures, inherited classes, services, enums and concise documentation summaries derived from English engine reference YAML."
+  },
+  "font": {
+    "name": "JetBrains Mono",
+    "license": "OFL-1.1"
+  }
+}

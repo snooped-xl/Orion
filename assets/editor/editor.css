@@ -1,0 +1,263 @@
+@font-face { font-family: 'JetBrains Mono'; src: url('./JetBrainsMono.ttf') format('truetype'); font-display: swap; }
+:root { color-scheme: dark; --background: #141a23; --foreground: #e7edf7; }
+html, body, #editor { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--background); }
+body { font-family: 'JetBrains Mono', monospace; }
+#studio-background, #studio-overlay {position:fixed;inset:0;overflow:hidden;pointer-events:none;}
+#studio-background {z-index:0;}
+#studio-overlay {z-index:5000;}
+#studio-background img, #studio-overlay img {position:absolute;object-position:center;pointer-events:none;}
+:root.synapse-studio #editor {position:relative;z-index:1;}
+:root.synapse-studio.orion-transparent, :root.orion-studio {background:var(--studio-backdrop) !important;}
+:root.orion-studio body {background:transparent !important;}
+:root.synapse-studio .monaco-editor .line-numbers {color:var(--studio-muted) !important;}
+:root.synapse-studio .monaco-editor .line-numbers.active-line-number {color:var(--foreground) !important;}
+:root.synapse-studio .monaco-hover, :root.synapse-studio .monaco-editor-hover {background:var(--studio-surface) !important;color:var(--foreground) !important;border-color:var(--studio-border) !important;}
+/* A real native-editor gradient, behind Monaco's transparent editor/gutter. */
+:root.orion-gradient body, :root.orion-gradient #editor { background: var(--editor-gradient); }
+/* Classic Orion reveals Flutter's continuous window gradient through WebKit.
+   Keep floating menus and completion widgets on their readable theme surfaces. */
+:root.orion-transparent,
+:root.orion-transparent body,
+:root.orion-transparent #editor,
+:root.orion-transparent .monaco-editor,
+:root.orion-transparent .monaco-editor .overflow-guard,
+:root.orion-transparent .monaco-editor-background,
+:root.orion-transparent .monaco-editor .margin { background: transparent !important; }
+/* WebKitGTK's software backing cannot erase retained transparent pixels.
+   Share the app's window-coordinate backdrop on its outer canvas; the editor,
+   gutter and body above stay clear, with text and icons at their full alpha. */
+:root.orion-transparent.orion-window-backdrop,
+:root.orion-studio.orion-window-backdrop {
+  background-color: var(--window-backdrop-color) !important;
+  background-image: var(--window-backdrop-image, none) !important;
+  background-size: var(--window-backdrop-size, 100% 100%) !important;
+  background-position: var(--window-backdrop-position, 0 0) !important;
+  background-repeat: no-repeat !important;
+}
+/* The native editor is a separate GTK surface. Its substrate continues the
+   same opaque window-coordinate backdrop as Flutter. Native window opacity
+   supplies desktop transparency; code and widgets stay locally sharp. Avoid
+   backdrop-filter here: software WebKit can retain corrupt framebuffer reads.
+   Keep the outer canvas rectangular and opaque; only the foreground/rim is
+   rounded, so its corners continue the shared scene rather than a GTK matte. */
+:root.orion-glass body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: var(--glass-radius, 20px);
+  background: var(--glass-tint, transparent);
+  opacity: var(--glass-material-opacity, 1);
+  box-shadow: inset 0 1px 1px #ffffff18, inset 0 -1px 1px #00000010;
+}
+:root.orion-glass #editor {position:relative;z-index:1;}
+/* In real compositor Glass, Flutter paints transparent Monaco snapshots over
+   the desktop material. Keep the snapshot canvas clear; glyphs and popup
+   surfaces retain their original alpha. Native GTK input remains mapped. */
+:root.orion-compositor-glass.orion-transparent,
+:root.orion-compositor-glass body,
+:root.orion-compositor-glass #editor {
+  background: transparent !important;
+  background-image: none !important;
+}
+:root.orion-compositor-glass body::before {content:none;}
+/* Completion/hover/find are readable sheets before the compositor applies the
+   single window fade. Empty Monaco layers remain clear over the owned canvas. */
+:root.orion-glass .suggest-widget,
+:root.orion-glass .suggest-widget .monaco-list,
+:root.orion-glass .suggest-widget .monaco-list-rows,
+:root.orion-glass .parameter-hints-widget,
+:root.orion-glass .monaco-hover,
+:root.orion-glass .monaco-editor-hover,
+:root.orion-glass .find-widget {
+  background: var(--studio-surface) !important;
+  color: var(--foreground) !important;
+  border-color: var(--studio-border) !important;
+}
+#loading { position: absolute; inset: 0; display: grid; place-content: center; color: #a3afc1; font: 13px system-ui, sans-serif; pointer-events: none; }
+.monaco-editor .suggest-widget, .monaco-editor .monaco-hover, .monaco-editor .parameter-hints-widget { border-radius: 10px !important; overflow: hidden; box-shadow: 0 10px 24px #080b1240; }
+.monaco-editor .find-widget { border-radius: 0 0 10px 10px; }
+.monaco-menu .monaco-action-bar.vertical { border-radius: 10px; padding: 5px; }
+
+/* Main Orion uses one quiet theme-colored sheet and an inset selection.
+   Monaco keeps ownership of popup sizing and virtualized row geometry. */
+:root.orion-main .monaco-editor .suggest-widget,
+:root.orion-main .monaco-editor .suggest-details {
+  border-radius: 18px !important;
+  border: 1px solid var(--orion-suggest-rim) !important;
+  background: var(--orion-suggest-surface) !important;
+  color: var(--orion-suggest-foreground) !important;
+  box-shadow: 0 8px 24px var(--orion-suggest-shadow) !important;
+  overflow: hidden;
+}
+:root.orion-main.orion-glass .monaco-editor .suggest-widget,
+:root.orion-main.orion-glass .monaco-editor .suggest-details {
+  border-radius: 20px !important;
+}
+/* A single tinted Glassy sheet is intentional: stacking list backgrounds would
+   make its alpha opaque in Flutter's native mirror. Never sample GTK backing
+   pixels with backdrop-filter or fade the text along with the panel. */
+:root.orion-main .monaco-editor .suggest-widget .monaco-list,
+:root.orion-main .monaco-editor .suggest-widget .monaco-list-rows {
+  background: transparent !important;
+}
+:root.orion-main .monaco-editor .suggest-widget.visible {
+  animation: orion-suggest-arrive 120ms ease-out;
+}
+:root.orion-main .monaco-editor .suggest-widget .monaco-list-row {
+  padding-left: 14px;
+  padding-right: 13px;
+  background: transparent !important;
+  outline: none !important;
+}
+:root.orion-main .suggest-widget .monaco-list-row::before {
+  content: '';
+  position: absolute;
+  inset: 2px 6px;
+  border-radius: 11px;
+  pointer-events: none;
+  background: transparent;
+  transition: background-color 120ms ease-out;
+}
+:root.orion-main .suggest-widget .monaco-list-row:hover:not(.focused)::before {
+  background: var(--orion-suggest-hover);
+}
+:root.orion-main .suggest-widget .monaco-list-row.focused::before {
+  background: var(--orion-suggest-selected);
+}
+:root.orion-main .monaco-editor .suggest-widget .monaco-list-row > .contents {
+  padding-left: 0;
+  position: relative;
+  color: var(--orion-suggest-foreground);
+}
+:root.orion-main .suggest-widget .monaco-list-row > .contents > .main {
+  align-items: center;
+}
+:root.orion-main .suggest-widget .monaco-list-row .suggest-icon {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  justify-content: center;
+  font-size: 15px;
+}
+:root.orion-main .suggest-widget .monaco-list-row > .contents > .main > .left {
+  min-width: 0;
+}
+:root.orion-main .suggest-widget .monaco-icon-label {
+  font-weight: 500;
+  color: var(--orion-suggest-foreground) !important;
+}
+:root.orion-main .suggest-widget .monaco-highlighted-label .highlight {
+  color: var(--orion-suggest-highlight) !important;
+  font-weight: 700;
+}
+:root.orion-main .suggest-widget .monaco-list-row > .contents > .main > .right {
+  min-width: 0;
+  flex: 0 1 42%;
+  max-width: 42%;
+  align-items: center;
+  justify-content: flex-end;
+}
+:root.orion-main .monaco-editor .suggest-widget .monaco-list-row > .contents > .main > .right > .details-label {
+  display: inline;
+  margin-left: 16px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--orion-suggest-muted) !important;
+  opacity: 1;
+}
+:root.orion-main .suggest-widget .monaco-list-row .readMore {
+  flex-shrink: 0;
+  height: 22px !important;
+  width: 22px !important;
+  border-radius: 50%;
+  color: var(--orion-suggest-muted);
+}
+:root.orion-main .suggest-widget .monaco-list-row .readMore:hover {
+  background: var(--orion-suggest-hover);
+}
+:root.orion-main .suggest-details > .monaco-scrollable-element > .body {
+  padding: 12px 14px;
+}
+:root.orion-main .suggest-details .type {
+  color: var(--orion-suggest-highlight);
+}
+@keyframes orion-suggest-arrive {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+:root.orion-main.orion-reduced-motion .monaco-editor .suggest-widget.visible { animation: none; }
+:root.orion-main.orion-reduced-motion .suggest-widget .monaco-list-row::before { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  :root.orion-main .monaco-editor .suggest-widget.visible { animation: none; }
+  :root.orion-main .suggest-widget .monaco-list-row::before { transition: none; }
+}
+
+/* Original V3 diagnostics and Monaco chrome, isolated from the Orion UI. */
+.synapse-error-glyph {
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAABOFBMVEX/////////QRswFAb/Ui4wFAYwFAYwFAaWGAfDRymzOSH/PxswFAb/SiUwFAYwFAbUPRvjQiDllog5HhHdRybsTi3/Tyv9Tir+Syj/UC3////XurebMBIwFAb/RSHbPx/gUzfdwL3kzMivKBAwFAbbvbnhPx66NhowFAYwFAaZJg8wFAaxKBDZurf/RB6mMxb/SCMwFAYwFAbxQB3+RB4wFAb/Qhy4Oh+4QifbNRcwFAYwFAYwFAb/QRzdNhgwFAYwFAbav7v/Uy7oaE68MBK5LxLewr/r2NXewLswFAaxJw4wFAbkPRy2PyYwFAaxKhLm1tMwFAazPiQwFAaUGAb/QBrfOx3bvrv/VC/maE4wFAbRPBq6MRO8Qynew8Dp2tjfwb0wFAbx6eju5+by6uns4uH9/f36+vr/GkHjAAAAYnRSTlMAGt+64rnWu/bo8eAA4InH3+DwoN7j4eLi4xP99Nfg4+b+/u9B/eDs1MD1mO7+4PHg2MXa347g7vDizMLN4eG+Pv7i5evs/v79yu7S3/DV7/498Yv24eH+4ufQ3Ozu/v7+y13sRqwAAADLSURBVHjaZc/XDsFgGIBhtDrshlitmk2IrbHFqL2pvXf/+78DPokj7+Fz9qpU/9UXJIlhmPaTaQ6QPaz0mm+5gwkgovcV6GZzd5JtCQwgsxoHOvJO15kleRLAnMgHFIESUEPmawB9ngmelTtipwwfASilxOLyiV5UVUyVAfbG0cCPHig+GBkzAENHS0AstVF6bacZIOzgLmxsHbt2OecNgJC83JERmePUYq8ARGkJx6XtFsdddBQgZE2nPR6CICZhawjA4Fb/chv+399kfR+MMMDGOQAAAABJRU5ErkJggg==');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 14px;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+
+:root.synapse-v3 .monaco-editor .suggest-widget,
+:root.synapse-v3 .monaco-editor .parameter-hints-widget,
+:root.synapse-v3 .monaco-editor .find-widget,
+:root.synapse-v3 .monaco-menu .monaco-action-bar.vertical { border-radius: 0 !important; }
+:root.synapse-v3 .monaco-hover,
+:root.synapse-v3 .monaco-editor-hover { background: #1e1e1e !important; border: 1px solid #ffffff26 !important; border-radius: 8px !important; box-shadow: 0 10px 40px #000000b3 !important; padding: 10px 14px !important; color: #fff !important; }
+:root.synapse-v3 .monaco-editor .line-numbers { left: 0 !important; width: 100% !important; text-align: center !important; padding: 0 !important; color: #7a7a7a !important; }
+:root.synapse-v3 .monaco-editor .line-numbers.active-line-number { color: #bbbbbb !important; }
+
+/* Source Windows Consolas stack falls back to Courier New on Linux. */
+@font-face {font-family:OrionXMono;src:url('./fonts/LiberationMono-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:block;}
+@font-face {font-family:OrionXMono;src:url('./fonts/LiberationMono-Bold.ttf') format('truetype');font-weight:700;font-style:normal;font-display:block;}
+@font-face {font-family:OrionXMono;src:url('./fonts/LiberationMono-Italic.ttf') format('truetype');font-weight:400;font-style:italic;font-display:block;}
+@font-face {font-family:OrionXMono;src:url('./fonts/LiberationMono-BoldItalic.ttf') format('truetype');font-weight:700;font-style:italic;font-display:block;}
+
+/* These rules follow original Orion's MonacoPreview, never its Material shell. */
+:root.original-port .monaco-editor .suggest-widget {
+  border: 1px solid #303235 !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 28px #00000066 !important;
+}
+:root.original-port .suggest-widget .monaco-list,
+:root.original-port .suggest-widget .monaco-list-rows { background: #181b1d !important; }
+:root.original-port .suggest-widget .monaco-list-row.focused { background: #292d32 !important; }
+:root.original-port .suggest-widget .monaco-list-row:hover:not(.focused) { background: #22262a !important; }
+:root.original-port .suggest-widget .details-label,
+:root.original-port .suggest-widget .monaco-highlighted-label .highlight { color: #dcdcaa !important; }
+:root.original-port .monaco-editor .monaco-hover,
+:root.original-port .monaco-editor .parameter-hints-widget,
+:root.original-port .monaco-editor .find-widget,
+:root.original-port .monaco-menu .monaco-action-bar.vertical { border-radius: 0 !important; }
+:root.original-krnl .monaco-editor .line-numbers {
+  font-family: OrionXMono, Consolas, 'Courier New', monospace;
+  font-size: 10.6666666667px !important;
+  width: var(--krnl-gutter-width, 18px) !important;
+  left: 0 !important;
+  padding-right: 3px !important;
+  box-sizing: border-box;
+  text-align: right !important;
+}
+@font-face {font-family:'Zenith Nunito';src:url('./fonts/OriginalNunito.ttf') format('truetype');font-style:normal;font-weight:100 900;font-display:swap;}
+#zenith-editor-hint {
+  position:absolute;right:12px;bottom:12px;left:12px;z-index:5;display:flex;justify-content:center;
+  color:rgba(154,154,154,.5);font-family:'Zenith Nunito',sans-serif;font-size:12px;font-style:italic;
+  font-weight:400;line-height:16px;pointer-events:none;white-space:nowrap;
+}
+#zenith-editor-hint[hidden] {display:none;}
+#zenith-editor-help {
+  margin:0;padding:0;border:0;color:rgba(154,154,154,.6);background:transparent;font:inherit;
+  text-decoration-line:underline;text-decoration-style:dotted;text-underline-offset:2px;cursor:pointer;
+  pointer-events:auto;transition:color 150ms ease;
+}
+#zenith-editor-help:hover {color:rgba(154,154,154,.9);}

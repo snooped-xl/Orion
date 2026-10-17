@@ -1,57 +1,49 @@
-# Build and release output (source repository only)
-**/[Bb]in/
-**/[Oo]bj/
-**/[Pp]ublish/
-**/[Pp]ublish-*/
-**/[Aa]rtifacts/
-**/[Tt]est[Rr]esults/
-**/[Dd]ist/
-**/[Oo]ut/
-*.pdb
-*.nupkg
-*.snupkg
-*.zip
-*.7z
-*.tar
-*.tar.gz
-
-# IDE and editor state
-.vs/
-.vscode/
-.idea/
-.agents/
-.antigravityignore
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# Local SDK/package caches used by the desktop workspace
-.dotnet/
-.dotnet-home/
-.nuget/
-.appdata/
-.pnpm-store/
-
-# External reference projects used only while converting UIs. Orbit ships its
-# native implementation and assets; the original Calamari source stays out of
-# this repository.
-Cali-Ware-UI-main/
-
-# Generated diagnostics, screenshots, and local exports
-orbit-*.png
-!Assets/orbit-logo-hq.png
-rc7-menu*.png
+# Miscellaneous
+*.class
 *.log
-*.tmp
-
-# Operating-system files
+*.pyc
+*.swp
 .DS_Store
-Thumbs.db
-Desktop.ini
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
 
-# Local secrets and environment overrides
-.env
-.env.*
-!.env.example
-secrets.json
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+/dist/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget Preview related
+.widget_preview/

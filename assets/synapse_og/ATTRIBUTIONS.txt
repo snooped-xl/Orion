@@ -1,0 +1,28 @@
+Synapse OG visual assets and source reference
+
+Copied unchanged from snooped-xl/Synapse-Framework at commit
+6deb8ac99e8448188c7f14c02933f52aebc093a4:
+https://github.com/snooped-xl/Synapse-Framework
+
+Source paths:
+- src/assets/synapse-original/synapse-logo.png
+- src/assets/synapse-original/script-preview.png
+- src/assets/script-hub/dex.png
+- src/assets/script-hub/RemoteSpy.png
+- src/assets/script-hub/scriptdump.png
+- src/assets/script-hub/unnamedesp.png
+- src/app/scriptHub/data/scriptDumperLegacy.lua
+
+The Flutter layouts, window sizes, source palette and Monaco skin reproduce
+src/app/synapse-original and src/editor/og2017MonacoTheme.ts from that commit.
+Original branding and bundled artwork remain the property of their respective
+owners. The upstream project has no root licence file; its ATTRIBUTIONS.md
+attributes shadcn/ui (MIT) and Unsplash photos (Unsplash licence). No shadcn
+implementation or additional Unsplash photos are copied into this Flutter port.
+
+Inter font
+https://github.com/google/fonts/tree/main/ofl/inter
+Shared Flutter family SynapseInter is bundled under assets/synapse_v3/fonts.
+The full SIL Open Font License 1.1 is assets/synapse_v3/Inter-OFL.txt.
+Static 400/500/600/700 weights are instantiated from the official variable font
+without changing outlines (Inter optical size 14).

@@ -1,0 +1,5 @@
+Source: https://github.com/snooped-xl/Orion
+Pinned revision: 1a674036d976d22b9b9efa6708627e819fdb107a
+Source files: KrnlLegacyWindow.cs, KrnlTabControl.cs, KrnlOptionsWindow.cs, KrnlCodeEditor.cs.
+PNG assets extracted unchanged from the original embedded PNG streams in Assets/Legacy/Krnl/krnl.resx by the source KrnlSourceAssets.cs algorithm.
+No execution or injection engine is bundled.

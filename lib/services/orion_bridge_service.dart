@@ -1,0 +1,824 @@
+import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import '../models/bridge_models.dart';
+
+/// Original Orion v2 HTTP bridge. Construction never starts a server. Only the
+/// primary desktop engine calls [start]; companion windows share its snapshot.
+class OrionBridgeService extends ChangeNotifier {
+  OrionBridgeService({
+    Future<String> Function()? scriptLoader,
+    this.clientTimeout = const Duration(milliseconds: 3500),
+    this.longPollTimeout = const Duration(seconds: 2),
+    this.watchdogInterval = const Duration(milliseconds: 500),
+    this.requestTimeout = const Duration(seconds: 5),
+    this.maximumClients = 64,
+    this.maximumQueuedPerClient = 128,
+    this.maximumRememberedLogs = 500,
+    this.maximumRememberedResults = 512,
+    this.maximumLogLength = 8192,
+    this.maximumScriptBytes = 2 * 1024 * 1024,
+    this.maximumQueuedBytes = 32 * 1024 * 1024,
+    this.maximumRequestBytes = 128 * 1024,
+  }) : _scriptLoader =
+           scriptLoader ??
+           (() => rootBundle.loadString('assets/bridge/Orion Bridge.lua'));
+  static const protocolToken = 'orion-bridge-v2';
+  static const defaultPort = 31337;
+  final Future<String> Function() _scriptLoader;
+  final Duration clientTimeout;
+  final Duration longPollTimeout;
+  final Duration watchdogInterval;
+  final Duration requestTimeout;
+  final int maximumClients;
+  final int maximumQueuedPerClient;
+  final int maximumRememberedLogs;
+  final int maximumRememberedResults;
+  final int maximumLogLength;
+  final int maximumScriptBytes;
+  final int maximumQueuedBytes;
+  final int maximumRequestBytes;
+  final _sessions = <String, _Session>{};
+  final _logs = Queue<BridgeLogEntry>();
+  (_Session, String)? _lastLogOrigin;
+  // A retried POST/GET result must be acknowledged without printing it again.
+  // Session+execution keys also separate a broadcast's independent results.
+  final _reportedResults = <(String, String)>{};
+  final _connectedEvents = StreamController<BridgeClient>.broadcast(sync: true);
+  final _logEvents = StreamController<BridgeLogEntry>.broadcast(sync: true);
+  final _random = Random.secure();
+  HttpServer? _server;
+  Timer? _watchdog;
+  Future<bool>? _starting;
+  String? _error;
+  bool _disposed = false;
+  int _generation = 0;
+  int _activeRequests = 0;
+  int _queuedBytes = 0;
+  String? _script;
+  bool get listening => _server != null;
+  bool get isConnected => _sessions.isNotEmpty;
+  String? get error => _error;
+  int get port => _server?.port ?? defaultPort;
+  List<BridgeClient> get clients {
+    final result = _sessions.values.map(_client).toList();
+    result.sort(
+      (a, b) => _number(a.identifier).compareTo(_number(b.identifier)),
+    );
+    return List.unmodifiable(result);
+  }
+
+  List<BridgeLogEntry> get logs => List.unmodifiable(_logs);
+  Stream<BridgeClient> get clientConnected => _connectedEvents.stream;
+  Stream<BridgeLogEntry> get logReceived => _logEvents.stream;
+  Future<bool> start({int port = defaultPort}) {
+    if (_disposed) return Future.value(false);
+    if (_server != null) return Future.value(true);
+    return _starting ??= _bind(port).whenComplete(() => _starting = null);
+  }
+
+  Future<bool> _bind(int requestedPort) async {
+    final generation = ++_generation;
+    try {
+      final server = await HttpServer.bind(
+        InternetAddress.loopbackIPv4,
+        requestedPort,
+        shared: false,
+      );
+      if (_disposed || generation != _generation) {
+        await server.close(force: true);
+        return false;
+      }
+      server.idleTimeout = const Duration(seconds: 10);
+      _server = server;
+      _error = null;
+      server.listen(
+        (request) => unawaited(_handle(request)),
+        onError: (Object error) {
+          _error = 'Orion Bridge connection error: $error';
+          _emit('error', _error!);
+        },
+      );
+      _watchdog = Timer.periodic(watchdogInterval, (_) => _expire());
+      _changed();
+      return true;
+    } on Object catch (error) {
+      if (generation == _generation && !_disposed) {
+        _error =
+            'Orion Bridge could not listen on 127.0.0.1:$requestedPort: $error';
+        _emit('error', _error!);
+      }
+      return false;
+    }
+  }
+
+  BridgeExecutionReceipt enqueueExecute(
+    String source, {
+    Iterable<String>? targetIdentifiers,
+  }) {
+    final sourceBytes = utf8.encode(source).length;
+    if (sourceBytes > maximumScriptBytes) {
+      throw ArgumentError('Script exceeds the $maximumScriptBytes byte limit.');
+    }
+    _expire();
+    final id =
+        'exec_${List.generate(16, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+    final selected = targetIdentifiers?.map((id) => id.toLowerCase()).toSet();
+    final targets = <String>[];
+    final execution = _Execution(id, source, sourceBytes);
+    for (final session in _sessions.values) {
+      if (selected != null &&
+          !selected.contains(session.identifier.toLowerCase())) {
+        continue;
+      }
+      if (session.pending.length >= maximumQueuedPerClient ||
+          _queuedBytes + sourceBytes > maximumQueuedBytes) {
+        _emit(
+          'warn',
+          'Execution queue is full for ${session.identifier}.',
+          session: session,
+        );
+        continue;
+      }
+      session.pending.add(execution);
+      _queuedBytes += sourceBytes;
+      targets.add(session.identifier);
+      _wake(session);
+    }
+    if (targets.isNotEmpty) _changed();
+    return BridgeExecutionReceipt(id: id, targets: targets);
+  }
+
+  bool disconnectClient(String identifier) {
+    final matches = _sessions.values
+        .where(
+          (session) =>
+              session.identifier.toLowerCase() == identifier.toLowerCase(),
+        )
+        .toList();
+    for (final session in matches) {
+      _remove(session);
+    }
+    if (matches.isNotEmpty) _changed();
+    return matches.isNotEmpty;
+  }
+
+  void disconnectAll() {
+    if (_sessions.isEmpty) return;
+    for (final session in _sessions.values.toList()) {
+      _remove(session);
+    }
+    _changed();
+  }
+
+  void clearLogs() {
+    _logs.clear();
+    _lastLogOrigin = null;
+    _changed();
+  }
+
+  Future<void> close() async {
+    final starting = _starting;
+    ++_generation;
+    _watchdog?.cancel();
+    _watchdog = null;
+    final server = _server;
+    _server = null;
+    for (final session in _sessions.values.toList()) {
+      _remove(session);
+    }
+    _changed();
+    await server?.close(force: true);
+    // A cancelled bind may still hold its socket until its async continuation
+    // runs. A caller awaiting close can immediately start a fresh listener.
+    await starting;
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    unawaited(close());
+    unawaited(_connectedEvents.close());
+    unawaited(_logEvents.close());
+    super.dispose();
+  }
+
+  void _changed() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _expire() {
+    final now = DateTime.now().toUtc();
+    final expired = _sessions.values
+        .where((session) => now.difference(session.lastSeenUtc) > clientTimeout)
+        .toList();
+    for (final session in expired) {
+      _remove(session);
+    }
+    if (expired.isNotEmpty) _changed();
+  }
+
+  void _remove(_Session session) {
+    _sessions.remove(session.id);
+    for (final item in session.pending) {
+      _queuedBytes -= item.byteLength;
+    }
+    session.pending.clear();
+    _wake(session);
+  }
+
+  void _wake(_Session session) {
+    for (final waiter in session.waiters.toList()) {
+      if (!waiter.isCompleted) waiter.complete();
+    }
+  }
+
+  void _emit(
+    String level,
+    String message, {
+    _Session? session,
+    String? executionId,
+  }) {
+    if (_disposed) return;
+    final normalized = level.trim().toLowerCase();
+    final entry = BridgeLogEntry(
+      timestampUtc: DateTime.now().toUtc(),
+      level: normalized.isEmpty ? 'info' : _bounded(normalized, 32),
+      message: _bounded(message, maximumLogLength),
+      identifier: session?.identifier,
+      executionId: executionId,
+    );
+    _logs.add(entry);
+    _lastLogOrigin = session == null
+        ? null
+        : (session, session.bridgeGeneration);
+    while (_logs.length > maximumRememberedLogs) {
+      _logs.removeFirst();
+    }
+    _logEvents.add(entry);
+    _changed();
+  }
+
+  Future<void> _handle(HttpRequest request) async {
+    _activeRequests++;
+    final generation = _generation;
+    try {
+      request.response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+      request.response.headers.set('X-Content-Type-Options', 'nosniff');
+      // The compatibility token identifies a protocol; it is not a secret.
+      // Reject browser origins/fetches and unexpected hosts as well as binding
+      // only to loopback, so websites/other machines cannot drive this bridge.
+      final host = request.headers.host?.toLowerCase();
+      final fetchSite = request.headers.value('sec-fetch-site');
+      if (request.headers.value('origin') != null ||
+          (fetchSite != null && fetchSite != 'none') ||
+          (host != '127.0.0.1' && host != 'localhost')) {
+        await _json(request, 403, {'error': 'local bridge requests only'});
+        return;
+      }
+      if (_activeRequests > 256) {
+        await _json(request, 503, {'error': 'too many bridge requests'});
+        return;
+      }
+      if (request.uri.toString().length > maximumRequestBytes ||
+          request.contentLength > maximumRequestBytes) {
+        await _json(request, 413, {'error': 'request too large'});
+        return;
+      }
+      if (request.method != 'GET' && request.method != 'POST') {
+        request.response.headers.set(HttpHeaders.allowHeader, 'GET, POST');
+        await _json(request, 405, {'error': 'method not allowed'});
+        return;
+      }
+      final path = request.uri.path
+          .replaceFirst(RegExp(r'/+$'), '')
+          .toLowerCase();
+      if (const {
+        '/bridge.lua',
+        '/port_bridge.lua',
+        '/stream_bridge.lua',
+        '/compat_bridge.lua',
+      }.contains(path)) {
+        if (request.method != 'GET') {
+          await _json(request, 405, {'error': 'method not allowed'});
+          return;
+        }
+        try {
+          _script ??= await _scriptLoader();
+          await _text(request, 200, _script!, 'text/plain; charset=utf-8');
+        } on Object {
+          await _text(
+            request,
+            404,
+            '-- Orion Bridge.lua is not installed.\n',
+            'text/plain; charset=utf-8',
+          );
+        }
+        return;
+      }
+      if (path == '/status') {
+        _expire();
+        await _json(request, 200, {
+          'connected': isConnected,
+          'port_connected': _sessions.values.any((s) => s.transport == 'port'),
+          'stream_connected': _sessions.values.any(
+            (s) => s.transport == 'stream',
+          ),
+          'compat_connected': _sessions.values.any(
+            (s) => s.transport == 'compat',
+          ),
+          'queued': _sessions.values.fold<int>(
+            0,
+            (sum, s) => sum + s.pending.length,
+          ),
+          'clients': clients
+              .map(
+                (client) => {
+                  'identifier': client.identifier,
+                  'username': client.username,
+                  'transport': client.transport,
+                  'executorName': client.executorName,
+                },
+              )
+              .toList(),
+        });
+        return;
+      }
+      final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+      if (segments.length != 2 ||
+          !const {
+            'port_bridge',
+            'stream_bridge',
+            'compat_bridge',
+          }.contains(segments[0])) {
+        await _json(request, 404, {'error': 'not found'});
+        return;
+      }
+      final supplied =
+          request.uri.queryParameters['protocol'] ??
+          request.headers.value('X-Orion-Bridge-Protocol');
+      if (supplied != protocolToken) {
+        await _json(request, 403, {'error': 'invalid bridge protocol'});
+        return;
+      }
+      final transport = segments[0].split('_').first;
+      final endpoint = segments[1];
+      if (!const {
+        'hello',
+        'ping',
+        'next',
+        'result',
+        'log',
+      }.contains(endpoint)) {
+        await _json(request, 404, {'error': 'unknown bridge endpoint'});
+        return;
+      }
+      _expire();
+      final suppliedId = request.uri.queryParameters['session_id']?.trim();
+      final sessionId = suppliedId == null || suppliedId.isEmpty
+          ? 'legacy-$transport'
+          : suppliedId;
+      if (!_validSessionId(sessionId)) {
+        await _json(request, 400, {'error': 'invalid session id'});
+        return;
+      }
+      if (endpoint == 'hello') {
+        await _hello(request, transport, sessionId, generation);
+        return;
+      }
+      final session = _sessions[sessionId];
+      if (session == null || session.transport != transport) {
+        await _json(request, 409, {'error': 'bridge hello required'});
+        return;
+      }
+      _requireGeneration(
+        session,
+        request.uri.queryParameters['bridge_generation'],
+      );
+      session.lastSeenUtc = DateTime.now().toUtc();
+      if (endpoint == 'ping') {
+        await _json(request, 200, {'ok': true});
+      } else if (endpoint == 'next') {
+        await _next(request, session, transport);
+      } else {
+        final values = await _values(request);
+        if (!identical(_sessions[session.id], session) ||
+            session.transport != transport) {
+          await _json(request, 409, {'error': 'bridge hello required'});
+          return;
+        }
+        _requireGeneration(session, values['bridge_generation']);
+        session.lastSeenUtc = DateTime.now().toUtc();
+        if (endpoint == 'log') {
+          _emit(
+            values['level'] ?? 'info',
+            _decodeValue(values, 'message', 'invalid encoded log'),
+            session: session,
+          );
+        } else {
+          final suppliedId = values['id'];
+          final id = _bounded(suppliedId ?? 'unknown', 128);
+          // Stable execution IDs allow the Lua outbox to retry after a lost
+          // HTTP response. Successful results are transport acknowledgements;
+          // the client's mirrored print/warn/error stream is the console output.
+          // Missing IDs retain the legacy failure-reporting behavior.
+          final remembered = suppliedId != null && suppliedId.isNotEmpty;
+          final firstResult =
+              !remembered || _reportedResults.add((session.id, id));
+          if (firstResult) {
+            while (_reportedResults.length > maximumRememberedResults) {
+              _reportedResults.remove(_reportedResults.first);
+            }
+            final succeeded = values['ok']?.trim().toLowerCase() == 'true';
+            if (!succeeded) {
+              final failure = _decodeValue(
+                values,
+                'error',
+                'invalid encoded error',
+              );
+              final previous = _logs.isEmpty ? null : _logs.last;
+              final alreadyMirrored =
+                  previous != null &&
+                  identical(_lastLogOrigin?.$1, session) &&
+                  _lastLogOrigin?.$2 == session.bridgeGeneration &&
+                  previous.identifier == session.identifier &&
+                  previous.executionId == null &&
+                  previous.level == 'error' &&
+                  previous.message == failure &&
+                  DateTime.now().toUtc().difference(previous.timestampUtc) <=
+                      const Duration(seconds: 2);
+              if (!alreadyMirrored) {
+                _emit(
+                  'error',
+                  'Execution failed: ${failure.isEmpty ? 'unknown error' : failure}',
+                  session: session,
+                  executionId: id,
+                );
+              }
+            }
+          }
+        }
+        await _json(request, 200, {'ok': true});
+      }
+    } on _RequestFailure catch (error) {
+      await _errorResponse(request, error.status, error.message);
+    } on FormatException {
+      await _errorResponse(request, 400, 'invalid request values');
+    } on TimeoutException {
+      await _errorResponse(request, 408, 'request timed out');
+    } on Object catch (error) {
+      if (_server != null &&
+          !_disposed &&
+          error is! SocketException &&
+          error is! HttpException) {
+        _emit('error', 'Orion Bridge request failed: $error');
+      }
+      try {
+        await _json(request, 500, {'error': 'bridge request failed'});
+      } on Object {
+        /* peer abandoned long poll */
+      }
+    } finally {
+      _activeRequests--;
+      try {
+        await request.response.close();
+      } on Object {
+        /* peer closed */
+      }
+    }
+  }
+
+  Future<void> _hello(
+    HttpRequest request,
+    String transport,
+    String fallbackId,
+    int generation,
+  ) async {
+    final values = await _values(request);
+    if (_server == null || generation != _generation) {
+      throw const _RequestFailure(503, 'bridge stopped');
+    }
+    final supplied = values['session_id']?.trim();
+    final id = supplied == null || supplied.isEmpty ? fallbackId : supplied;
+    if (!_validSessionId(id)) {
+      throw const _RequestFailure(400, 'invalid session id');
+    }
+    final clientLabel = _clean(values['client'], '$transport-bridge', 64);
+    final displayName = _clean(values['display_name'], '', 64);
+    final username = displayName.isEmpty
+        ? _clean(values['username'], clientLabel, 64)
+        : displayName;
+    // Legacy clients know only their transport label. Never present that
+    // label as an executor, and keep known metadata on older hello refreshes.
+    final executorName = values.containsKey('executor_name')
+        ? _clean(values['executor_name'], '', 64)
+        : null;
+    final requested = _identifier(values['requested_identifier']);
+    final bridgeGeneration = _generationTag(values['bridge_generation']) ?? '';
+    var session = _sessions[id];
+    final newClient = session == null;
+    if (session == null) {
+      if (_sessions.length >= maximumClients) {
+        throw const _RequestFailure(429, 'client limit reached');
+      }
+      final used = _sessions.values
+          .map((s) => s.identifier.toLowerCase())
+          .toSet();
+      var assigned = requested;
+      if (used.contains(assigned.toLowerCase())) {
+        var number = 1;
+        while (used.contains('user$number')) {
+          number++;
+        }
+        assigned = 'User$number';
+      }
+      session = _Session(
+        id,
+        assigned,
+        username,
+        transport,
+        clientLabel,
+        executorName ?? '',
+        bridgeGeneration,
+      );
+      _sessions[id] = session;
+    } else {
+      final previousNumber = BigInt.tryParse(session.bridgeGeneration);
+      final requestedNumber = BigInt.tryParse(bridgeGeneration);
+      if (bridgeGeneration.isNotEmpty &&
+          previousNumber != null &&
+          requestedNumber != null &&
+          requestedNumber < previousNumber) {
+        throw const _RequestFailure(409, 'stale bridge generation');
+      }
+      // Replacing the Lua bridge leaves its old HTTP poll alive until it
+      // returns. Revoke that poll before it can consume work for the new
+      // generation. Periodic and older hellos keep the same queue and epoch.
+      if (session.transport != transport ||
+          (bridgeGeneration.isNotEmpty &&
+              bridgeGeneration != session.bridgeGeneration)) {
+        session.pollEpoch++;
+        _wake(session);
+      }
+      if (bridgeGeneration.isNotEmpty) {
+        session.bridgeGeneration = bridgeGeneration;
+      }
+      session.username = username;
+      session.transport = transport;
+      session.clientLabel = clientLabel;
+      if (executorName != null) session.executorName = executorName;
+      session.lastSeenUtc = DateTime.now().toUtc();
+    }
+    _changed();
+    if (newClient && !_disposed) _connectedEvents.add(_client(session));
+    await _json(request, 200, {
+      'ok': true,
+      'transport': transport,
+      'identifier': session.identifier,
+      'username': session.username,
+      'executorName': session.executorName,
+      'reassigned': session.identifier.toLowerCase() != requested.toLowerCase(),
+    });
+  }
+
+  Future<void> _next(
+    HttpRequest request,
+    _Session session,
+    String transport,
+  ) async {
+    final pollEpoch = session.pollEpoch;
+    if (session.waiters.length >= 2) {
+      throw const _RequestFailure(429, 'too many pending polls');
+    }
+    if (session.pending.isEmpty) {
+      final waiter = Completer<void>();
+      session.waiters.add(waiter);
+      try {
+        await waiter.future.timeout(longPollTimeout, onTimeout: () {});
+      } finally {
+        session.waiters.remove(waiter);
+      }
+    }
+    if (!identical(_sessions[session.id], session) ||
+        session.transport != transport ||
+        session.pollEpoch != pollEpoch) {
+      await _json(request, 409, {'error': 'bridge hello required'});
+      return;
+    }
+    // Successful long polls are heartbeats too, avoiding scheduler jitter at
+    // the short v2 disconnect threshold while the client is still connected.
+    session.lastSeenUtc = DateTime.now().toUtc();
+    final batch = <Map<String, String>>[];
+    while (session.pending.isNotEmpty && batch.length < 8) {
+      final item = session.pending.removeFirst();
+      _queuedBytes -= item.byteLength;
+      batch.add({
+        'id': item.id,
+        'source_b64': base64.encode(utf8.encode(item.source)),
+        'encoding': 'base64',
+        'origin': 'editor',
+      });
+    }
+    if (batch.isNotEmpty) _changed();
+    await _json(
+      request,
+      200,
+      batch.isEmpty
+          ? {'exec': null}
+          : batch.length == 1
+          ? {'exec': batch.first}
+          : {'execs': batch},
+    );
+  }
+
+  Future<Map<String, String>> _values(HttpRequest request) async {
+    final result = <String, String>{};
+    for (final entry in request.uri.queryParameters.entries) {
+      result[entry.key.toLowerCase()] = entry.value;
+    }
+    if (request.method != 'POST') return result;
+    if (request.contentLength > maximumRequestBytes) {
+      throw const _RequestFailure(413, 'request too large');
+    }
+    final bytes = BytesBuilder(copy: false);
+    final iterator = StreamIterator<List<int>>(request);
+    final elapsed = Stopwatch()..start();
+    try {
+      while (true) {
+        final remaining = requestTimeout - elapsed.elapsed;
+        if (remaining <= Duration.zero) {
+          throw TimeoutException('bridge request body timed out');
+        }
+        if (!await iterator.moveNext().timeout(remaining)) break;
+        final chunk = iterator.current;
+        if (bytes.length + chunk.length > maximumRequestBytes) {
+          throw const _RequestFailure(413, 'request too large');
+        }
+        bytes.add(chunk);
+      }
+    } finally {
+      await iterator.cancel();
+    }
+    final body = utf8.decode(bytes.takeBytes()).trim();
+    if (body.isEmpty) return result;
+    if (body.startsWith('{') ||
+        request.headers.contentType?.mimeType == 'application/json') {
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) {
+        throw const _RequestFailure(400, 'expected a JSON object');
+      }
+      for (final entry in decoded.entries) {
+        if (entry.value is Map || entry.value is List) {
+          throw const _RequestFailure(400, 'expected scalar values');
+        }
+        result[entry.key.toLowerCase()] = entry.value?.toString() ?? '';
+      }
+    } else {
+      for (final entry in Uri.splitQueryString(body).entries) {
+        result[entry.key.toLowerCase()] = entry.value;
+      }
+    }
+    return result;
+  }
+
+  String _decodeValue(Map<String, String> values, String key, String fallback) {
+    final plain = values[key];
+    if (plain != null && plain.trim().isNotEmpty) {
+      return _bounded(plain, maximumLogLength);
+    }
+    final encoded = values['${key}_b64'];
+    if (encoded == null || encoded.isEmpty) return plain ?? '';
+    try {
+      return _bounded(utf8.decode(base64.decode(encoded)), maximumLogLength);
+    } on FormatException {
+      return fallback;
+    }
+  }
+
+  Future<void> _errorResponse(
+    HttpRequest request,
+    int status,
+    String message,
+  ) async {
+    try {
+      await _json(request, status, {'error': message});
+    } on Object {
+      // A partial or cancelled request can already have closed its socket.
+    }
+  }
+
+  Future<void> _json(HttpRequest request, int status, Object payload) => _text(
+    request,
+    status,
+    jsonEncode(payload),
+    'application/json; charset=utf-8',
+  );
+  Future<void> _text(
+    HttpRequest request,
+    int status,
+    String value,
+    String type,
+  ) async {
+    final response = request.response;
+    response.statusCode = status;
+    response.headers.set(HttpHeaders.contentTypeHeader, type);
+    final bytes = utf8.encode(value);
+    response.contentLength = bytes.length;
+    response.add(bytes);
+  }
+
+  BridgeClient _client(_Session session) => BridgeClient(
+    identifier: session.identifier,
+    username: session.username,
+    transport: session.transport,
+    clientLabel: session.clientLabel,
+    executorName: session.executorName,
+    sessionId: session.id,
+    pendingCount: session.pending.length,
+  );
+  void _requireGeneration(_Session session, String? supplied) {
+    final generation = _generationTag(supplied);
+    // Untagged legacy sessions remain fully compatible. Once upgraded, an
+    // untagged request can belong to the old bridge still finishing an HTTP
+    // call, so it must not consume or report work for the new generation.
+    if (generation == null && session.bridgeGeneration.isEmpty) return;
+    if (generation != session.bridgeGeneration) {
+      throw const _RequestFailure(409, 'bridge hello required');
+    }
+  }
+
+  static String? _generationTag(String? supplied) {
+    if (supplied == null) return null;
+    final tag = supplied.trim();
+    if (!RegExp(r'^[A-Za-z0-9_.:-]{1,64}$').hasMatch(tag)) {
+      throw const _RequestFailure(400, 'invalid bridge generation');
+    }
+    if (RegExp(r'^[0-9]+$').hasMatch(tag)) {
+      return BigInt.parse(tag).toString();
+    }
+    return tag;
+  }
+
+  static String _bounded(String value, int length) =>
+      value.length <= length ? value : value.substring(0, length);
+  static String _clean(String? value, String fallback, int length) {
+    final cleaned =
+        value?.replaceAll(RegExp(r'[\x00-\x1f\x7f]'), '').trim() ?? '';
+    return _bounded(cleaned.isEmpty ? fallback : cleaned, length);
+  }
+
+  static bool _validSessionId(String id) =>
+      id.length <= 128 && !RegExp(r'[\x00-\x20\x7f]').hasMatch(id);
+  static String _identifier(String? value) {
+    final match = RegExp(
+      r'^User([0-9]{1,9})$',
+      caseSensitive: false,
+    ).firstMatch(value?.trim() ?? '');
+    final number = match == null ? 0 : int.tryParse(match.group(1)!) ?? 0;
+    return number > 0 ? 'User$number' : 'User1';
+  }
+
+  static int _number(String value) => int.tryParse(value.substring(4)) ?? 0;
+}
+
+class _Execution {
+  const _Execution(this.id, this.source, this.byteLength);
+  final String id;
+  final String source;
+  final int byteLength;
+}
+
+class _Session {
+  _Session(
+    this.id,
+    this.identifier,
+    this.username,
+    this.transport,
+    this.clientLabel,
+    this.executorName,
+    this.bridgeGeneration,
+  ) : lastSeenUtc = DateTime.now().toUtc();
+  final String id;
+  final String identifier;
+  String username;
+  String transport;
+  String clientLabel;
+  String executorName;
+  String bridgeGeneration;
+  int pollEpoch = 0;
+  DateTime lastSeenUtc;
+  final pending = Queue<_Execution>();
+  final waiters = <Completer<void>>[];
+}
+
+class _RequestFailure implements Exception {
+  const _RequestFailure(this.status, this.message);
+  final int status;
+  final String message;
+}

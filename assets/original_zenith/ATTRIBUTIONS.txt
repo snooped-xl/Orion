@@ -1,0 +1,10 @@
+Zenith V2 Flutter port derived from snooped-xl/Orion commit 1a674036d976d22b9b9efa6708627e819fdb107a.
+Source: ZenithWindow.axaml, ZenithWindow.axaml.cs, ZenithWindow.Documentation.cs, Assets/Zenith.
+https://github.com/snooped-xl/Orion
+Source vector paths, Nunito variable fonts, help/documentation data and artwork retained.
+No launcher, game engine, authentication service or automatic attachment is included.
+
+Nunito-Source-Regular.ttf is derived from the bundled variable font at wght=200,
+registered as a normal face to match original Avalonia font resolution. Semibold
+text uses synthetic bold, matching the original Linux runtime glyph trace.
+Original variable sources and SIL Open Font License are retained.

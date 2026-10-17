@@ -1,0 +1,9 @@
+Orion Bridge Lua client and v2 HTTP protocol ported from snooped-xl/Orion,
+commit 1a674036d976d22b9b9efa6708627e819fdb107a.
+https://github.com/snooped-xl/Orion
+
+Original sources: Scripts/Orion Bridge.lua and UnifiedBridgeServer.cs.
+The Dart server retains the original transport, handshake, queue and log protocol.
+The Lua client retains manual startup, transport fallback, generation cleanup,
+console forwarding, execution results and teleport reload, with more robust JSON
+escaping, HTTP error handling and handshake validation.
