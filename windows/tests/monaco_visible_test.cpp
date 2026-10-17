@@ -215,6 +215,16 @@ bool Save(const std::wstring& path, const RECT& area,
 }  // namespace
 
 int wmain(int argc, wchar_t** argv) {
+  // GetWindowRect/WindowFromPoint and screen BitBlt must use the same physical
+  // pixel space, including when Orion starts on a monitor with a different DPI.
+  // An unaware console helper otherwise reads a virtualized HWND rectangle and
+  // captures a different desktop patch, potentially missing the editor entirely.
+  if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) &&
+      !AreDpiAwarenessContextsEqual(GetThreadDpiAwarenessContext(),
+          DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+    std::fprintf(stderr, "Could not enable physical per-monitor capture coordinates.\n");
+    return 2;
+  }
   if (argc < 3) {
     std::fprintf(stderr, "Usage: monaco_visible_test <test-app-pid> <output.bmp>\n");
     return 2;

@@ -106,7 +106,9 @@ try {
         Start-Sleep -Milliseconds 250
       }
       if (-not $app -or $appWindow -eq [IntPtr]::Zero) { throw 'Portable Orion did not create its main native window' }
-      Start-Sleep -Seconds 8
+      # Native-window creation precedes the browser's first desktop frame.
+      # Allow a cold offline runtime to finish startup before pixel inspection.
+      Start-Sleep -Seconds $(if ($VisibleTextHelper) { 20 } else { 8 })
       $app.Refresh()
       if ($app.HasExited) { throw "Portable Orion crashed shortly after opening: $($app.ExitCode)" }
       foreach ($required in @('.orion-workspace.json', 'scripts/Special/Orion Bridge.lua', 'themes', 'autoexec', 'cache', 'backups')) {
@@ -118,6 +120,10 @@ try {
 
       if ($VisibleTextHelper) {
         & $VisibleTextHelper $app.Id (Join-Path $caseDirectory 'displayed-editor.bmp')
+        for ($probeAttempt = 0; $LASTEXITCODE -eq 3 -and $probeAttempt -lt 2; $probeAttempt++) {
+          Start-Sleep -Milliseconds 500
+          & $VisibleTextHelper $app.Id (Join-Path $caseDirectory 'displayed-editor.bmp')
+        }
         if ($LASTEXITCODE -ne 0) { throw "Portable $theme editor text is not visible" }
       }
 
