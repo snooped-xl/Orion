@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 /// The writable workspace lives outside the application bundle. This is also
-/// true for a mounted AppImage or a self-extracting Windows executable.
+/// true for a read-only Flatpak or a self-extracting Windows executable.
 class WorkspacePaths {
   static const markerName = '.orion-workspace.json';
   static const _schema = 1;
@@ -48,6 +48,23 @@ class WorkspacePaths {
         documentsDirectory: documents,
       ),
     ).absolute;
+  }
+
+  /// Flatpak redirects XDG_DATA_HOME into its private application data. The
+  /// existing native installation predates that redirection and must still be
+  /// discovered when the shared ~/orion workspace has not been provisioned.
+  static String? flatpakLegacyDirectoryPath({
+    required String platform,
+    required Map<String, String> environment,
+  }) {
+    if (platform != 'linux' || environment['FLATPAK_ID'] == null) return null;
+    final home = environment['HOME'];
+    if (home == null || !home.startsWith('/')) return null;
+    final hostData = environment['HOST_XDG_DATA_HOME'];
+    final data = hostData != null && hostData.startsWith('/')
+        ? hostData
+        : '$home/.local/share';
+    return '$data/dev.snooped.orion';
   }
 
   /// Used only before controller initialization (including embedded previews).
@@ -99,7 +116,13 @@ class WorkspacePaths {
       if (legacy == null &&
           !Platform.environment.containsKey('ORION_WORKSPACE')) {
         try {
-          legacy = await getApplicationSupportDirectory();
+          final hostLegacy = flatpakLegacyDirectoryPath(
+            platform: Platform.operatingSystem,
+            environment: Platform.environment,
+          );
+          legacy = hostLegacy == null
+              ? await getApplicationSupportDirectory()
+              : Directory(hostLegacy);
         } on Object {
           // A first installation has no old support folder to migrate.
         }

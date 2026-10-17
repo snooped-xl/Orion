@@ -53,6 +53,38 @@ void main() {
     );
   });
 
+  test(
+    'Flatpak migration locates host profile outside redirected XDG data',
+    () {
+      const environment = {
+        'HOME': '/home/player',
+        'FLATPAK_ID': 'dev.snooped.orion',
+        'XDG_DATA_HOME': '/home/player/.var/app/dev.snooped.orion/data',
+      };
+      expect(
+        WorkspacePaths.flatpakLegacyDirectoryPath(
+          platform: 'linux',
+          environment: environment,
+        ),
+        '/home/player/.local/share/dev.snooped.orion',
+      );
+      expect(
+        WorkspacePaths.flatpakLegacyDirectoryPath(
+          platform: 'linux',
+          environment: {...environment, 'HOST_XDG_DATA_HOME': '/custom/data'},
+        ),
+        '/custom/data/dev.snooped.orion',
+      );
+      expect(
+        WorkspacePaths.flatpakLegacyDirectoryPath(
+          platform: 'windows',
+          environment: environment,
+        ),
+        isNull,
+      );
+    },
+  );
+
   test('explicit automation override wins without home or Known Folder', () {
     for (final platform in ['linux', 'windows']) {
       expect(

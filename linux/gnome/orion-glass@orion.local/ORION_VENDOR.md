@@ -10,3 +10,24 @@ Only the 15 runtime modules needed by `BackdropGlass` and its three shaders are 
 Tested in an isolated GNOME Shell 46 Wayland session against two generated Wayland client windows, including changing background contents and moving the glass window. Other upstream-supported GNOME versions are declared but have not been locally tested.
 
 The optional `SetAlwaysOnTop(pid, exactTitle, enabled)` control is independent of the optical material. The caller’s bus PID must match the requested process. It uses Mutter’s `make_above`/`unmake_above`, reports actual `is_above` state, and keeps separate bounded rules, method-prefixed authorization epochs and lifecycle state. Releasing the request, caller disconnect, title changes and extension shutdown restore each live window’s prior above state. Topmost alone creates no backdrop or optical actor. GTK/X11 uses the ordinary keep-above hint; GTK3’s native Wayland implementation does not implement that hint.
+
+Flatpak uses a PID namespace, so its `getpid()` does not identify the host-side
+Mutter window. The native client asks the session bus for the kernel PID belonging
+to its own unique connection name, caches that identity only for that connection's
+lifetime, and uses it for configuration, startup placement, topmost and teardown.
+Failed/closed lookups never fall back to an unauthenticated PID. The Flatpak must
+grant `--socket=session-bus`: the filtered proxy supplies its own credentials,
+which cannot authorize the application window under this exact-process policy.
+The helper's authorization remains unchanged: requested PID equals the caller's
+bus credentials, and PID plus exact title equals the target MetaWindow. No
+process scanning, broad app-ID rules or host-command spawning is used.
+
+`python3 tool/test_session_bus_identity.py` checks a real private session bus from
+ordinary and isolated PID-namespace clients, including cached/reconnected/closed
+connections and rejected forged PIDs. This test requires unprivileged user/PID
+namespaces, GTK development headers and Xvfb (`xvfb-run`), and never connects to
+the desktop's session bus. On X11 the native
+client also sets only its own `_NET_WM_PID` property to that authenticated host
+PID, both before and after GTK realization; the test verifies that property in
+an isolated Xvfb server. This keeps namespace-local notification workers and
+ordinary X11 windows compatible with exact compositor PID matching.

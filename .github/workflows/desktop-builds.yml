@@ -36,7 +36,8 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get
       - name: Build native Windows smoke application
-        run: flutter build windows --release --no-tree-shake-icons --target tool/desktop_smoke.dart
+        shell: pwsh
+        run: ./scripts/build-windows-ci.ps1 -Target tool/desktop_smoke.dart -LogName windows-smoke-build
       - name: Prepare offline WebView2 and Visual C++ runtime for smoke
         shell: pwsh
         run: ./scripts/prepare-windows-runtime.ps1
@@ -44,7 +45,8 @@ jobs:
         shell: pwsh
         run: ./scripts/test-desktop-smoke.ps1
       - name: Build normal release entry point
-        run: flutter build windows --release --no-tree-shake-icons --target lib/main.dart
+        shell: pwsh
+        run: ./scripts/build-windows-ci.ps1 -Target lib/main.dart -LogName windows-release-build
       - name: Prepare offline WebView2 and Visual C++ runtime
         shell: pwsh
         run: ./scripts/prepare-windows-runtime.ps1
@@ -75,12 +77,15 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Windows-smoke-diagnostics
-          path: build/package-smoke/
+          path: |
+            build/package-smoke/
+            build/windows/x64/cmake_install.cmake
+            build/windows/x64/runner/cmake_install.cmake
           if-no-files-found: ignore
           retention-days: 7
 
   linux:
-    name: Linux x64 AppImage
+    name: Linux x64 Flatpak
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -88,7 +93,13 @@ jobs:
       - name: Install native and packaging dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libepoxy-dev libpng-dev libstdc++-13-dev patchelf desktop-file-utils squashfs-tools xvfb dbus-x11
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev libepoxy-dev libpng-dev libstdc++-13-dev flatpak desktop-file-utils xvfb dbus-x11
+      - name: Install shared Linux runtime
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.gnome.Platform//50
+      - name: Verify native compositor identity across PID namespaces
+        run: python3 tool/test_session_bus_identity.py
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -101,16 +112,16 @@ jobs:
           flutter test --reporter compact
       - name: Build release
         run: ./scripts/build-linux.sh
-      - name: Build AppImage
-        run: python3 scripts/package-appimage.py
-      - name: Validate and launch AppImage
-        run: xvfb-run -a dbus-run-session -- python3 scripts/test-appimage.py
-      - name: Upload Linux AppImage test build
+      - name: Build Flatpak bundle
+        run: python3 scripts/package-flatpak.py
+      - name: Validate and launch Flatpak
+        run: xvfb-run -a dbus-run-session -- python3 scripts/test-flatpak.py
+      - name: Upload Linux Flatpak test build
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: Orion-AppImage-x86_64
+          name: Orion-Flatpak-x86_64
           path: |
-            dist/Orion-x86_64.AppImage
-            dist/Orion-x86_64.AppImage.sha256
+            dist/Orion-x86_64.flatpak
+            dist/Orion-x86_64.flatpak.sha256
           if-no-files-found: error
           retention-days: 30

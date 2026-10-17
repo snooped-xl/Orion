@@ -13,7 +13,7 @@ platforms. A successful run provides:
 | Artifact | File to run |
 | --- | --- |
 | `Orion-Windows-x64` | `Orion.exe` |
-| `Orion-AppImage-x86_64` | `Orion-x86_64.AppImage` |
+| `Orion-Flatpak-x86_64` | `Orion-x86_64.flatpak` |
 
 GitHub wraps artifacts in a ZIP. Extract it first. The accompanying `.sha256`
 file records the download checksum. These development builds are unsigned.
@@ -84,6 +84,10 @@ The browser folder receives Microsoft's required AppContainer read/execute
 permissions for Windows 10. The portable launcher applies the same permissions
 after extraction; workspace files do not receive these permissions.
 Downloads are cached in `build/downloads`; subsequent runs can use that cache.
+WebView2 is deliberately pinned. When updating it, change the version, official
+CAB URL, and SHA-256 together in `prepare-windows-runtime.ps1`, then rebuild and
+rerun the native smoke test. Microsoft retains only recent fixed-runtime
+downloads, so keep an archived CAB for reproducible older builds.
 
 Create the portable EXE:
 
@@ -103,12 +107,57 @@ Linux WebKitGTK, GNOME extensions, D-Bus, and EGL lifetime patches are confined
 to the Linux runner and are not linked into the Windows executable. Theme
 appearance can vary with the operating system compositor and graphics driver.
 
-## Linux: build and run
+## Linux: install the cross-distribution build
 
-Published AppImages are built on Ubuntu 24.04 and require an x86_64 Linux
-system with glibc 2.39 or newer and working desktop graphics drivers. They bundle
-GTK, WebKitGTK, WebKit subprocesses, application libraries, fonts, and Monaco.
-The host supplies glibc, the kernel, display server, and graphics drivers.
+Orion is distributed as a **Flatpak** bundle. Flatpak supplies the GNOME 50
+runtime, including glibc, GTK 3, WebKitGTK 4.1, graphics integration, and desktop
+portals. This avoids requiring each distribution to provide matching native
+library versions. An x86_64 Linux system with Flatpak and a graphical desktop
+is required; Ubuntu, Fedora, Arch, Debian, and other Flatpak-supported
+Linux distributions can use the same bundle.
+
+Install [Flatpak for your distribution](https://flatpak.org/setup/), then run:
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user ./Orion-x86_64.flatpak
+flatpak run dev.snooped.orion
+```
+
+The first installation downloads the shared GNOME runtime if it is missing.
+The `.flatpak` file includes Orion, its Flutter engine, plugins, fonts, Monaco,
+and other application assets. It does not contain the shared runtime. After
+the runtime is installed, Orion's editor, local scripts, and Bridge work
+offline; remote script search still requires a network connection.
+
+The package allows network access for script sources and Orion Bridge's
+host loopback connection, GPU rendering, Wayland and X11 windows, and access
+to the user's home and mounted drives for scripts and files. It uses the
+session bus directly so Orion's own GNOME compositor companion can verify the
+real process that owns each window. It does not request Flatpak host-process
+execution. Folder and browser opening and file dialogs use desktop portals.
+The workspace remains `~/orion`, including when launched from Flatpak.
+
+The optional GNOME companion supplies live behind-window refraction,
+monitor-based launch placement, and Wayland topmost support on supported
+GNOME sessions. Other desktops use the normal fallback. Install it through
+Orion's desktop-glass controls, or run:
+
+```bash
+flatpak run --command=sh dev.snooped.orion -c 'cd /app/orion && ./install-gnome-glass.sh --enable'
+```
+
+Its files are installed in the host user's GNOME extensions directory. A new
+extension installation may require logging out and back in. Other extensions
+and their settings remain unchanged. See
+[GNOME integration](../linux/gnome/README.md).
+
+## Linux: build and package
+
+The published native application is built on Ubuntu 24.04, then packaged
+against GNOME 50. Flatpak provides the target runtime when installed on older
+or different distributions; it does not use the host's glibc or GTK to run
+Orion. A raw unpackaged bundle still needs compatible host libraries.
 
 On Ubuntu 24.04 or an equivalent Debian-based development system:
 
@@ -116,7 +165,7 @@ On Ubuntu 24.04 or an equivalent Debian-based development system:
 sudo apt-get update
 sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev \
   libwebkit2gtk-4.1-dev libepoxy-dev libpng-dev libstdc++-13-dev \
-  patchelf desktop-file-utils squashfs-tools
+  flatpak desktop-file-utils
 flutter doctor -v
 flutter config --enable-linux-desktop
 ./scripts/build-linux.sh
@@ -124,36 +173,26 @@ flutter config --enable-linux-desktop
 ```
 
 Other distributions need equivalent development packages. The compiler helper
-in `build-linux.sh` also handles an incomplete newer GCC installation when a
-complete C++ installation is present.
+in `build-linux.sh` handles an incomplete newer GCC installation when a
+complete C++ installation is available.
 
-Build the AppImage:
-
-```bash
-python3 scripts/package-appimage.py
-chmod +x dist/Orion-x86_64.AppImage
-./dist/Orion-x86_64.AppImage
-```
-
-The packager downloads and verifies AppImageTool 1.9.1. It bundles resolved
-native dependencies and relocates WebKit's compiled subprocess paths. Its
-source and bundled-library copyright notices are retained. Packaging requires
-network access on the first run, or a previously populated `build/downloads`.
-`ORION_PACKAGING_CACHE` can select another packaging-tool cache.
-
-If the desktop lacks FUSE support, use the AppImage runtime's fallback:
+Install the packaging runtime and produce the bundle:
 
 ```bash
-./dist/Orion-x86_64.AppImage --appimage-extract-and-run
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user --noninteractive flathub org.gnome.Platform//50
+python3 scripts/package-flatpak.py
+flatpak install --user dist/Orion-x86_64.flatpak
+flatpak run dev.snooped.orion
 ```
 
-The optional GNOME compositor companion supplies live behind-window
-refraction on supported GNOME sessions. It remains optional; other desktops
-use the app's internal glass fallback. See
-[GNOME integration](../linux/gnome/README.md). The AppImage includes its helper
-under `usr/data/gnome` after extraction; use `usr/install-gnome-glass.sh --enable`
-when installing from an extracted AppImage. Do not install from a temporary
-mount that disappears when the app closes.
+`package-flatpak.py` stages the existing release with `flatpak build-init`,
+finalizes desktop integration and permissions, exports a local OSTree
+repository, and creates `dist/Orion-x86_64.flatpak` plus its SHA-256 file. Since
+Flutter has already compiled the application, packaging needs the runtime but
+not the much larger GNOME SDK or `flatpak-builder`. The runtime branch is
+pinned to 50 and receives its supported bug and security updates separately
+from Orion. Network access is needed to install the runtime the first time.
 
 ## Validation
 
@@ -181,12 +220,13 @@ flutter build windows --release --no-tree-shake-icons --target lib/main.dart
 ./scripts/test-windows-package.ps1
 ```
 
-Linux CI extracts and launches the actual AppImage under a disposable desktop
-session and checks first-run provisioning. Both platforms isolate smoke-test
+Linux CI privately installs and launches the actual Flatpak bundle under a
+disposable desktop session. It verifies resolved runtime dependencies, first-run
+provisioning, and the genuine native WebKit editor process. Both platforms isolate smoke-test
 data from the user's workspace. Build output and runtime caches are ignored
 by Git; publish the generated distribution files as artifacts or releases.
 
 Flutter's [Windows distribution guide](https://docs.flutter.dev/platform-integration/windows/building),
 Microsoft's [WebView2 distribution guidance](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution),
-and the [AppImage packaging guide](https://docs.appimage.org/packaging-guide/)
+and the [Flatpak distribution guide](https://docs.flatpak.org/en/latest/distributing-applications.html)
 describe the platform requirements behind these scripts.

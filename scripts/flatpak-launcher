@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+# Flatpak's GNOME runtime supplies GTK, WebKit, glibc, graphics, and xdg-open.
+# Keep Flutter's own plugins next to the executable, as in a normal release.
+export GTK_USE_PORTAL=1
+cd /app/orion
+exec /app/orion/orion "$@"

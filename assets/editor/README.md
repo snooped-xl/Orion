@@ -1,6 +1,6 @@
 # Orion's offline Monaco editor
 
-This page embeds Microsoft Monaco Editor **0.57.0** inside the Linux WebKitGTK view. All JavaScript, fonts, language metadata and the editor worker are bundled; the editor does not fetch a CDN at runtime. The desktop host serves these assets on its private loopback HTTP origin, so workers share the same origin.
+This page embeds Microsoft Monaco Editor **0.57.0** inside WebKitGTK on Linux and Microsoft WebView2 on Windows. All JavaScript, fonts, language metadata and the editor worker are bundled; the editor does not fetch a CDN at runtime. The desktop host serves these assets on its private loopback HTTP origin, so workers share the same origin.
 
 ## Luau support
 
@@ -16,7 +16,7 @@ Desktop → JavaScript: `window.orionReceive(command)` receives a JavaScript obj
 - `{type:'action', name}` supports `undo`, `redo`, `paste`, `selectAll`, `find`, `replace`, `format`, `suggest`, `focus`, `clear`. Paste may include `text` supplied by Flutter's native clipboard.
 - `{type:'flush', requestId}` returns the current model text for a save operation.
 
-JavaScript → desktop: `window.webkit.messageHandlers.orion.postMessage(JSON.stringify(message))` emits `ready`, `change` (`id`, `content`), `cursor` (`line`, `column`), `flush` (`requestId`, `id`, `content`), `shortcut` (`name`), or `error` (`message`). Shortcuts forward New, Open, Save, Save As, Execute and the command palette. Normal editing shortcuts remain Monaco's own controls.
+JavaScript → desktop: the bundled page uses `window.webkit.messageHandlers.orion.postMessage` on Linux or `window.chrome.webview.postMessage` on Windows. Both send a JSON string containing `ready`, `change` (`id`, `content`), `cursor` (`line`, `column`), `flush` (`requestId`, `id`, `content`), `shortcut` (`name`), or `error` (`message`). Shortcuts forward New, Open, Save, Save As, Execute and the command palette. Normal editing shortcuts remain Monaco's own controls.
 
 ## Third-party notices
 

@@ -61,9 +61,12 @@ target_link_libraries(${BINARY_NAME} PRIVATE
   "${orion_webview2_SOURCE_DIR}/build/native/${ORION_WEBVIEW_ARCH}/WebView2Loader.dll.lib"
   d3d11.lib dxgi.lib dcomp.lib d3dcompiler.lib windowscodecs.lib shlwapi.lib shell32.lib ole32.lib
   desktop_multi_window_plugin)
+# Flutter's install prefix contains a generator expression. Relative install
+# destinations would leave that expression literal in cmake_install.cmake.
+# Explicit target paths are resolved by CMake when generating the install rules.
 install(FILES "${orion_webview2_SOURCE_DIR}/build/native/${ORION_WEBVIEW_ARCH}/WebView2Loader.dll"
-  DESTINATION "." COMPONENT Runtime)
+  DESTINATION "$<TARGET_FILE_DIR:${BINARY_NAME}>" COMPONENT Runtime)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/../assets/editor/"
-  DESTINATION "data/monaco" COMPONENT Runtime)
+  DESTINATION "$<TARGET_FILE_DIR:${BINARY_NAME}>/data/monaco" COMPONENT Runtime)
 install(FILES "${orion_webview2_SOURCE_DIR}/LICENSE.txt" "${orion_webview2_SOURCE_DIR}/NOTICE.txt"
-  DESTINATION "data/licenses/WebView2-SDK" COMPONENT Runtime)
+  DESTINATION "$<TARGET_FILE_DIR:${BINARY_NAME}>/data/licenses/WebView2-SDK" COMPONENT Runtime)

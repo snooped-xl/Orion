@@ -61,7 +61,12 @@ def main():
                         'org.gnome.Shell.Extensions', 'DisableExtension', (UUID,), '(s)', '(b)')[0]
         return emit(ok=disabled, active=False, reason='disabled' if disabled else 'not-installed')
 
-    target = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share')) / 'gnome-shell/extensions' / UUID
+    # The compositor runs on the host, outside Flatpak's redirected XDG data.
+    # The package shares the user's home for scripts and this optional helper.
+    data_home = (os.environ.get('HOST_XDG_DATA_HOME', Path.home() / '.local/share')
+                 if os.environ.get('FLATPAK_ID') else
+                 os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
+    target = Path(data_home) / 'gnome-shell/extensions' / UUID
     if target.is_symlink():
         return emit(ok=False, active=False, reason='extension-directory-is-symlink')
     fingerprint = digest(SOURCE)

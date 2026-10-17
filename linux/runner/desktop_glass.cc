@@ -1,8 +1,9 @@
 #include "desktop_glass.h"
+#include "session_bus_identity.h"
+#include "window_process_identity.h"
 
 #include <cmath>
 #include <cstring>
-#include <unistd.h>
 #include <gdk/gdkx.h>
 
 namespace {
@@ -51,14 +52,13 @@ void configured(GObject* connection, GAsyncResult* result, gpointer data) {
   finish(request, json == nullptr ? kUnavailable : json);
 }
 
-void bus_ready(GObject*, GAsyncResult* result, gpointer data) {
+void glass_bus_identified(GDBusConnection* connection, guint32 host_pid, gpointer data) {
   auto* request = static_cast<Request*>(data);
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(GDBusConnection) connection = g_bus_get_finish(result, &error);
-  if (connection == nullptr) {
+  if (host_pid == 0) {
     finish(request, kUnavailable);
     return;
   }
+  orion::set_window_process_identity(request->window, host_pid);
   if (g_object_get_data(G_OBJECT(request->window),
                         "orion-desktop-glass-destroyed") != nullptr) {
     // The bus lookup can finish after GTK has destroyed its window. Retire
@@ -77,17 +77,23 @@ void bus_ready(GObject*, GAsyncResult* result, gpointer data) {
     // process. Retire only this window's former registration before replacing it.
     g_dbus_connection_call(
         connection, kBus, kPath, kInterface, "Configure",
-        g_variant_new("(usbd)", static_cast<guint32>(getpid()),
+        g_variant_new("(usbd)", host_pid,
                       request->old_title, FALSE, request->radius),
         G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr,
         nullptr, nullptr);
   }
   g_dbus_connection_call(
       connection, kBus, kPath, kInterface, "Configure",
-      g_variant_new("(usbd)", static_cast<guint32>(getpid()), request->title,
+      g_variant_new("(usbd)", host_pid, request->title,
                     request->enabled, request->radius),
       G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr,
       configured, request);
+}
+
+void bus_ready(GObject*, GAsyncResult* result, gpointer data) {
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GDBusConnection) connection = g_bus_get_finish(result, &error);
+  orion::resolve_session_bus_pid(connection, glass_bus_identified, data);
 }
 
 // Topmost is independent of optical material and retains its own policy
@@ -134,24 +140,29 @@ void topmost_configured(GObject* connection, GAsyncResult* result, gpointer data
   finish_topmost(request, json == nullptr ? kUnavailable : json);
 }
 
-void topmost_bus_ready(GObject*, GAsyncResult* result, gpointer data) {
+void topmost_bus_identified(GDBusConnection* connection, guint32 host_pid, gpointer data) {
   auto* request = static_cast<TopmostRequest*>(data);
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(GDBusConnection) connection = g_bus_get_finish(result, &error);
   if (!topmost_current(request)) { finish_topmost(request, kUnavailable); return; }
-  if (connection == nullptr) { finish_topmost(request, kUnavailable); return; }
+  if (host_pid == 0) { finish_topmost(request, kUnavailable); return; }
+  orion::set_window_process_identity(request->window, host_pid);
   if (g_object_get_data(G_OBJECT(request->window), "orion-desktop-glass-destroyed") != nullptr)
     request->enabled = false;
   if (request->enabled)
     g_object_set_data_full(G_OBJECT(request->window), "orion-topmost-bus", g_object_ref(connection), g_object_unref);
   if (request->old_title != nullptr)
     g_dbus_connection_call(connection, kBus, kPath, kInterface, "SetAlwaysOnTop",
-        g_variant_new("(usb)", static_cast<guint32>(getpid()), request->old_title, FALSE),
+        g_variant_new("(usb)", host_pid, request->old_title, FALSE),
         G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr, nullptr, nullptr);
   g_dbus_connection_call(connection, kBus, kPath, kInterface, "SetAlwaysOnTop",
-      g_variant_new("(usb)", static_cast<guint32>(getpid()), request->title, request->enabled),
+      g_variant_new("(usb)", host_pid, request->title, request->enabled),
       G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr,
       topmost_configured, request);
+}
+
+void topmost_bus_ready(GObject*, GAsyncResult* result, gpointer data) {
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GDBusConnection) connection = g_bus_get_finish(result, &error);
+  orion::resolve_session_bus_pid(connection, topmost_bus_identified, data);
 }
 
 bool handle_topmost(GtkWindow* window, FlMethodCall* call) {
@@ -226,21 +237,26 @@ void startup_placement_configured(GObject* connection, GAsyncResult* result, gpo
   finish_startup_placement(request, json == nullptr ? kUnavailable : json);
 }
 
-void startup_placement_bus_ready(GObject*, GAsyncResult* result, gpointer data) {
+void startup_placement_bus_identified(GDBusConnection* connection, guint32 host_pid, gpointer data) {
   auto* request = static_cast<StartupPlacementRequest*>(data);
-  g_autoptr(GError) error = nullptr;
-  g_autoptr(GDBusConnection) connection = g_bus_get_finish(result, &error);
-  if (connection == nullptr ||
+  if (host_pid == 0 ||
       g_object_get_data(G_OBJECT(request->window), "orion-desktop-glass-destroyed") != nullptr) {
     finish_startup_placement(request, kUnavailable);
     return;
   }
+  orion::set_window_process_identity(request->window, host_pid);
   g_object_set_data_full(G_OBJECT(request->window), "orion-startup-placement-bus",
                         g_object_ref(connection), g_object_unref);
   g_dbus_connection_call(connection, kBus, kPath, kInterface, request->method,
-      g_variant_new("(us)", static_cast<guint32>(getpid()), request->title),
+      g_variant_new("(us)", host_pid, request->title),
       G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr,
       startup_placement_configured, request);
+}
+
+void startup_placement_bus_ready(GObject*, GAsyncResult* result, gpointer data) {
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GDBusConnection) connection = g_bus_get_finish(result, &error);
+  orion::resolve_session_bus_pid(connection, startup_placement_bus_identified, data);
 }
 
 bool handle_startup_placement(GtkWindow* window, FlMethodCall* call) {
@@ -280,20 +296,22 @@ void window_destroyed(GtkWidget* widget, gpointer) {
       g_object_get_data(G_OBJECT(widget), "orion-desktop-glass-title"));
   auto* connection = static_cast<GDBusConnection*>(
       g_object_get_data(G_OBJECT(widget), "orion-desktop-glass-bus"));
-  if (title != nullptr && connection != nullptr) {
+  const guint32 glass_pid = orion::cached_session_bus_pid(connection);
+  if (title != nullptr && glass_pid != 0) {
     // Engine teardown need not unmount Dart widgets. The window itself owns
     // the final cleanup, including companions while the main process lives.
     g_dbus_connection_call(
         connection, kBus, kPath, kInterface, "Configure",
-        g_variant_new("(usbd)", static_cast<guint32>(getpid()), title, FALSE, 0.0),
+        g_variant_new("(usbd)", glass_pid, title, FALSE, 0.0),
         G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr,
         nullptr, nullptr);
   }
   const auto* top_title = static_cast<const char*>(g_object_get_data(G_OBJECT(widget), "orion-topmost-title"));
   auto* top_bus = static_cast<GDBusConnection*>(g_object_get_data(G_OBJECT(widget), "orion-topmost-bus"));
-  if (top_title != nullptr && top_bus != nullptr)
+  const guint32 top_pid = orion::cached_session_bus_pid(top_bus);
+  if (top_title != nullptr && top_pid != 0)
     g_dbus_connection_call(top_bus, kBus, kPath, kInterface, "SetAlwaysOnTop",
-        g_variant_new("(usb)", static_cast<guint32>(getpid()), top_title, FALSE),
+        g_variant_new("(usb)", top_pid, top_title, FALSE),
         G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NO_AUTO_START, 1200, nullptr, nullptr, nullptr);
   g_object_set_data(G_OBJECT(widget), "orion-topmost-title", nullptr);
   g_object_set_data(G_OBJECT(widget), "orion-topmost-bus", nullptr);

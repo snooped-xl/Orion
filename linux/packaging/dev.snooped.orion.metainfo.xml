@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.snooped.orion</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>Orion</name>
+  <summary>A script workspace with expressive themes and Monaco editing</summary>
+  <description>
+    <p>Orion is a Flutter desktop script workspace with a genuine Monaco editor,
+    a script library, a script hub, customizable interfaces, and Orion Bridge
+    client management.</p>
+  </description>
+  <launchable type="desktop-id">dev.snooped.orion.desktop</launchable>
+  <url type="homepage">https://github.com/snooped-xl/Orion</url>
+  <provides><binary>orion</binary></provides>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="1.0.0" date="2026-10-17"/></releases>
+</component>
