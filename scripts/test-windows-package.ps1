@@ -6,6 +6,39 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if (-not ('OrionPackageSmokeNative' -as [type])) {
+  Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class OrionPackageSmokeNative {
+  private delegate bool EnumWindowsProc(IntPtr window, IntPtr argument);
+  [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr argument);
+  [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder value, int count);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder value, int count);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
+  [DllImport("user32.dll", SetLastError = true)] public static extern bool PostMessage(IntPtr window, uint message, IntPtr wparam, IntPtr lparam);
+  public static IntPtr FindMainWindow(uint processId) {
+    IntPtr found = IntPtr.Zero;
+    EnumWindows((window, argument) => {
+      uint owner;
+      GetWindowThreadProcessId(window, out owner);
+      if (owner != processId || !IsWindowVisible(window)) return true;
+      var klass = new StringBuilder(256);
+      var title = new StringBuilder(256);
+      GetClassName(window, klass, klass.Capacity);
+      GetWindowText(window, title, title.Capacity);
+      if (klass.ToString() != "FLUTTER_RUNNER_WIN32_WINDOW" || title.ToString() != "Orion") return true;
+      found = window;
+      return false;
+    }, IntPtr.Zero);
+    return found;
+  }
+}
+'@
+}
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $directory = [IO.Path]::GetFullPath('build/package-smoke/portable')
 New-Item -ItemType Directory -Force $directory | Out-Null
@@ -47,6 +80,7 @@ try {
     } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $env:ORION_WORKSPACE 'orion-workspace.json') -Encoding UTF8
     $launcher = $null
     $app = $null
+    $appWindow = [IntPtr]::Zero
     try {
       Write-Host "Portable smoke: opening $theme"
       $launcher = Start-Process $executablePath -PassThru -WindowStyle Hidden `
@@ -61,12 +95,15 @@ try {
           if ($app) {
             # Retain a process handle so ExitCode remains available after exit.
             $null = $app.Handle
-            if ($app.MainWindowHandle -ne 0) { break }
+            # Process.MainWindowHandle can select DWM's cloaked STATIC helper.
+            # Identify Orion's actual Flutter root before sending WM_CLOSE.
+            $appWindow = [OrionPackageSmokeNative]::FindMainWindow($app.Id)
+            if ($appWindow -ne [IntPtr]::Zero) { break }
           }
         }
         Start-Sleep -Milliseconds 250
       }
-      if (-not $app -or $app.MainWindowHandle -eq 0) { throw 'Portable Orion did not create its main native window' }
+      if (-not $app -or $appWindow -eq [IntPtr]::Zero) { throw 'Portable Orion did not create its main native window' }
       Start-Sleep -Seconds 8
       $app.Refresh()
       if ($app.HasExited) { throw "Portable Orion crashed shortly after opening: $($app.ExitCode)" }
@@ -78,10 +115,11 @@ try {
       if (-not (Test-Path "$runtime/data/webview2/msedgewebview2.exe")) { throw 'Portable package did not extract its offline browser' }
 
       $close = [Diagnostics.Stopwatch]::StartNew()
-      if (-not $app.CloseMainWindow()) { throw 'Portable window rejected WM_CLOSE' }
-      while (-not $app.HasExited -and $close.ElapsedMilliseconds -lt 10000) {
-        $app.Refresh()
-        if ($app.MainWindowHandle -eq 0) { break }
+      if (-not [OrionPackageSmokeNative]::PostMessage($appWindow, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) {
+        throw 'Portable window rejected WM_CLOSE'
+      }
+      while (-not $app.HasExited -and $close.ElapsedMilliseconds -lt 10000 -and
+          [OrionPackageSmokeNative]::IsWindow($appWindow) -and [OrionPackageSmokeNative]::IsWindowVisible($appWindow)) {
         Start-Sleep -Milliseconds 25
       }
       $visibleCloseMilliseconds = $close.ElapsedMilliseconds
@@ -90,6 +128,9 @@ try {
       $results.Add(@{
         theme = $theme
         nativeWindowOpened = $true
+        nativeWindowClass = 'FLUTTER_RUNNER_WIN32_WINDOW'
+        nativeWindowTitle = 'Orion'
+        nativeWindowHandle = $appWindow.ToInt64()
         offlineWebView2Bundled = $true
         workspaceProvisioned = $true
         visibleCloseMilliseconds = $visibleCloseMilliseconds
