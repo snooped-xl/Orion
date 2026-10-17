@@ -120,7 +120,7 @@ struct State {
   double ui_scale = 1, opacity = 1, corner_radius = 16;
   bool visible = false, mirror = false, capture_pending = false;
   HMONITOR startup_monitor = nullptr;
-  bool follow_resize = false, centering = false, glass = false;
+  bool follow_resize = false, centering = false;
   NOTIFYICONDATAW fallback_notification{};
   bool fallback_notification_added = false;
   RECT previous_shape{};
@@ -473,17 +473,18 @@ class OrionNative : public flutter::Plugin {
     } else if (method == "configureDesktopGlass") {
       const bool enabled = Boolean(Get(args, "enabled"));
       state_->corner_radius = std::clamp(Number(Get(args, "cornerRadius"), 16), 0.0, 64.0); state_->Shape();
-      // Windows 11 22H2+ supplies a live, energy-managed DWM acrylic backdrop.
-      // Older Windows retains Orion's authored Flutter glass as the fallback.
-      // Never sample/capture the desktop: that creates recursive feedback and
-      // would interfere with the user's screenshots/recordings.
-      DWORD backdrop = enabled ? 3 : 1;  // DWMSBT_TRANSIENTWINDOW / NONE
-      HRESULT status = DwmSetWindowAttribute(state_->root, 38, &backdrop, sizeof(backdrop));
-      state_->glass = enabled && SUCCEEDED(status);
-      const int inset = state_->glass ? -1 : 0;
-      MARGINS margins{inset, inset, inset, inset};
+      // A DWM system backdrop sits behind Flutter's child HWND, so reporting
+      // it active suppresses Orion's own refractive scene without showing any
+      // desktop glass. Extending that backdrop into a layered window also
+      // destabilizes theme changes on some Windows 11 drivers. Keep the native
+      // frame clear and let the shared Flutter glass and opacity path render.
+      DWORD backdrop = 1;  // DWMSBT_NONE
+      DwmSetWindowAttribute(state_->root, 38, &backdrop, sizeof(backdrop));
+      MARGINS margins{0, 0, 0, 0};
       DwmExtendFrameIntoClientArea(state_->root, &margins);
-      result->Success(Value(state_->glass ? "{\"ok\":true,\"active\":true,\"mode\":\"dwm-acrylic\"}" : "{\"ok\":true,\"active\":false,\"mode\":\"flutter-glass\",\"reason\":\"windows-backdrop-unavailable\"}"));
+      result->Success(Value(enabled
+          ? "{\"ok\":true,\"active\":false,\"mode\":\"flutter-glass\",\"reason\":\"windows-authored-glass\"}"
+          : "{\"ok\":true,\"active\":false,\"mode\":\"none\"}"));
     } else result->NotImplemented();
   }
   void Notification(const flutter::MethodCall<Value>& call, std::unique_ptr<Result> result) {

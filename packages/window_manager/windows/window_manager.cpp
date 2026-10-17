@@ -920,6 +920,12 @@ void WindowManager::SetTitleBarStyle(const flutter::EncodableMap& args) {
 
   MARGINS margins = {0, 0, 0, 0};
   HWND hWnd = GetMainWindow();
+  // Let Flutter's DesktopFrame own the visible outline. Windows 11 otherwise
+  // draws its system-colored border outside Orion's curved edge.
+  constexpr DWORD kDwmBorderColor = 34;
+  const DWORD border_color = title_bar_style_ == "hidden" ? 0xFFFFFFFE : 0xFFFFFFFF;
+  DwmSetWindowAttribute(hWnd, kDwmBorderColor, &border_color,
+                        sizeof(border_color));
   RECT rect;
   GetWindowRect(hWnd, &rect);
   DwmExtendFrameIntoClientArea(hWnd, &margins);

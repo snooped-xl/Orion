@@ -33,9 +33,9 @@ Win32 ownership and modal owner-input disabling apply to companion windows.
 Deferred destruction bypasses the close-confirmation interception only after
 Dart has flushed documents. Rounded regions also clip native input corners.
 
-Windows 11 22H2 and later use the live DWM transient/acrylic desktop backdrop;
-Windows versions without that DWM API use the authored Flutter glass fallback.
-This is the Windows compositor implementation; the GNOME edge-lens extension
+Windows uses Orion's authored Flutter glass materials and window opacity. The
+DWM transient backdrop is not used because it sits behind Flutter's child
+window while suppressing the visible glass scene. The GNOME edge-lens extension
 is specific to Linux. Desktop capture exclusion is deliberately not used, so
 ordinary screenshots and recordings continue working.
 

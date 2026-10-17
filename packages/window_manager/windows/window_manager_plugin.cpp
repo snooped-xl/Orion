@@ -16,21 +16,6 @@
 
 namespace {
 
-bool IsWindows11OrGreater() {
-  DWORD dwVersion = 0;
-  DWORD dwBuild = 0;
-
-#pragma warning(push)
-#pragma warning(disable : 4996)
-  dwVersion = GetVersion();
-  // Get the build number.
-  if (dwVersion < 0x80000000)
-    dwBuild = (DWORD)(HIWORD(dwVersion));
-#pragma warning(pop)
-
-  return dwBuild < 22000;
-}
-
 class WindowManagerPlugin : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows* registrar);
@@ -166,17 +151,11 @@ std::optional<LRESULT> WindowManagerPlugin::HandleWindowProc(HWND hWnd,
       if (window_manager->IsMaximized()) {
         // Adjust the borders when maximized so the app isn't cut off
         adjustNCCALCSIZE(hWnd, reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam));
-      } else {
-        NCCALCSIZE_PARAMS* sz = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
-        // on windows 10, if set to 0, there's a white line at the top
-        // of the app and I've yet to find a way to remove that.
-        sz->rgrc[0].top += IsWindows11OrGreater() ? 0 : 1;
-        // The following lines are required for resizing the window.
-        // https://github.com/leanflutter/window_manager/issues/483
-        sz->rgrc[0].right -= 8;
-        sz->rgrc[0].bottom -= 8;
-        sz->rgrc[0].left -= -8;
       }
+
+      // Orion paints its own edge and supplies Flutter resize handles. Keep
+      // the whole restored window as client area: reserving the standard
+      // eight-pixel resize frame exposes Windows' pale non-client border.
 
       // Previously (WVR_HREDRAW | WVR_VREDRAW), but returning 0 or 1 doesn't
       // actually break anything so I've set it to 0. Unless someone pointed a
