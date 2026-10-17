@@ -1,9 +1,11 @@
 #include "orion_native.h"
 #include "windows_rain.h"
+#include "resource.h"
 
 #include <WebView2.h>
 #include <dwmapi.h>
 #include <shlobj.h>
+#include <shellapi.h>
 #include <shlwapi.h>
 #include <wrl.h>
 #include <flutter/method_channel.h>
@@ -94,8 +96,14 @@ std::wstring CacheDirectory() {
   CoTaskMemFree(path);
   std::error_code error;
   std::filesystem::create_directories(directory, error);
-  return directory.wstring();
+  return error ? std::wstring() : directory.wstring();
 }
+template <size_t N> void CopyWide(wchar_t (&target)[N], const std::wstring& text) {
+  size_t length = std::min(text.size(), N - 1);
+  if (length < text.size() && length > 0 && text[length - 1] >= 0xD800 && text[length - 1] <= 0xDBFF) --length;
+  std::copy_n(text.data(), length, target); target[length] = L'\0';
+}
+constexpr UINT kNotificationMessage = WM_APP + 0x4A3;
 std::unordered_map<std::string, HWND> registered_windows;
 
 struct State {
@@ -113,6 +121,15 @@ struct State {
   bool visible = false, mirror = false, capture_pending = false;
   HMONITOR startup_monitor = nullptr;
   bool follow_resize = false, centering = false, glass = false;
+  NOTIFYICONDATAW fallback_notification{};
+  bool fallback_notification_added = false;
+  RECT previous_shape{};
+  int previous_shape_radius = -1;
+  std::string backdrop_geometry;
+  void ClearNotification() {
+    if (fallback_notification_added) Shell_NotifyIconW(NIM_DELETE, &fallback_notification);
+    fallback_notification_added = false;
+  }
   double dpi() const { return static_cast<double>(GetDpiForWindow(root)) / 96.0; }
   void Emit(const std::string& message) {
     if (alive) editor_channel->InvokeMethod("message", std::make_unique<Value>(message));
@@ -127,7 +144,7 @@ struct State {
     controller.Reset(); environment.Reset();
     if (editor_host) DestroyWindow(editor_host);
     editor_host = nullptr;
-    visible = false; capture_pending = false;
+    visible = false; capture_pending = false; backdrop_geometry.clear();
   }
   void ApplyEditor() {
     if (!controller || !editor_host) return;
@@ -150,7 +167,10 @@ struct State {
       std::to_string(bounds.left / ui_scale) + ",y:" + std::to_string(bounds.top / ui_scale) +
       ",width:" + std::to_string(client.right / scale / ui_scale) + ",height:" +
       std::to_string(client.bottom / scale / ui_scale) + "});void 0;";
-    webview->ExecuteScript(Wide(script).c_str(), nullptr);
+    if (script != backdrop_geometry) {
+      backdrop_geometry = script;
+      webview->ExecuteScript(Wide(script).c_str(), nullptr);
+    }
   }
   void CenterStartup() {
     if (!startup_monitor || centering) return;
@@ -185,6 +205,9 @@ struct State {
     if (!IsWindow(root)) return;
     RECT area{}; GetWindowRect(root, &area);
     const int radius = IsZoomed(root) ? 0 : static_cast<int>(std::round(corner_radius * dpi()));
+    if (previous_shape_radius == radius && previous_shape.right == area.right - area.left && previous_shape.bottom == area.bottom - area.top) return;
+    previous_shape_radius = radius;
+    previous_shape = RECT{0, 0, area.right - area.left, area.bottom - area.top};
     // This also makes transparent corners stop accepting input on Windows 10.
     HRGN region = CreateRoundRectRgn(0, 0, area.right - area.left + 1, area.bottom - area.top + 1, radius * 2, radius * 2);
     if (!SetWindowRgn(root, region, TRUE)) DeleteObject(region);
@@ -231,7 +254,11 @@ class OrionNative : public flutter::Plugin {
         if (rain_.Drops(*args)) result->Success(); else result->Error("invalid_drops", "Expected finite eight-float droplet rows.");
       } else result->NotImplemented();
     });
-    delegate_id_ = registrar_->RegisterTopLevelWindowProcDelegate([this](HWND window, UINT message, WPARAM, LPARAM) -> std::optional<LRESULT> {
+    delegate_id_ = registrar_->RegisterTopLevelWindowProcDelegate([this](HWND window, UINT message, WPARAM, LPARAM lparam) -> std::optional<LRESULT> {
+      if (window == state_->root && message == kNotificationMessage) {
+        if (lparam == NIN_BALLOONHIDE || lparam == NIN_BALLOONTIMEOUT || lparam == NIN_BALLOONUSERCLICK) state_->ClearNotification();
+        return 0;
+      }
       if (window == state_->root && (message == WM_SIZE || message == WM_DPICHANGED)) {
         state_->ApplyEditor(); state_->Shape(); rain_.Resize();
         if (state_->follow_resize) state_->CenterStartup();
@@ -243,6 +270,7 @@ class OrionNative : public flutter::Plugin {
     registrar_->UnregisterTopLevelWindowProcDelegate(delegate_id_);
     if (!state_->id.empty()) registered_windows.erase(state_->id);
     state_->alive = false;
+    state_->ClearNotification();
     if (state_->modal_owner && IsWindow(state_->modal_owner)) {
       EnableWindow(state_->modal_owner, TRUE);
       if (GetForegroundWindow() == state_->root) SetForegroundWindow(state_->modal_owner);
@@ -262,10 +290,15 @@ class OrionNative : public flutter::Plugin {
     auto result = std::shared_ptr<Result>(std::move(unique_result));
     std::weak_ptr<State> weak = state_;
     const auto runtime = ExecutableDirectory() / L"data" / L"webview2";
-    const bool bundled = std::filesystem::exists(runtime / L"msedgewebview2.exe");
+    std::error_code runtime_error;
+    const bool bundled = std::filesystem::exists(runtime / L"msedgewebview2.exe", runtime_error);
     const auto user_data = CacheDirectory();
+    if (user_data.empty()) {
+      result->Error("webview2_cache", "Could not prepare the WebView2 cache in Local AppData.");
+      return;
+    }
     HRESULT start = CreateCoreWebView2EnvironmentWithOptions(bundled ? runtime.c_str() : nullptr,
-      user_data.empty() ? nullptr : user_data.c_str(), nullptr,
+      user_data.c_str(), nullptr,
       Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>([weak, result, url, generation](HRESULT status, ICoreWebView2Environment* environment) -> HRESULT {
         auto state = weak.lock();
         if (!state || !state->alive || generation != state->generation) { result->Error("disposed", "The editor was closed."); return S_OK; }
@@ -298,7 +331,12 @@ class OrionNative : public flutter::Plugin {
               const bool allowed = Utf8(source).rfind(state->origin + "/editor/", 0) == 0; CoTaskMemFree(source);
               if (allowed && SUCCEEDED(args->TryGetWebMessageAsString(&message))) {
                 std::string text = Utf8(message); CoTaskMemFree(message);
-                if (text.size() <= 8 * 1024 * 1024) state->Emit(text);
+                if (text.size() <= 8 * 1024 * 1024) {
+                  if (text.find("\"type\":\"ready\"") != std::string::npos) {
+                    state->backdrop_geometry.clear(); state->ApplyEditor();
+                  }
+                  state->Emit(text);
+                }
               }
               return S_OK;
             }).Get(), &token);
@@ -475,9 +513,21 @@ class OrionNative : public flutter::Plugin {
       });
       result->Success();
     } else if (method == "notify") {
-      // Windows uses the themed, no-activate notification process rather than
-      // a shell toast with a different appearance.
-      result->Success();
+      // The themed worker is the ordinary path. If that process cannot start,
+      // retain a real OS notification rather than silently losing the event.
+      auto& toast = state_->fallback_notification;
+      toast = NOTIFYICONDATAW{}; toast.cbSize = sizeof(toast); toast.hWnd = state_->root; toast.uID = 1;
+      toast.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE | NIF_INFO;
+      toast.uCallbackMessage = kNotificationMessage;
+      toast.hIcon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_APP_ICON));
+      toast.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
+      CopyWide(toast.szTip, L"Orion Bridge"); CopyWide(toast.szInfoTitle, L"Orion Bridge");
+      std::string subject = String(Get(args, "subject"));
+      if (subject.empty()) subject = "Executor Connected!";
+      CopyWide(toast.szInfo, Wide(subject + "\n" + String(Get(args, "username"))));
+      if (Shell_NotifyIconW(state_->fallback_notification_added ? NIM_MODIFY : NIM_ADD, &toast)) {
+        state_->fallback_notification_added = true; result->Success();
+      } else result->Error("notification_unavailable", "Windows could not show the fallback notification.");
     } else result->NotImplemented();
   }
   flutter::PluginRegistrarWindows* registrar_;

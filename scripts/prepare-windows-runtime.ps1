@@ -23,7 +23,11 @@ if ((Get-FileHash $cab -Algorithm SHA256).Hash.ToLowerInvariant() -ne $sha256) {
   throw "WebView2 CAB checksum mismatch. Delete $cab and retry."
 }
 $runtime = Join-Path $Bundle 'data/webview2'
-if (-not (Test-Path "$runtime/msedgewebview2.exe")) {
+$runtimeReady = (Test-Path "$runtime/msedgewebview2.exe") -and (Test-Path "$runtime/msedge.dll") -and (Test-Path "$runtime/icudtl.dat")
+if ($runtimeReady) {
+  $runtimeReady = (Get-Item "$runtime/msedgewebview2.exe").VersionInfo.ProductVersion.StartsWith($version)
+}
+if (-not $runtimeReady) {
   $expanded = Join-Path $Cache "webview2-$version-expanded"
   if (Test-Path $expanded) { Remove-Item $expanded -Force -Recurse }
   New-Item -ItemType Directory -Force $expanded | Out-Null
@@ -35,9 +39,18 @@ if (-not (Test-Path "$runtime/msedgewebview2.exe")) {
   if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
     throw 'WebView2 executable does not have a valid Microsoft signature'
   }
+  if (Test-Path $runtime) { Remove-Item $runtime -Force -Recurse }
   New-Item -ItemType Directory -Force $runtime | Out-Null
   Copy-Item "$($browser.Directory.FullName)/*" $runtime -Recurse -Force
 }
+$runtimeSignature = Get-AuthenticodeSignature "$runtime/msedgewebview2.exe"
+if ($runtimeSignature.Status -ne 'Valid' -or $runtimeSignature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') {
+  throw 'Bundled WebView2 executable does not have a valid Microsoft signature'
+}
+# Microsoft requires these read/execute ACLs for Fixed Version 120+ on
+# unpackaged Windows 10 apps. Only the browser files receive them.
+& icacls.exe $runtime /grant '*S-1-15-2-2:(OI)(CI)(RX)' '*S-1-15-2-1:(OI)(CI)(RX)' /Q | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Could not grant WebView2 AppContainer read/execute permissions' }
 
 # Flutter's Windows engine uses the Visual C++ runtime. App-local deployment
 # avoids requiring an administrator or changing an existing system install.

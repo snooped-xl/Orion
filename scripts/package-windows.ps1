@@ -15,9 +15,10 @@ if (-not (Test-Path $nsis)) {
   if (-not $command) { throw 'Install NSIS 3: winget install NSIS.NSIS' }
   $nsis = $command.Source
 }
-$hashes = Get-ChildItem $Bundle -File -Recurse | Sort-Object FullName | ForEach-Object {
+$hashes = @(Get-ChildItem $Bundle -File -Recurse | Sort-Object FullName | ForEach-Object {
   "$($_.FullName.Substring($Bundle.Length)) $((Get-FileHash $_.FullName -Algorithm SHA256).Hash)"
-}
+})
+$hashes += "portable-launcher $((Get-FileHash 'scripts/windows-portable.nsi' -Algorithm SHA256).Hash)"
 $sha = [System.Security.Cryptography.SHA256]::Create()
 try { $id = [Convert]::ToHexString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes(($hashes -join "`n")))).ToLowerInvariant().Substring(0,24) }
 finally { $sha.Dispose() }

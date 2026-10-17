@@ -51,7 +51,9 @@ window; click-through window flags remain respected.
 `orion/bridge_notification` places the themed Flutter worker in the top-right
 work area of Orion's monitor. The worker uses the target monitor's scale,
 appears only after its first Flutter frame, stays above other windows and never
-activates/focuses itself or adds a taskbar button.
+activates/focuses itself or adds a taskbar button. If the themed worker cannot
+start, the native host falls back to a quiet Windows shell notification and
+removes its temporary tray icon after dismissal.
 
 ## Validation
 

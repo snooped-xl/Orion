@@ -53,6 +53,16 @@ Section
     SetErrorLevel 1
     Quit
   ${EndIf}
+  ; Fixed Version WebView2 120+ needs these read/execute ACLs on Windows 10.
+  ; The permission is scoped to the bundled browser, never the user workspace.
+  nsExec::ExecToStack '"$SYSDIR\icacls.exe" "$INSTDIR\data\webview2" /grant "*S-1-15-2-2:(OI)(CI)(RX)" "*S-1-15-2-1:(OI)(CI)(RX)" /Q'
+  Pop $0
+  Pop $1
+  ${If} $0 != 0
+    MessageBox MB_ICONSTOP "Orion could not prepare WebView2's AppContainer permissions. Check write access to its runtime cache."
+    SetErrorLevel 1
+    Quit
+  ${EndIf}
   FileOpen $0 "$INSTDIR\.complete" w
   FileWrite $0 "${BUNDLE_ID}"
   FileClose $0

@@ -80,6 +80,9 @@ flutter build windows --release --no-tree-shake-icons --target lib/main.dart
 The first runtime preparation downloads Microsoft's pinned WebView2 CAB,
 checks its SHA-256, validates the Microsoft signature, and expands it beside
 the app. It also copies the redistributable Visual C++ DLLs from Visual Studio.
+The browser folder receives Microsoft's required AppContainer read/execute
+permissions for Windows 10. The portable launcher applies the same permissions
+after extraction; workspace files do not receive these permissions.
 Downloads are cached in `build/downloads`; subsequent runs can use that cache.
 
 Create the portable EXE:

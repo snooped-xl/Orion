@@ -26,6 +26,10 @@ bool FlutterWindow::OnCreate() {
   if (!flutter_controller_->engine() || !flutter_controller_->view()) {
     return false;
   }
+  // Establish the real top-level ancestor before plugins bind native windows.
+  // Monaco, window_manager and desktop_multi_window all resolve ownership
+  // through the renderer HWND; an unparented renderer would bind the wrong HWND.
+  SetChildContent(flutter_controller_->view()->GetNativeWindow());
   RegisterPlugins(flutter_controller_->engine());
   RegisterOrionNative(flutter_controller_.get());
   DesktopMultiWindowSetWindowCreatedCallback([](void* value) {
@@ -33,7 +37,6 @@ bool FlutterWindow::OnCreate() {
     RegisterPlugins(controller->engine());
     RegisterOrionNative(controller);
   });
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   // Dart sizes and centers the selected profile before window_manager.show().
   // Showing automatically on the first frame exposes the initial bounds and

@@ -314,4 +314,4 @@ bool WindowsRain::Drops(const Map& args) {
   rain.packet_height=static_cast<float>(std::clamp(Number(Get(args,"height"),1),1.0,16384.0));
   rain.Render(); return true;
 }
-void WindowsRain::Resize() { impl_->Resize(); }
+void WindowsRain::Resize() { if (impl_->enabled) impl_->Resize(); }
