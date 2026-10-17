@@ -3,11 +3,14 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
 import '../widgets/bridge_client_manager.dart';
+
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../models/interface_preset.dart';
+import '../services/desktop_close_service.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/desktop_launcher.dart';
 import '../state/orion_controller.dart';
@@ -301,10 +304,13 @@ end'''
   void onWindowClose() async {
     if (_closing) return;
     _closing = true;
-    await c.flushPersistence();
-    if (widget.nativeWindow) {
-      await c.closeBridge();
-      await windowManager.destroy();
+    try {
+      await DesktopCloseService.closeApp(
+        controller: c,
+        nativeWindow: widget.nativeWindow,
+      );
+    } finally {
+      _closing = false;
     }
   }
 

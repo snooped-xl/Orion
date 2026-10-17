@@ -94,6 +94,7 @@ class Win32Window {
   void ResizeChildContent();
 
   bool quit_on_close_ = false;
+  bool destroying_ = false;
   bool child_resize_pending_ = false;
 
   // window handle for top level window.

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../models/interface_preset.dart';
+import '../services/desktop_close_service.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/desktop_launcher.dart';
 import '../services/file_paths.dart';
@@ -405,12 +406,11 @@ abstract class AwpWorkspaceState<T extends AwpWorkspaceHost> extends State<T>
 
   @override
   void onWindowClose() async {
-    try {
-      await flushEditor();
-    } catch (_) {}
-    await c.flushPersistence();
-    await c.closeBridge();
-    await windowManager.destroy();
+    await DesktopCloseService.closeApp(
+      controller: c,
+      nativeWindow: widget.nativeWindow,
+      flushEditor: flushEditor,
+    );
   }
 
   Future<void> closeWindow() async {

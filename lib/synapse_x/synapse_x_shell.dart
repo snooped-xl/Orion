@@ -4,13 +4,16 @@ import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart' as files;
 import 'package:flutter/material.dart';
+
 import '../widgets/bridge_client_manager.dart';
+
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../models/interface_preset.dart';
 import '../models/companion_window.dart';
 import '../models/orion_models.dart';
+import '../services/desktop_close_service.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/native_window_service.dart';
 import '../state/orion_controller.dart';
@@ -622,15 +625,11 @@ class SynapseXShellState extends State<SynapseXShell>
       await _windows?.close();
       return;
     }
-    try {
-      await flushEditor();
-    } catch (_) {}
-    await _windows?.closeAll();
-    await c.flushPersistence();
-    if (widget.nativeWindow) {
-      await c.closeBridge();
-      await windowManager.destroy();
-    }
+    await DesktopCloseService.closeApp(
+      controller: c,
+      nativeWindow: widget.nativeWindow,
+      flushEditor: flushEditor,
+    );
   }
 
   void _synchronizeNative() {

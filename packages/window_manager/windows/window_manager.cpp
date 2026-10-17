@@ -1041,10 +1041,19 @@ void WindowManager::SetOpacity(const flutter::EncodableMap& args) {
   // At full opacity ordinary DWM composition preserves the system backdrop.
   // Click-through windows still require the layered style at full opacity.
   const bool layered = opacity_ < 1.0 || (style & WS_EX_TRANSPARENT) != 0;
-  SetWindowLongPtr(hWnd, GWL_EXSTYLE,
-                   layered ? style | WS_EX_LAYERED : style & ~WS_EX_LAYERED);
+  const LONG_PTR desired_style =
+      layered ? style | WS_EX_LAYERED : style & ~WS_EX_LAYERED;
+  if (style != desired_style) {
+    SetWindowLongPtr(hWnd, GWL_EXSTYLE, desired_style);
+  }
   if (layered) {
-    SetLayeredWindowAttributes(hWnd, 0, static_cast<BYTE>(255 * opacity_), LWA_ALPHA);
+    const BYTE alpha = static_cast<BYTE>(255 * opacity_);
+    BYTE current_alpha = 255;
+    DWORD flags = 0;
+    if (!GetLayeredWindowAttributes(hWnd, nullptr, &current_alpha, &flags) ||
+        current_alpha != alpha || flags != LWA_ALPHA) {
+      SetLayeredWindowAttributes(hWnd, 0, alpha, LWA_ALPHA);
+    }
   }
 }
 

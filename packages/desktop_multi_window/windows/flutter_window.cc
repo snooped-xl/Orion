@@ -6,6 +6,7 @@
 #include "tchar.h"
 
 #include <iostream>
+#include <utility>
 
 #include "multi_window_manager.h"
 #include "multi_window_plugin_internal.h"
@@ -41,10 +42,12 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
-  if (flutter_controller_) {
-    flutter_controller_ = nullptr;
+  const bool had_controller = flutter_controller_ != nullptr;
+  auto controller = std::move(flutter_controller_);
+  controller.reset();
+  if (had_controller && !destroying_object_) {
+    MultiWindowManager::Instance()->RemoveManagedFlutterWindowLater(id_);
   }
-  MultiWindowManager::Instance()->RemoveManagedFlutterWindowLater(id_);
 }
 
 LRESULT FlutterWindow::MessageHandler(HWND hwnd,
@@ -67,7 +70,9 @@ LRESULT FlutterWindow::MessageHandler(HWND hwnd,
 
   switch (message) {
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_ && flutter_controller_->engine()) {
+        flutter_controller_->engine()->ReloadSystemFonts();
+      }
       break;
   }
 
@@ -75,5 +80,8 @@ LRESULT FlutterWindow::MessageHandler(HWND hwnd,
 }
 
 FlutterWindow::~FlutterWindow() {
-  // Cleanup is handled by Win32Window::Destroy()
+  // Detach the controller before member destruction: destroying the Flutter
+  // child HWND synchronously re-enters this parent's window procedure.
+  destroying_object_ = true;
+  Destroy();
 }

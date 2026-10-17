@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
+
 import 'state/orion_controller.dart';
 import 'theme/orion_theme.dart';
 import 'theme/expressive_motion.dart';
@@ -23,6 +25,7 @@ import 'services/monaco_editor_service.dart';
 import 'services/companion_window_service.dart';
 import 'services/native_window_service.dart';
 import 'services/desktop_launcher.dart';
+import 'services/desktop_close_service.dart';
 import 'services/window_morph_service.dart';
 import 'services/synapse_theme_catalog.dart';
 import 'services/synapse_theme_studio_service.dart';
@@ -859,16 +862,17 @@ class _OrionShellState extends State<OrionShell>
 
   @override
   void onWindowClose() async {
-    await _stopCompactMorph();
-    await c.companionWindows?.closeAll();
     try {
-      await workspaceKey.currentState?.flushEditor();
+      await DesktopCloseService.closeApp(
+        controller: c,
+        nativeWindow: widget.nativeWindow,
+        stopWindowChanges: _stopCompactMorph,
+        flushEditor: () async => workspaceKey.currentState?.flushEditor(),
+      );
     } catch (_) {
-      /* Persist the latest received document if the native host has closed. */
+      _compactWindowActive = mounted;
+      rethrow;
     }
-    await c.flushPersistence();
-    await c.closeBridge();
-    await windowManager.destroy();
   }
 
   void _windowPreferenceChanged() {

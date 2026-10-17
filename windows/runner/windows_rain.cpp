@@ -159,9 +159,13 @@ struct WindowsRain::Impl {
     HRESULT status = D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,flags,nullptr,0,D3D11_SDK_VERSION,&device,&feature,&context);
     if (FAILED(status)) status = D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_WARP,nullptr,flags,nullptr,0,D3D11_SDK_VERSION,&device,&feature,&context);
     if (FAILED(status)) { *error="Direct3D 11 is unavailable for rain refraction."; return false; }
-    ComPtr<IDXGIDevice> dxgi; device.As(&dxgi);
-    ComPtr<IDXGIAdapter> adapter; dxgi->GetAdapter(&adapter);
-    ComPtr<IDXGIFactory2> factory; adapter->GetParent(IID_PPV_ARGS(&factory));
+    ComPtr<IDXGIDevice> dxgi;
+    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIFactory2> factory;
+    if (FAILED(device.As(&dxgi)) || FAILED(dxgi->GetAdapter(&adapter)) ||
+        FAILED(adapter->GetParent(IID_PPV_ARGS(&factory)))) {
+      *error="DXGI is unavailable for the rain surface."; return false;
+    }
     DXGI_SWAP_CHAIN_DESC1 description{};
     description.Width=1; description.Height=1; description.Format=DXGI_FORMAT_B8G8R8A8_UNORM;
     description.SampleDesc.Count=1; description.BufferUsage=DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -172,7 +176,10 @@ struct WindowsRain::Impl {
         FAILED(composition->CreateTargetForHwnd(overlay,TRUE,&target)) || FAILED(composition->CreateVisual(&visual))) {
       *error="DirectComposition is unavailable for the rain surface."; return false;
     }
-    visual->SetContent(swap.Get()); target->SetRoot(visual.Get()); composition->Commit();
+    if (FAILED(visual->SetContent(swap.Get())) || FAILED(target->SetRoot(visual.Get())) ||
+        FAILED(composition->Commit())) {
+      *error="Could not attach the rain compositor surface."; return false;
+    }
     ComPtr<ID3DBlob> vertex, pixel, log;
     status = D3DCompile(kShader,sizeof(kShader)-1,nullptr,nullptr,nullptr,"vertex","vs_5_0",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,&vertex,&log);
     if (FAILED(status)) { *error=log?std::string(static_cast<const char*>(log->GetBufferPointer()),log->GetBufferSize()):"Rain vertex shader compilation failed."; return false; }
@@ -186,18 +193,20 @@ struct WindowsRain::Impl {
     buffer.MiscFlags=D3D11_RESOURCE_MISC_BUFFER_STRUCTURED; buffer.StructureByteStride=sizeof(float)*4;
     if (FAILED(device->CreateBuffer(&buffer,nullptr,&drop_buffer))) { *error="Could not allocate droplets."; return false; }
     D3D11_SHADER_RESOURCE_VIEW_DESC view{}; view.Format=DXGI_FORMAT_UNKNOWN; view.ViewDimension=D3D11_SRV_DIMENSION_BUFFER; view.Buffer.NumElements=4096;
-    device->CreateShaderResourceView(drop_buffer.Get(),&view,&drop_view);
+    if (FAILED(device->CreateShaderResourceView(drop_buffer.Get(),&view,&drop_view))) { *error="Could not allocate the droplet view."; return false; }
     D3D11_SAMPLER_DESC sampling{}; sampling.Filter=D3D11_FILTER_MIN_MAG_MIP_LINEAR; sampling.AddressU=sampling.AddressV=sampling.AddressW=D3D11_TEXTURE_ADDRESS_CLAMP; sampling.MaxLOD=D3D11_FLOAT32_MAX;
-    device->CreateSamplerState(&sampling,&sampler);
+    if (FAILED(device->CreateSamplerState(&sampling,&sampler))) { *error="Could not create the rain sampler."; return false; }
     D3D11_BLEND_DESC blending{}; blending.RenderTarget[0].BlendEnable=TRUE;
     blending.RenderTarget[0].SrcBlend=D3D11_BLEND_ONE; blending.RenderTarget[0].DestBlend=D3D11_BLEND_INV_SRC_ALPHA;
     blending.RenderTarget[0].BlendOp=D3D11_BLEND_OP_ADD; blending.RenderTarget[0].SrcBlendAlpha=D3D11_BLEND_ONE;
     blending.RenderTarget[0].DestBlendAlpha=D3D11_BLEND_INV_SRC_ALPHA; blending.RenderTarget[0].BlendOpAlpha=D3D11_BLEND_OP_ADD;
     blending.RenderTarget[0].RenderTargetWriteMask=D3D11_COLOR_WRITE_ENABLE_ALL;
-    device->CreateBlendState(&blending,&blend);
+    if (FAILED(device->CreateBlendState(&blending,&blend))) { *error="Could not create rain blending."; return false; }
     D3D11_RASTERIZER_DESC raster{}; raster.FillMode=D3D11_FILL_SOLID; raster.CullMode=D3D11_CULL_NONE; raster.DepthClipEnable=TRUE;
-    device->CreateRasterizerState(&raster,&rasterizer);
-    CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&wic));
+    if (FAILED(device->CreateRasterizerState(&raster,&rasterizer)) ||
+        FAILED(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&wic)))) {
+      *error="Could not create the rain image renderer."; return false;
+    }
     width=height=1; initialized=true;
     return true;
   }
@@ -207,14 +216,18 @@ struct WindowsRain::Impl {
     if (*bytes==previous_png[index] && textures[index]) return true;
     static const uint8_t signature[]={137,80,78,71,13,10,26,10};
     if (std::memcmp(bytes->data(),signature,8)!=0) return false;
-    ComPtr<IWICStream> stream; wic->CreateStream(&stream);
+    ComPtr<IWICStream> stream;
+    if (FAILED(wic->CreateStream(&stream))) return false;
     if (FAILED(stream->InitializeFromMemory(const_cast<BYTE*>(bytes->data()),static_cast<DWORD>(bytes->size())))) return false;
     ComPtr<IWICBitmapDecoder> decoder;
     if (FAILED(wic->CreateDecoderFromStream(stream.Get(),nullptr,WICDecodeMetadataCacheOnLoad,&decoder))) return false;
-    ComPtr<IWICBitmapFrameDecode> frame; decoder->GetFrame(0,&frame);
-    UINT w=0,h=0; frame->GetSize(&w,&h);
+    ComPtr<IWICBitmapFrameDecode> frame;
+    if (FAILED(decoder->GetFrame(0,&frame))) return false;
+    UINT w=0,h=0;
+    if (FAILED(frame->GetSize(&w,&h))) return false;
     if (!w || !h || w>4096 || h>4096 || static_cast<uint64_t>(w)*h>8*1024*1024) return false;
-    ComPtr<IWICFormatConverter> converter; wic->CreateFormatConverter(&converter);
+    ComPtr<IWICFormatConverter> converter;
+    if (FAILED(wic->CreateFormatConverter(&converter))) return false;
     if (FAILED(converter->Initialize(frame.Get(),GUID_WICPixelFormat32bppRGBA,WICBitmapDitherTypeNone,nullptr,0,WICBitmapPaletteTypeCustom))) return false;
     std::vector<uint8_t> rgba(static_cast<size_t>(w)*h*4);
     if (FAILED(converter->CopyPixels(nullptr,w*4,static_cast<UINT>(rgba.size()),rgba.data()))) return false;
@@ -281,8 +294,16 @@ bool WindowsRain::Configure(const Map& args,std::string* error) {
   // Window alpha is independent of rain: every transparent theme needs this.
   LONG_PTR style=GetWindowLongPtr(rain.owner,GWL_EXSTYLE);
   const bool layered=opacity<1 || (style&WS_EX_TRANSPARENT)!=0;
-  SetWindowLongPtr(rain.owner,GWL_EXSTYLE,layered?style|WS_EX_LAYERED:style&~WS_EX_LAYERED);
-  if (layered) SetLayeredWindowAttributes(rain.owner,0,static_cast<BYTE>(std::round(opacity*255)),LWA_ALPHA);
+  const LONG_PTR desired_style=layered?style|WS_EX_LAYERED:style&~WS_EX_LAYERED;
+  if (style!=desired_style) SetWindowLongPtr(rain.owner,GWL_EXSTYLE,desired_style);
+  if (layered) {
+    const BYTE alpha=static_cast<BYTE>(std::round(opacity*255));
+    BYTE current_alpha=255; DWORD flags=0;
+    if (!GetLayeredWindowAttributes(rain.owner,nullptr,&current_alpha,&flags) ||
+        current_alpha!=alpha || flags!=LWA_ALPHA) {
+      SetLayeredWindowAttributes(rain.owner,0,alpha,LWA_ALPHA);
+    }
+  }
   rain.radius=static_cast<float>(std::clamp(Number(Get(args,"cornerRadius"),16),0.0,64.0));
   if (enabled && !rain.Initialize(error)) { rain.enabled=false; if (rain.overlay) ShowWindow(rain.overlay,SW_HIDE); return false; }
   rain.enabled=enabled;

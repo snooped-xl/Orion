@@ -1,44 +1,130 @@
 [CmdletBinding()]
-param([string]$Executable = 'dist/Orion.exe')
+param(
+  [string]$Executable = 'dist/Orion.exe',
+  [string[]]$Themes = @('expressive', 'liquid-glass', 'blue-glass', 'material-rain'),
+  [int]$MaxCloseVisibilityMilliseconds = 1000
+)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $directory = [IO.Path]::GetFullPath('build/package-smoke/portable')
 New-Item -ItemType Directory -Force $directory | Out-Null
-$env:ORION_WORKSPACE = Join-Path $directory 'workspace'
-$launcher = Start-Process ([IO.Path]::GetFullPath($Executable)) -PassThru
-$app = $null
+$executablePath = [IO.Path]::GetFullPath($Executable)
+$originalWorkspace = $env:ORION_WORKSPACE
+$results = [Collections.Generic.List[object]]::new()
+$failure = $null
 try {
-  $deadline = (Get-Date).AddSeconds(120)
-  while ((Get-Date) -lt $deadline) {
-    if ($launcher.HasExited) { throw "Portable launcher exited early: $($launcher.ExitCode)" }
-    $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" | Where-Object Name -eq 'orion.exe' | Select-Object -First 1
-    if ($child) {
-      $app = Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue
-      if ($app -and $app.MainWindowHandle -ne 0) { break }
+  foreach ($theme in $Themes) {
+    if ($theme -notin @('expressive', 'liquid-glass', 'blue-glass', 'material-rain')) {
+      throw "Unknown package smoke theme: $theme"
     }
-    Start-Sleep -Milliseconds 500
+    $caseDirectory = Join-Path $directory $theme
+    $env:ORION_WORKSPACE = Join-Path $caseDirectory 'workspace'
+    New-Item -ItemType Directory -Force $env:ORION_WORKSPACE | Out-Null
+    $glass = $theme -in @('liquid-glass', 'blue-glass')
+    $rain = $theme -eq 'material-rain'
+    # Cold starts exercise saved translucent themes before the first native
+    # frame. All data stays in a fixture workspace, never the user's documents.
+    @{
+      version = 1
+      appearanceVersion = 1
+      selectedInterface = 'orion'
+      introCompleted = $true
+      orionTheme = @{
+        version = 2
+        presetId = $theme
+        basePalette = $(if ($glass) { 'liquid-glass' } else { $theme })
+        themeMode = 'dark'
+        liquidGlassEnabled = $glass
+        rainEnabled = $rain
+        windowOpacity = $(if ($glass) { 0.63 } elseif ($rain) { 0.9 } else { 1.0 })
+        gradientEnabled = $theme -eq 'blue-glass'
+        gradientColors = @(0xFF0057ADL, 0xFF49525EL)
+        gradientAngle = 41.48
+        surfaceTint = $(if ($theme -eq 'blue-glass') { 0.155 } else { 0.0 })
+        outlineStrength = $(if ($glass) { 0.65 } else { 1.0 })
+      }
+    } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $env:ORION_WORKSPACE 'orion-workspace.json') -Encoding UTF8
+    $launcher = $null
+    $app = $null
+    try {
+      Write-Host "Portable smoke: opening $theme"
+      $launcher = Start-Process $executablePath -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $caseDirectory 'stdout.log') `
+        -RedirectStandardError (Join-Path $caseDirectory 'stderr.log')
+      $deadline = (Get-Date).AddSeconds(120)
+      while ((Get-Date) -lt $deadline) {
+        if ($launcher.HasExited) { throw "Portable launcher exited early: $($launcher.ExitCode)" }
+        $child = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($launcher.Id)" | Where-Object Name -eq 'orion.exe' | Select-Object -First 1
+        if ($child) {
+          $app = Get-Process -Id $child.ProcessId -ErrorAction SilentlyContinue
+          if ($app) {
+            # Retain a process handle so ExitCode remains available after exit.
+            $null = $app.Handle
+            if ($app.MainWindowHandle -ne 0) { break }
+          }
+        }
+        Start-Sleep -Milliseconds 250
+      }
+      if (-not $app -or $app.MainWindowHandle -eq 0) { throw 'Portable Orion did not create its main native window' }
+      Start-Sleep -Seconds 8
+      $app.Refresh()
+      if ($app.HasExited) { throw "Portable Orion crashed shortly after opening: $($app.ExitCode)" }
+      foreach ($required in @('.orion-workspace.json', 'scripts/Special/Orion Bridge.lua', 'themes', 'autoexec', 'cache', 'backups')) {
+        if (-not (Test-Path (Join-Path $env:ORION_WORKSPACE $required))) { throw "Portable first launch did not provision $required" }
+      }
+      $inner = (Get-CimInstance Win32_Process -Filter "ProcessId = $($app.Id)").ExecutablePath
+      $runtime = Split-Path $inner -Parent
+      if (-not (Test-Path "$runtime/data/webview2/msedgewebview2.exe")) { throw 'Portable package did not extract its offline browser' }
+
+      $close = [Diagnostics.Stopwatch]::StartNew()
+      if (-not $app.CloseMainWindow()) { throw 'Portable window rejected WM_CLOSE' }
+      while (-not $app.HasExited -and $close.ElapsedMilliseconds -lt 10000) {
+        $app.Refresh()
+        if ($app.MainWindowHandle -eq 0) { break }
+        Start-Sleep -Milliseconds 25
+      }
+      $visibleCloseMilliseconds = $close.ElapsedMilliseconds
+      $appExited = $app.WaitForExit(15000)
+      $launcherExited = $launcher.WaitForExit(5000)
+      $results.Add(@{
+        theme = $theme
+        nativeWindowOpened = $true
+        offlineWebView2Bundled = $true
+        workspaceProvisioned = $true
+        visibleCloseMilliseconds = $visibleCloseMilliseconds
+        processCloseMilliseconds = $close.ElapsedMilliseconds
+        exitCode = $(if ($appExited) { $app.ExitCode } else { $null })
+        launcherExitCode = $(if ($launcherExited) { $launcher.ExitCode } else { $null })
+      })
+      if (-not $appExited) { throw 'Portable Orion did not exit after closing its window' }
+      if ($app.ExitCode -ne 0) { throw "Portable Orion crashed during close: $($app.ExitCode); visible for ${visibleCloseMilliseconds}ms" }
+      if ($visibleCloseMilliseconds -gt $MaxCloseVisibilityMilliseconds) {
+        throw "Window stayed visible for ${visibleCloseMilliseconds}ms after close (limit ${MaxCloseVisibilityMilliseconds}ms)"
+      }
+      if (-not $launcherExited) { throw 'Portable launcher remained alive after Orion exited' }
+      if ($launcher.ExitCode -ne 0) { throw "Portable launcher returned $($launcher.ExitCode)" }
+      $saved = Get-Content (Join-Path $env:ORION_WORKSPACE 'orion-workspace.json') -Raw | ConvertFrom-Json
+      if ($saved.orionTheme.presetId -ne $theme) { throw "Saved theme was not restored/persisted: $theme" }
+      Write-Host "Portable smoke: $theme passed; window hidden in ${visibleCloseMilliseconds}ms, process exited cleanly."
+    } finally {
+      if ($app -and -not $app.HasExited) { & taskkill.exe /PID $app.Id /T /F | Out-Null }
+      if ($launcher -and -not $launcher.HasExited) { & taskkill.exe /PID $launcher.Id /T /F | Out-Null }
+    }
   }
-  if (-not $app -or $app.MainWindowHandle -eq 0) { throw 'Portable Orion did not create its main native window' }
-  Start-Sleep -Seconds 5
-  $app.Refresh()
-  if ($app.HasExited) { throw 'Portable Orion crashed shortly after opening' }
-  foreach ($required in @('.orion-workspace.json', 'scripts/Special/Orion Bridge.lua', 'themes', 'autoexec', 'cache', 'backups')) {
-    if (-not (Test-Path (Join-Path $env:ORION_WORKSPACE $required))) { throw "Portable first launch did not provision $required" }
-  }
-  $inner = (Get-CimInstance Win32_Process -Filter "ProcessId = $($app.Id)").ExecutablePath
-  $runtime = Split-Path $inner -Parent
-  if (-not (Test-Path "$runtime/data/webview2/msedgewebview2.exe")) { throw 'Portable package did not extract its offline browser' }
-  @{
-    success = $true
-    portableExecutable = [IO.Path]::GetFileName($Executable)
-    nativeWindowOpened = $true
-    offlineWebView2Bundled = $true
-    workspaceProvisioned = $true
-  } | ConvertTo-Json | Set-Content (Join-Path $directory 'report.json')
-  Write-Host 'Single EXE extracted and launched successfully, with a native window and a provisioned workspace.'
+} catch {
+  $failure = $_.ToString()
+  throw
 } finally {
-  if ($app -and -not $app.HasExited) { $null = $app.CloseMainWindow(); $null = $app.WaitForExit(10000) }
-  if (-not $launcher.HasExited) { & taskkill.exe /PID $launcher.Id /T /F | Out-Null }
-  Remove-Item Env:ORION_WORKSPACE -ErrorAction SilentlyContinue
+  @{
+    success = $null -eq $failure
+    portableExecutable = [IO.Path]::GetFileName($Executable)
+    cases = $results.ToArray()
+    failure = $failure
+  } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $directory 'report.json')
+  if ($null -eq $originalWorkspace) {
+    Remove-Item Env:ORION_WORKSPACE -ErrorAction SilentlyContinue
+  } else {
+    $env:ORION_WORKSPACE = $originalWorkspace
+  }
 }

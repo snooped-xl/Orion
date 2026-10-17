@@ -125,6 +125,7 @@ struct State {
   bool fallback_notification_added = false;
   RECT previous_shape{};
   int previous_shape_radius = -1;
+  bool desktop_frame_cleared = false;
   std::string backdrop_geometry;
   void ClearNotification() {
     if (fallback_notification_added) Shell_NotifyIconW(NIM_DELETE, &fallback_notification);
@@ -262,6 +263,10 @@ class OrionNative : public flutter::Plugin {
       if (window == state_->root && (message == WM_SIZE || message == WM_DPICHANGED)) {
         state_->ApplyEditor(); state_->Shape(); rain_.Resize();
         if (state_->follow_resize) state_->CenterStartup();
+      }
+      if (window == state_->root &&
+          (message == WM_DWMCOMPOSITIONCHANGED || message == WM_THEMECHANGED)) {
+        state_->desktop_frame_cleared = false;
       }
       return std::nullopt;
     });
@@ -478,10 +483,15 @@ class OrionNative : public flutter::Plugin {
       // desktop glass. Extending that backdrop into a layered window also
       // destabilizes theme changes on some Windows 11 drivers. Keep the native
       // frame clear and let the shared Flutter glass and opacity path render.
-      DWORD backdrop = 1;  // DWMSBT_NONE
-      DwmSetWindowAttribute(state_->root, 38, &backdrop, sizeof(backdrop));
-      MARGINS margins{0, 0, 0, 0};
-      DwmExtendFrameIntoClientArea(state_->root, &margins);
+      if (!state_->desktop_frame_cleared) {
+        // Polling the optional backend should not repeatedly rebuild DWM's
+        // frame while opacity and the Flutter glass scene are changing.
+        state_->desktop_frame_cleared = true;
+        DWORD backdrop = 1;  // DWMSBT_NONE
+        DwmSetWindowAttribute(state_->root, 38, &backdrop, sizeof(backdrop));
+        MARGINS margins{0, 0, 0, 0};
+        DwmExtendFrameIntoClientArea(state_->root, &margins);
+      }
       result->Success(Value(enabled
           ? "{\"ok\":true,\"active\":false,\"mode\":\"flutter-glass\",\"reason\":\"windows-authored-glass\"}"
           : "{\"ok\":true,\"active\":false,\"mode\":\"none\"}"));

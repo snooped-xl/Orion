@@ -4,13 +4,16 @@ import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart' as files;
 import 'package:flutter/material.dart';
+
 import '../widgets/bridge_client_manager.dart';
+
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../models/companion_window.dart';
 import '../models/interface_preset.dart';
 import '../models/orion_models.dart';
+import '../services/desktop_close_service.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/native_window_service.dart';
 import '../services/file_paths.dart';
@@ -641,24 +644,18 @@ class KrnlShellState extends State<KrnlShell>
   void onWindowClose() async {
     if (_closing) return;
     _closing = true;
-    if (_isOptionsWindow) {
-      await c.companionWindows!.close();
-      return;
-    }
     try {
-      await flushEditor();
-    } catch (_) {}
-    await c.companionWindows?.closeAll();
-    await c.flushPersistence();
-    if (widget.nativeWindow) {
-      await _opacity.animateTo(
-        0,
-        duration: _reduceMotion
-            ? Duration.zero
-            : const Duration(milliseconds: 100),
+      if (_isOptionsWindow) {
+        await c.companionWindows!.close();
+        return;
+      }
+      await DesktopCloseService.closeApp(
+        controller: c,
+        nativeWindow: widget.nativeWindow,
+        flushEditor: flushEditor,
       );
-      await c.closeBridge();
-      await windowManager.destroy();
+    } finally {
+      _closing = false;
     }
   }
 

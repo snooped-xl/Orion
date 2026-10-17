@@ -36,6 +36,7 @@ class FlutterWindow : public Win32Window {
  private:
   std::string id_;
   std::string window_argument_;
+  bool destroying_object_ = false;
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;

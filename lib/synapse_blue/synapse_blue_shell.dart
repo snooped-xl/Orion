@@ -4,13 +4,16 @@ import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart' as files;
 import 'package:flutter/material.dart';
+
 import '../widgets/bridge_client_manager.dart';
+
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../models/interface_preset.dart';
 import '../models/orion_models.dart';
 import '../models/remote_script.dart';
+import '../services/desktop_close_service.dart';
 import '../services/monaco_editor_service.dart';
 import '../state/orion_controller.dart';
 import '../models/synapse_studio_theme.dart';
@@ -370,13 +373,11 @@ class SynapseBlueShellState extends State<SynapseBlueShell>
   @override
   void onWindowClose() async {
     try {
-      await flushEditor();
-      await c.companionWindows?.closeAll();
-      await c.flushPersistence();
-      if (mounted && widget.nativeWindow) {
-        await c.closeBridge();
-        await windowManager.destroy();
-      }
+      await DesktopCloseService.closeApp(
+        controller: c,
+        nativeWindow: widget.nativeWindow,
+        flushEditor: flushEditor,
+      );
     } on Object catch (error) {
       if (mounted) await _notice('Could not save the session: $error');
     }

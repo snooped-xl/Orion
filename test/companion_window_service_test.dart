@@ -392,6 +392,58 @@ void main() {
   );
 
   test(
+    'shutdown hides all children first and never reopens its owner',
+    () async {
+      await desktop.service.open(CompanionWindowKind.xenoSettings);
+      await desktop.service.open(CompanionWindowKind.synapseXHub);
+      desktop.calls.clear();
+      desktop.childHandler = (child, method, _) async {
+        if (method == 'closeFromOwner') {
+          expect(desktop.calls, contains(('child-1', 'hideForShutdown')));
+          expect(desktop.calls, contains(('child-2', 'hideForShutdown')));
+          await desktop.request(child, 'focusMain');
+          await desktop.closeChild(child);
+        }
+        return null;
+      };
+      await desktop.service.shutdown();
+      expect(desktop.allocated, {'main'});
+      expect(desktop.calls, isNot(contains(('manager', 'show'))));
+      expect(desktop.calls, isNot(contains(('manager', 'focus'))));
+      await desktop.service.open(CompanionWindowKind.synapseXHub);
+      expect(desktop.creations, hasLength(2));
+    },
+  );
+
+  test(
+    'cancelled shutdown restores an unsaved child and permits retry',
+    () async {
+      await desktop.service.open(
+        CompanionWindowKind.synapseV3Editor,
+        documentId: desktop.owner.activeDocumentId,
+      );
+      desktop.childHandler = (child, method, _) async {
+        if (method == 'closeFromOwner') {
+          throw PlatformException(code: 'FLUSH_FAILED');
+        }
+        return null;
+      };
+      await expectLater(
+        desktop.service.shutdown(),
+        throwsA(isA<WindowChannelException>()),
+      );
+      desktop.calls.clear();
+      await desktop.service.cancelShutdown();
+      expect(desktop.calls, contains(('child-1', 'focus')));
+      expect(desktop.allocated, {'main', 'child-1'});
+      expect(desktop.service.acceptsOpens, true);
+      desktop.childHandler = null;
+      await desktop.service.shutdown();
+      expect(desktop.allocated, {'main'});
+    },
+  );
+
+  test(
     'closing one child retains its sibling and never destroys the owner',
     () async {
       await desktop.service.open(CompanionWindowKind.synapseXOptions);

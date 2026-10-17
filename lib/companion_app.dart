@@ -67,6 +67,7 @@ class _ChildWindowHost extends WindowListener implements CompanionWindowHost {
   bool _destroying = false;
   bool? _lastTop, _lastResizable;
   Future<void>? _closeFuture;
+  Future<void>? _closeRequest;
   Future<bool> Function()? confirmClose;
   Future<void> Function()? beforeOwnerClose;
   String? _lastWindowSize;
@@ -194,7 +195,10 @@ class _ChildWindowHost extends WindowListener implements CompanionWindowHost {
         await editor?.flush();
         await controller.flushCommands();
         await windowManager.hide();
+      case 'hideForShutdown':
+        await windowManager.hide();
       case 'closeFromOwner':
+        await windowManager.hide();
         await beforeOwnerClose?.call();
         await _prepareClose();
         // Complete the native IPC response before GTK tears down this engine.
@@ -267,12 +271,25 @@ class _ChildWindowHost extends WindowListener implements CompanionWindowHost {
   @override
   void onWindowClose() => unawaited(close());
   @override
-  Future<void> close() async {
+  Future<void> close() => _closeRequest ??= _closeWindow().whenComplete(() {
+    _closeRequest = null;
+  });
+
+  Future<void> _closeWindow() async {
+    if (_destroying) return;
     if (!_closing && !(await confirmClose?.call() ?? true)) return;
-    await _prepareClose();
-    if (!_destroying) {
-      _destroying = true;
-      await NativeWindowService.destroyCompanion();
+    await windowManager.hide();
+    try {
+      await _prepareClose();
+      if (!_destroying) {
+        _destroying = true;
+        await NativeWindowService.destroyCompanion();
+      }
+    } catch (_) {
+      _destroying = false;
+      await windowManager.show();
+      await windowManager.focus();
+      rethrow;
     }
   }
 

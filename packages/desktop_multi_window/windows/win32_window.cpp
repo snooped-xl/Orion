@@ -202,6 +202,10 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
+    case WM_NCDESTROY:
+      SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
+      break;
+
     case WM_DPICHANGED: {
       auto newRectSize = reinterpret_cast<RECT*>(lparam);
       LONG newWidth = newRectSize->right - newRectSize->left;
@@ -236,10 +240,14 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
   }
 
-  return DefWindowProc(window_handle_, message, wparam, lparam);
+  return DefWindowProc(hwnd, message, wparam, lparam);
 }
 
 void Win32Window::Destroy() {
+  if (destroying_) return;
+  destroying_ = true;
+  child_content_ = nullptr;
+  child_resize_pending_ = false;
   OnDestroy();
 
   if (window_handle_) {
@@ -249,6 +257,7 @@ void Win32Window::Destroy() {
   if (g_active_window_count == 0) {
     WindowClassRegistrar::GetInstance()->UnregisterWindowClass();
   }
+  destroying_ = false;
 }
 
 Win32Window* Win32Window::GetThisFromHandle(HWND const window) noexcept {
@@ -265,7 +274,7 @@ void Win32Window::SetChildContent(HWND content) {
 }
 
 RECT Win32Window::GetClientArea() {
-  RECT frame;
+  RECT frame{};
   GetClientRect(window_handle_, &frame);
   return frame;
 }

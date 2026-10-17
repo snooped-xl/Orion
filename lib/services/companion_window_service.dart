@@ -26,6 +26,7 @@ class CompanionWindowService implements CompanionWindowHost {
   Future<void> _lifetime = Future<void>.value();
   int _revision = 0;
   bool _closingAll = false;
+  bool _shuttingDown = false;
   bool _disposed = false;
   int _openGeneration = 0, _pendingCloseRequests = 0;
   bool acceptsOpens = true;
@@ -328,8 +329,39 @@ class CompanionWindowService implements CompanionWindowHost {
 
   @override
   Future<void> close() => closeAll();
+
+  /// Hide every companion before waiting for its editor or queued commands.
+  /// Keep the engines alive so their final updates reach the owner before save.
+  Future<void> shutdown() async {
+    _shuttingDown = true;
+    acceptsOpens = false;
+    ++_openGeneration;
+    await Future.wait([
+      for (final entry in _entries.values.toList())
+        if (entry.window != null)
+          entry.window!
+              .invokeMethod<void>('hideForShutdown')
+              .timeout(const Duration(seconds: 1))
+              .catchError((Object _) {}),
+    ]);
+    await closeAll();
+  }
+
+  Future<void> cancelShutdown() async {
+    _shuttingDown = false;
+    acceptsOpens = true;
+    for (final entry in _entries.values.toList()) {
+      if (entry.window == null || !entry.visible) continue;
+      await entry.window!
+          .invokeMethod<void>('focus')
+          .timeout(const Duration(seconds: 1))
+          .catchError((Object _) {});
+    }
+  }
+
   @override
   Future<void> focusMain() async {
+    if (_shuttingDown) return;
     await windowManager.show();
     if (await windowManager.isMinimized()) await windowManager.restore();
     await windowManager.focus();

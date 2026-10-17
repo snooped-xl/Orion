@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+
 import 'package:file_selector/file_selector.dart' as files;
 import 'package:flutter/material.dart';
+
 import '../widgets/bridge_client_manager.dart';
+
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
+
 import '../models/interface_preset.dart';
 import '../models/orion_models.dart';
+import '../services/desktop_close_service.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/native_window_service.dart';
 import '../services/file_paths.dart';
@@ -382,10 +387,15 @@ class ZenithShellState extends State<ZenithShell>
   Future<void> _close() async {
     if (_closing || !widget.nativeWindow) return;
     _closing = true;
-    await flushEditor();
-    await c.flushPersistence();
-    await c.closeBridge();
-    await windowManager.destroy();
+    try {
+      await DesktopCloseService.closeApp(
+        controller: c,
+        nativeWindow: widget.nativeWindow,
+        flushEditor: flushEditor,
+      );
+    } finally {
+      _closing = false;
+    }
   }
 
   @override
