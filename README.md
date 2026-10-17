@@ -186,11 +186,10 @@ Wayland placement, and topmost integration on supported GNOME sessions. Install
 it using the [GNOME integration guide](linux/gnome/README.md). On other desktops,
 Orion uses its available fallback materials.
 
-Windows uses native window management and WebView2. Supported Windows 11 builds
-use the compositor's acrylic material; older Windows versions use the Flutter
-glass fallback. Windows rain uses a native Direct3D rendering path. Desktop
-refraction is compositor-dependent, so the GNOME lens and Windows acrylic are
-not identical effects.
+Windows uses native window management, WebView2, and Orion's authored Flutter
+glass materials. Windows rain uses a native Direct3D rendering path. Live
+behind-window refraction requires the optional GNOME companion on Linux;
+Windows uses its translucent glass material and window opacity instead.
 
 Flatpak permits network access for the bridge and script search, home and mounted
 folders for your files, and the session bus for authenticated GNOME integration.
