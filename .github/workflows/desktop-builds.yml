@@ -99,7 +99,10 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.gnome.Platform//50
       - name: Verify native compositor identity across PID namespaces
-        run: python3 tool/test_session_bus_identity.py
+        # Ubuntu 24.04 restricts unprivileged uid_map writes under AppArmor.
+        # Run only this isolated Xvfb/private-bus test with runner privileges;
+        # leave the runner's security policy and normal application unchanged.
+        run: sudo /usr/bin/python3 tool/test_session_bus_identity.py
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}

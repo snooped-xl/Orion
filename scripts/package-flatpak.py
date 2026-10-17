@@ -30,15 +30,17 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", type=Path, default=ROOT / "build/linux/x64/release/bundle")
     parser.add_argument("--output", type=Path, default=ROOT / "dist/Orion-x86_64.flatpak")
+    parser.add_argument("--work-dir", type=Path, default=ROOT / "build/flatpak")
     args = parser.parse_args()
     if not shutil.which("flatpak"):
         raise RuntimeError("Install Flatpak before packaging")
     bundle = args.bundle.resolve()
-    for filename in ["orion", "lib/libapp.so", "lib/libflutter_linux_gtk.so", "data/monaco/index.html"]:
+    for filename in ["orion", "lib/libapp.so", "lib/libflutter_linux_gtk.so", "data/monaco/index.html",
+                     "data/gnome/orion-glass@orion.local/dist/rendering/backdropGlass.js"]:
         if not (bundle / filename).is_file():
             raise RuntimeError(f"Missing Linux release file: {filename}. Run scripts/build-linux.sh first.")
-    build = ROOT / "build/flatpak/application"
-    repository = ROOT / "build/flatpak/repository"
+    build = args.work_dir.resolve() / "application"
+    repository = args.work_dir.resolve() / "repository"
     if build.exists():
         shutil.rmtree(build)
     build.parent.mkdir(parents=True, exist_ok=True)
@@ -70,7 +72,7 @@ def main() -> None:
     metainfo.mkdir(parents=True)
     shutil.copy2(ROOT / "linux/packaging/dev.snooped.orion.metainfo.xml", metainfo)
     run("flatpak", "build-finish", "--command=orion", "--require-version=1.12.0",
-        "--share=network", "--share=ipc", "--socket=wayland", "--socket=fallback-x11",
+        "--share=network", "--share=ipc", "--socket=wayland", "--socket=x11",
         "--socket=pulseaudio", "--socket=session-bus", "--device=dri",
         "--filesystem=home", "--filesystem=/media", "--filesystem=/mnt",
         "--filesystem=/run/media", "--env=GTK_USE_PORTAL=1", str(build))

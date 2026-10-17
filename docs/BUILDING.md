@@ -10,7 +10,7 @@ Open the repository's **Actions** tab, choose **Desktop test builds**, then
 **Run workflow** on the main branch. Pushes to the main branch also build both
 platforms. A successful run provides:
 
-| Artifact | File to run |
+| Artifact | File |
 | --- | --- |
 | `Orion-Windows-x64` | `Orion.exe` |
 | `Orion-Flatpak-x86_64` | `Orion-x86_64.flatpak` |
@@ -140,8 +140,8 @@ The workspace remains `~/orion`, including when launched from Flatpak.
 
 The optional GNOME companion supplies live behind-window refraction,
 monitor-based launch placement, and Wayland topmost support on supported
-GNOME sessions. Other desktops use the normal fallback. Install it through
-Orion's desktop-glass controls, or run:
+GNOME sessions. Other desktops use the normal fallback. On GNOME, install it
+with:
 
 ```bash
 flatpak run --command=sh dev.snooped.orion -c 'cd /app/orion && ./install-gnome-glass.sh --enable'
@@ -222,8 +222,8 @@ flutter build windows --release --no-tree-shake-icons --target lib/main.dart
 
 Linux CI privately installs and launches the actual Flatpak bundle under a
 disposable desktop session. It verifies resolved runtime dependencies, first-run
-provisioning, and the genuine native WebKit editor process. Both platforms isolate smoke-test
-data from the user's workspace. Build output and runtime caches are ignored
+provisioning, and the genuine native WebKit editor process. Both platforms
+isolate smoke-test data from the user's workspace. Build output and runtime caches are ignored
 by Git; publish the generated distribution files as artifacts or releases.
 
 Flutter's [Windows distribution guide](https://docs.flutter.dev/platform-integration/windows/building),
