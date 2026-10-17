@@ -4,7 +4,12 @@ Orion is a Flutter desktop application for Windows x64 and Linux x64. The
 project uses Flutter **3.47.7**, Dart **3.13.5**, C++ runners, and bundled Monaco
 Editor assets. Keep `pubspec.lock` and the patched packages in `packages/`.
 
-## Download a test build from GitHub Actions
+## Download Orion
+
+Get the Windows EXE or Linux Flatpak from the
+[Latest release](https://github.com/snooped-xl/Orion/releases/latest).
+
+## Build validation with GitHub Actions
 
 Open the repository's **Actions** tab, choose **Desktop test builds**, then
 **Run workflow** on the main branch. Pushes to the main branch also build both
