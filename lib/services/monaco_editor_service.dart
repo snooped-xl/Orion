@@ -365,6 +365,7 @@ class MonacoEditorService extends ChangeNotifier {
   bool _mirrorFramePresented = false;
   bool _mirrorRefreshPending = true;
   bool _nativeVisualMirror = false;
+  bool _nativeVisible = false, _layoutRefreshRequested = false;
   int _mirrorRevision = 0, _mirrorFailures = 0;
   Timer? _mirrorTimer, _mirrorActivity;
   Duration? _mirrorScheduledDelay;
@@ -417,6 +418,7 @@ class MonacoEditorService extends ChangeNotifier {
       }
       ready = true;
       _nativeVisualMirror = false;
+      _nativeVisible = false;
       _nativeOpacity = null;
       if (_snapshot != null) await synchronize(_snapshot!);
       _boundsJson = null;
@@ -498,6 +500,7 @@ class MonacoEditorService extends ChangeNotifier {
         _activeId = null;
         _nativeTheme = null;
         _nativeOpacity = null;
+        _nativeVisible = false;
         _focusRequested = true;
         if (!(_readySignal?.isCompleted ?? true)) _readySignal!.complete();
         for (final pending in _flushes.values) {
@@ -770,9 +773,11 @@ class MonacoEditorService extends ChangeNotifier {
     // Visibility updates must reach GTK immediately, including modal hides.
     // The channel orders this opacity call before the bounds call below.
     unawaited(_pushOpacity());
+    final shown = visible && _bounds != null;
+    final reveal = shown && !_nativeVisible;
     final bounds = {
       ...?_bounds,
-      'visible': visible && _bounds != null,
+      'visible': shown,
       // Source shells drive their exact page fade through opacity owners;
       // adding Orion's GTK reveal would delay their code relative to chrome.
       'reducedMotion': _reducedMotion || !_animateReveal,
@@ -787,11 +792,25 @@ class MonacoEditorService extends ChangeNotifier {
         await _channel.invokeMethod<void>('setBounds', bounds);
       }
     }
+    _nativeVisible = shown;
+    if (shown && (reveal || _layoutRefreshRequested)) {
+      _layoutRefreshRequested = false;
+      await _channel.invokeMethod<void>('send', jsonEncode({'type': 'layout'}));
+    }
     if (visible && _bounds != null && _focusRequested) {
       _focusRequested = false;
       await _channel.invokeMethod<void>('focus');
     }
     _updateMirrorLoop();
+  }
+
+  /// Native browser surfaces can remap at the same size after a minimize.
+  /// Ask Monaco to repaint once; continuous layout remains browser-managed.
+  void refreshLayout() {
+    if (_disposed) return;
+    _layoutRefreshRequested = true;
+    _invalidateMirror(clear: true);
+    unawaited(_pushBounds());
   }
 
   /// A mounted editor reports lifecycle and TickerMode without changing native
@@ -840,6 +859,7 @@ class MonacoEditorService extends ChangeNotifier {
     if (clear) {
       _mirrorFramePresented = false;
       _mirrorFailures = 0;
+      unawaited(_pushVisualMirror(false));
       _replaceMirrorFrame(null);
     }
     _updateMirrorLoop();
@@ -884,6 +904,11 @@ class MonacoEditorService extends ChangeNotifier {
       _mirrorTimer?.cancel();
       _mirrorTimer = null;
       _mirrorScheduledDelay = null;
+      // An offstage/unmounted presenter cannot display a replacement frame.
+      // Restore native painting before discarding its last captured image.
+      _mirrorFramePresented = false;
+      unawaited(_pushVisualMirror(false));
+      if (_visualMirrorFrame.value != null) _replaceMirrorFrame(null);
       return;
     }
     if (_mirrorCapturing) return;

@@ -198,6 +198,32 @@ Future<void> _frame(
 }
 
 void main() {
+  testWidgets('offstage mirror builds never suppress native Monaco', (
+    tester,
+  ) async {
+    final channel = _MirrorChannel()
+      ..png = await tester.runAsync(() => _png(Colors.red));
+    final service = _service(channel);
+    try {
+      await _sync(service);
+      Widget fixture(bool offstage) =>
+          Offstage(offstage: offstage, child: _fixture(service));
+      await tester.pumpWidget(fixture(true));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await _awaitMirrorFrame(tester, service, null);
+      await tester.pump();
+      expect(service.visualMirrorFrame.value, isNotNull);
+      expect(channel.mirrorCalls, isEmpty);
+      await tester.pumpWidget(fixture(false));
+      await tester.pump();
+      expect(channel.mirrorCalls.last.arguments, true);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      service.dispose();
+    }
+  });
+
   testWidgets(
     'first alpha frame paints before native suppression and refreshes independently',
     (tester) async {
@@ -321,6 +347,8 @@ void main() {
         await _frame(tester, channel);
         expect(channel.captures, greaterThan(captures));
         tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        expect(channel.mirrorCalls.last.arguments, false);
+        expect(service.visualMirrorFrame.value, isNull);
         captures = channel.captures;
         await tester.pump(const Duration(seconds: 2));
         expect(channel.captures, captures);
@@ -330,6 +358,8 @@ void main() {
         await _frame(tester, channel);
         expect(channel.captures, greaterThan(captures));
         await tester.pumpWidget(_fixture(service, ticking: false));
+        expect(channel.mirrorCalls.last.arguments, false);
+        expect(service.visualMirrorFrame.value, isNull);
         captures = channel.captures;
         await tester.pump(const Duration(seconds: 2));
         expect(channel.captures, captures);

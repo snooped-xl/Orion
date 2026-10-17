@@ -61,8 +61,10 @@ class _MonacoEditorState extends State<MonacoEditor>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final wasVisible = _windowVisible;
     _windowVisible = _isWindowVisible(state);
     _updatePresentation();
+    if (!wasVisible && _windowVisible) widget.service.refreshLayout();
   }
 
   void _updatePresentation() => widget.service.setMirrorPresentationActive(
@@ -191,20 +193,24 @@ class _MonacoEditorState extends State<MonacoEditor>
                           builder: (context, image, _) {
                             if (image == null) return const SizedBox.shrink();
                             final service = widget.service;
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                            void painted() {
                               if (mounted &&
                                   identical(service, widget.service)) {
                                 service.mirrorFramePresented(image);
                               }
-                            });
+                            }
+
                             return IgnorePointer(
                               child: ValueListenableBuilder<Rect?>(
                                 valueListenable: _mirrorPaintBounds,
-                                child: RawImage(
-                                  key: const ValueKey('monaco-visual-mirror'),
-                                  image: image,
-                                  fit: BoxFit.fill,
-                                  filterQuality: FilterQuality.none,
+                                child: _MirrorPaintReporter(
+                                  onPainted: painted,
+                                  child: RawImage(
+                                    key: const ValueKey('monaco-visual-mirror'),
+                                    image: image,
+                                    fit: BoxFit.fill,
+                                    filterQuality: FilterQuality.none,
+                                  ),
                                 ),
                                 builder: (context, bounds, image) => Stack(
                                   clipBehavior: Clip.none,
@@ -254,6 +260,38 @@ class _MonacoEditorState extends State<MonacoEditor>
         ),
       ),
     );
+  }
+}
+
+/// A build/post-frame callback alone does not establish that pixels appeared:
+/// an offstage child or a zero-size mirror can build without ever painting.
+class _MirrorPaintReporter extends SingleChildRenderObjectWidget {
+  const _MirrorPaintReporter({required this.onPainted, required super.child});
+  final VoidCallback onPainted;
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _MirrorPaintRenderBox(onPainted);
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _MirrorPaintRenderBox renderObject,
+  ) => renderObject.onPainted = onPainted;
+}
+
+class _MirrorPaintRenderBox extends RenderProxyBox {
+  _MirrorPaintRenderBox(this.onPainted);
+  VoidCallback onPainted;
+  bool _queued = false;
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    super.paint(context, offset);
+    if (_queued || size.isEmpty || !size.isFinite) return;
+    _queued = true;
+    final callback = onPainted;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _queued = false;
+      if (attached) callback();
+    });
   }
 }
 

@@ -193,6 +193,29 @@ void check_interleaved_formats(cairo_surface_t* surface) {
   cairo_surface_destroy(changed);
 }
 
+void check_clear_snapshot(cairo_surface_t* painted) {
+  auto state = std::make_shared<PreviewState>();
+  worker_frame(painted, state, true);
+  const auto frame = state->frame;
+  const auto* previous = state->previous;
+  const auto pixels = state->pixels;
+  auto* clear = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 400, 213);
+  g_assert(!preview_has_content(clear));
+  bool done = false;
+  g_object_unref(start_worker(clear, state, &done, true));
+  wait_for(&done);
+  g_assert(state->frame == frame && state->previous == previous);
+  g_assert(state->pixels == pixels);
+  // Even a single antialiased glyph pixel is a valid transparent editor frame.
+  auto* pixel = reinterpret_cast<uint32_t*>(cairo_image_surface_get_data(clear));
+  pixel[400 * 212 + 399] = 0x01010101;
+  cairo_surface_mark_dirty(clear);
+  g_assert(preview_has_content(clear));
+  worker_frame(clear, state, true);
+  g_assert(state->frame == frame + 1);
+  cairo_surface_destroy(clear);
+}
+
 struct Heartbeat {
   gint64 previous = 0;
   gint64 maximum_gap = 0;
@@ -253,6 +276,7 @@ int main(int argc, char** argv) {
   check_raw_pixels(alpha);
   check_cache(alpha);
   check_interleaved_formats(alpha);
+  check_clear_snapshot(alpha);
 
   auto* rgb = cairo_image_surface_create(CAIRO_FORMAT_RGB24, 400, 213);
   auto* cr = cairo_create(rgb);
@@ -294,6 +318,6 @@ int main(int argc, char** argv) {
     benchmark(surface, argv[index]);
     cairo_surface_destroy(surface);
   }
-  std::puts("PASS lossless alpha/RGB fidelity, last-pixel changes, cache reuse, "
+  std::puts("PASS lossless alpha/RGB fidelity, clear-frame rejection, last-pixel changes, cache reuse, "
              "strides, worker responsiveness and pending view destruction");
 }

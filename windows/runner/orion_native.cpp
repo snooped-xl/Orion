@@ -121,6 +121,11 @@ struct State {
   RECT bounds{0, 0, 1, 1};
   double ui_scale = 1, opacity = 1, corner_radius = 16;
   bool visible = false, mirror = false, capture_pending = false;
+  RECT applied_editor_bounds{};
+  bool editor_bounds_applied = false;
+  double applied_editor_scale = -1;
+  int applied_editor_alpha = -1, applied_editor_visibility = -1;
+  bool reduced_motion = false, reduced_motion_applied = false;
   HMONITOR startup_monitor = nullptr;
   bool follow_resize = false, centering = false;
   NOTIFYICONDATAW fallback_notification{};
@@ -148,7 +153,14 @@ struct State {
     controller.Reset(); environment.Reset();
     if (editor_host) DestroyWindow(editor_host);
     editor_host = nullptr;
-    visible = false; capture_pending = false; backdrop_geometry.clear();
+    // A new renderer starts in the normal native presentation mode. Keeping
+    // mirror=true here leaves a replacement WebView almost fully transparent
+    // while Dart correctly assumes the freshly created surface is not mirrored.
+    visible = false; mirror = false; opacity = 1; capture_pending = false;
+    editor_bounds_applied = false; applied_editor_scale = -1;
+    applied_editor_alpha = -1; applied_editor_visibility = -1;
+    reduced_motion = false; reduced_motion_applied = false;
+    backdrop_geometry.clear();
   }
   void ApplyEditor() {
     if (!controller || !editor_host) return;
@@ -157,15 +169,45 @@ struct State {
     int y = static_cast<int>(std::floor(bounds.top * scale));
     int width = std::max(1, static_cast<int>(std::ceil((bounds.right - bounds.left) * scale)));
     int height = std::max(1, static_cast<int>(std::ceil((bounds.bottom - bounds.top) * scale)));
-    SetWindowPos(editor_host, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);
-    RECT area{0, 0, width, height};
-    controller->put_Bounds(area);
-    controller->put_ZoomFactor(ui_scale);
+    const RECT next_bounds{x, y, x + width, y + height};
+    const bool size_changed = !editor_bounds_applied ||
+        applied_editor_bounds.right - applied_editor_bounds.left != width ||
+        applied_editor_bounds.bottom - applied_editor_bounds.top != height;
+    if (!editor_bounds_applied || !EqualRect(&next_bounds, &applied_editor_bounds)) {
+      SetWindowPos(editor_host, HWND_TOP, x, y, width, height, SWP_NOACTIVATE);
+      applied_editor_bounds = next_bounds;
+      editor_bounds_applied = true;
+    }
+    // Opacity fades and mirror captures call this method frequently. Reapplying
+    // the same Bounds/ZoomFactor on each call makes Chromium relayout/repaint
+    // Monaco while the capture pipeline is trying to present its current frame.
+    if (size_changed) {
+      const RECT area{0, 0, width, height};
+      controller->put_Bounds(area);
+    }
+    if (applied_editor_scale != ui_scale &&
+        SUCCEEDED(controller->put_ZoomFactor(ui_scale))) {
+      applied_editor_scale = ui_scale;
+    }
     // Preserve real Monaco focus/input in mirror mode; only its native pixels
     // become transparent while Flutter presents alpha-correct WebView captures.
-    SetLayeredWindowAttributes(editor_host, 0, static_cast<BYTE>(std::round((mirror ? .004 : opacity) * 255)), LWA_ALPHA);
-    controller->put_IsVisible(visible ? TRUE : FALSE);
-    ShowWindow(editor_host, visible ? SW_SHOWNA : SW_HIDE);
+    const BYTE alpha = static_cast<BYTE>(std::round((mirror ? .004 : opacity) * 255));
+    if (applied_editor_alpha != alpha &&
+        SetLayeredWindowAttributes(editor_host, 0, alpha, LWA_ALPHA)) {
+      applied_editor_alpha = alpha;
+    }
+    if (applied_editor_visibility != static_cast<int>(visible)) {
+      controller->put_IsVisible(visible ? TRUE : FALSE);
+      ShowWindow(editor_host, visible ? SW_SHOWNA : SW_HIDE);
+      applied_editor_visibility = visible;
+    }
+    if (!reduced_motion_applied) {
+      if (SUCCEEDED(webview->ExecuteScript(reduced_motion
+          ? L"document.documentElement.classList.add('orion-reduced-motion');void 0;"
+          : L"document.documentElement.classList.remove('orion-reduced-motion');void 0;", nullptr))) {
+        reduced_motion_applied = true;
+      }
+    }
     RECT client{}; GetClientRect(root, &client);
     std::string script = "window.orionSetBackdropGeometry && window.orionSetBackdropGeometry({x:" +
       std::to_string(bounds.left / ui_scale) + ",y:" + std::to_string(bounds.top / ui_scale) +
@@ -276,6 +318,7 @@ class OrionNative : public flutter::Plugin {
         if (state_->follow_resize) state_->CenterStartup();
       }
       if (window == state_->root && (message == WM_WINDOWPOSCHANGED || message == WM_SHOWWINDOW)) {
+        if (state_->controller) state_->controller->NotifyParentWindowPositionChanged();
         glass_.Resize();
       }
       if (window == state_->root &&
@@ -352,7 +395,9 @@ class OrionNative : public flutter::Plugin {
                 std::string text = Utf8(message); CoTaskMemFree(message);
                 if (text.size() <= 8 * 1024 * 1024) {
                   if (text.find("\"type\":\"ready\"") != std::string::npos) {
-                    state->backdrop_geometry.clear(); state->ApplyEditor();
+                    state->backdrop_geometry.clear();
+                    state->reduced_motion_applied = false;
+                    state->ApplyEditor();
                   }
                   state->Emit(text);
                 }
@@ -430,7 +475,10 @@ class OrionNative : public flutter::Plugin {
       state_->bounds = RECT{static_cast<LONG>(std::floor(x)), static_cast<LONG>(std::floor(y)), static_cast<LONG>(std::ceil(x + width)), static_cast<LONG>(std::ceil(y + height))};
       state_->ui_scale = scale; state_->visible = Boolean(Get(args, "visible")) && width > 0 && height > 0;
       const bool reduced = Boolean(Get(args, "reducedMotion"));
-      state_->webview->ExecuteScript(reduced ? L"document.documentElement.classList.add('orion-reduced-motion');void 0;" : L"document.documentElement.classList.remove('orion-reduced-motion');void 0;", nullptr);
+      if (state_->reduced_motion != reduced) {
+        state_->reduced_motion = reduced;
+        state_->reduced_motion_applied = false;
+      }
       state_->ApplyEditor(); result->Success();
     } else if (method == "setVisible") {
       state_->visible = Boolean(call.arguments()); state_->ApplyEditor();

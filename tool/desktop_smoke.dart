@@ -94,6 +94,15 @@ Future<void> main(List<String> arguments) async {
     await File('${report.parent.path}/monaco-smoke.png').writeAsBytes(preview!);
     await step('native-edit-flush-undo-redo-capture');
 
+    await editor.freezeForOverlay(owner: 'smoke-visibility');
+    _require(!editor.visible, 'Editor hidden for overlay');
+    editor.setObscured(false, owner: 'smoke-visibility');
+    editor.refreshLayout();
+    await _until(() => editor.visible, 'Editor restored after overlay');
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await _requireEditorPixels(editor, 'Restored Monaco');
+    await step('native-monaco-overlay-repaint');
+
     await controller.saveDocumentToPath(
       controller.activeDocumentId,
       '${controller.scriptsDirectory.path}/Smoke.lua',
@@ -276,6 +285,7 @@ Future<void> _themeFrame(
     preview != null && preview.length > 256,
     '$name native editor frame',
   );
+  await _requireEditorPixels(editor, name, preview);
   await editor.flush();
   _require(
     controller.activeDocument.content.isNotEmpty,
@@ -319,6 +329,32 @@ Future<void> _themeFrame(
     ).writeAsBytes(png!.buffer.asUint8List());
   } finally {
     image.dispose();
+  }
+}
+
+Future<void> _requireEditorPixels(
+  MonacoEditorService editor,
+  String name, [
+  Uint8List? preview,
+]) async {
+  final bytes = preview ?? await editor.capturePreview();
+  _require(bytes != null && bytes.isNotEmpty, '$name native pixels available');
+  final codec = await ui.instantiateImageCodec(bytes!);
+  ui.Image? image;
+  try {
+    image = (await codec.getNextFrame()).image;
+    final pixels = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    _require(pixels != null, '$name native pixels decoded');
+    final colors = <int>{};
+    for (var offset = 0; offset + 4 <= pixels!.lengthInBytes; offset += 4) {
+      if (pixels.getUint8(offset + 3) == 0) continue;
+      colors.add(pixels.getUint32(offset));
+      if (colors.length > 8) break;
+    }
+    _require(colors.length > 8, '$name Monaco text is not blank');
+  } finally {
+    image?.dispose();
+    codec.dispose();
   }
 }
 

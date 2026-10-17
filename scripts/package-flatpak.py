@@ -7,12 +7,10 @@ graphics drivers, and portals consistently on supported Linux distributions.
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 from pathlib import Path
 import shutil
 import subprocess
-import struct
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_ID = "dev.snooped.orion"
@@ -57,17 +55,13 @@ def main() -> None:
     applications.mkdir(parents=True)
     template = (ROOT / "linux/packaging/dev.snooped.orion.desktop.in").read_text()
     (applications / f"{APP_ID}.desktop").write_text(template.replace("@ORION_EXEC@", "orion"))
-    icons = files / "share/icons/hicolor/scalable/apps"
+    icons = files / "share/icons/hicolor/512x512/apps"
     icons.mkdir(parents=True)
-    # Preserve the supplied pixels. An SVG canvas gives desktop icon renderers
-    # a standard size without introducing another raster asset or dependency.
-    image = (ROOT / "assets/branding/orion-icon.png").read_bytes()
-    width, height = struct.unpack(">II", image[16:24])
-    encoded = base64.b64encode(image).decode("ascii")
-    (icons / f"{APP_ID}.svg").write_text(
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 {width} {height}">'
-        f'<image width="{width}" height="{height}" href="data:image/png;base64,{encoded}"/></svg>\n'
-    )
+    # Flatpak validates exported icons without loading embedded SVG images.
+    # Export a normal sized PNG, using the image loader already supplied by GTK.
+    run("gdk-pixbuf-thumbnailer", "-s", "512",
+        str(ROOT / "assets/branding/orion-icon.png"),
+        str(icons / f"{APP_ID}.png"))
     metainfo = files / "share/metainfo"
     metainfo.mkdir(parents=True)
     shutil.copy2(ROOT / "linux/packaging/dev.snooped.orion.metainfo.xml", metainfo)

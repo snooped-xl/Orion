@@ -511,6 +511,28 @@ bool same_preview_pixels(cairo_surface_t* left, cairo_surface_t* right) {
   return true;
 }
 
+// WebKit can return a clear snapshot while its backing store is being rebuilt
+// after a resize or remap. Monaco still paints a gutter for an empty document;
+// a completely transparent frame must not replace the last painted text.
+bool preview_has_content(cairo_surface_t* surface) {
+  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) return false;
+  const auto format = cairo_image_surface_get_format(surface);
+  if (format == CAIRO_FORMAT_RGB24) return true;
+  if (format != CAIRO_FORMAT_ARGB32) return false;
+  cairo_surface_flush(surface);
+  const int width = cairo_image_surface_get_width(surface);
+  const int height = cairo_image_surface_get_height(surface);
+  const int stride = cairo_image_surface_get_stride(surface);
+  const auto* pixels = cairo_image_surface_get_data(surface);
+  for (int y = 0; y < height; ++y) {
+    const auto* row = reinterpret_cast<const uint32_t*>(pixels + y * stride);
+    for (int x = 0; x < width; ++x) {
+      if ((row[x] >> 24) != 0) return true;
+    }
+  }
+  return false;
+}
+
 struct PreviewRequest {
   FlMethodCall* call;
   std::shared_ptr<PreviewState> state;
@@ -518,6 +540,7 @@ struct PreviewRequest {
   int maximum = 0;
   bool raw = false;
   uint64_t previous_frame = 0;
+  bool valid = false;
 
   ~PreviewRequest() {
     if (surface != nullptr) cairo_surface_destroy(surface);
@@ -532,6 +555,11 @@ void encode_preview(GTask* task, gpointer, gpointer data, GCancellable*) {
   auto* request = static_cast<PreviewRequest*>(data);
   auto& cache = *request->state;
   request->surface = bounded_preview(request->surface, request->maximum);
+  request->valid = preview_has_content(request->surface);
+  if (!request->valid) {
+    g_task_return_boolean(task, TRUE);
+    return;
+  }
   if (!same_preview_pixels(cache.previous, request->surface)) {
     cache.png.clear();
     cache.pixels.clear();
@@ -571,6 +599,10 @@ void preview_encoded(GObject*, GAsyncResult* result, gpointer) {
   auto* request = static_cast<PreviewRequest*>(g_task_get_task_data(task));
   g_task_propagate_boolean(task, nullptr);
   request->state->pending = false;
+  if (!request->valid) {
+    respond_success(request->call);
+    return;
+  }
   if (request->raw && request->state->active && !request->state->pixels.empty()) {
     const auto& state = *request->state;
     g_autoptr(FlValue) value = fl_value_new_map();

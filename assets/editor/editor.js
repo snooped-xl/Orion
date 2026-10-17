@@ -9,6 +9,30 @@
   let sharedWindowBackdrop = null, backdropGeometry = null, backdropImage = null;
   let lastCursor = null;
   let studioImages = null;
+  let layoutQueued = false, repaintRequested = false, fontMeasurementRequested = false;
+  function layoutEditor(repaint = false) {
+    repaintRequested = repaintRequested || repaint;
+    if (!editor || typeof editor.layout !== 'function' || layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(() => {
+      layoutQueued = false;
+      const node = document.getElementById('editor');
+      // A native WebView can be unmapped without changing its DOM size. Do
+      // not teach Monaco a zero viewport while hidden; repaint when remapped.
+      if (!node || node.clientWidth <= 0 || node.clientHeight <= 0 || document.hidden) return;
+      if (fontMeasurementRequested) {monaco.editor.remeasureFonts();fontMeasurementRequested = false;}
+      editor.layout({width:node.clientWidth,height:node.clientHeight});
+      if (repaintRequested && typeof editor.render === 'function') editor.render(true);
+      repaintRequested = false;
+      frameInteraction();
+    });
+  }
+  window.orionLayout = () => layoutEditor(true);
+  addEventListener('pageshow', () => layoutEditor(true));
+  addEventListener('focus', () => layoutEditor(true));
+  if (document.addEventListener) document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) layoutEditor(true);
+  });
   const hexColor = color => typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color);
   // Fallback glass paints an opaque window-coordinate substrate. Real
   // compositor glass instead exports clean alpha snapshots to Flutter. Keep
@@ -606,6 +630,7 @@
       if(!editor){pending.push(command);return;}
       switch(command.type || command.command) {
         case 'sync':sync(command);break;
+        case 'layout':layoutEditor(true);break;
         case 'action':void action(command);break;
         case 'flush': {const model=editor.getModel();post({type:'flush',requestId:command.requestId,id:activeId,content:model?model.getValue():''});break;}
       }
@@ -616,7 +641,22 @@
     try {
       const response=await fetch('./roblox-api.json');if(!response.ok)throw new Error('Luau API catalog is unavailable');
       window.orionLuau=OrionLuau.register(monaco,await response.json());
-      await Promise.all([document.fonts.load('14px OrionXMono'),document.fonts.load('bold 14px OrionXMono')]);
+      // Monaco caches character widths at creation. Load its actual default
+      // font as well as preserved profiles before measuring, and keep working
+      // with the fallback font if a bundled font cannot be decoded.
+      if (document.fonts) {
+        let fontTimeout;
+        try {
+          await Promise.race([
+            Promise.allSettled([
+              document.fonts.load('14px "JetBrains Mono"'),
+              document.fonts.load('14px OrionXMono'),
+              document.fonts.load('bold 14px OrionXMono'),
+            ]),
+            new Promise(resolve => {fontTimeout = setTimeout(resolve,1000);}),
+          ]);
+        } finally {clearTimeout(fontTimeout);}
+      }
       editor=monaco.editor.create(document.getElementById('editor'),{
         model:null,theme:'vs-dark',automaticLayout:true,language:'luau',
         fontFamily:"'JetBrains Mono', monospace",fontSize:14,fontLigatures:true,lineHeight:23,
@@ -635,6 +675,10 @@
         accessibilitySupport:'auto',ariaLabel:'Orion Luau script editor',
       });
       window.orionEditor=editor;
+      if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => {
+        fontMeasurementRequested = true;
+        layoutEditor(true);
+      });
       const hintHelp=document.getElementById('zenith-editor-help');
       if(hintHelp&&hintHelp.addEventListener)hintHelp.addEventListener('click',()=>post({type:'shortcut',name:'help'}));
       editor.onDidChangeCursorPosition(event=>postCursor(event.position));
@@ -653,6 +697,7 @@
       updateOptions({});
       document.getElementById('loading').remove();
       for(const command of pending.splice(0))receive(command);
+      layoutEditor(true);
       post({type:'ready'});
     } catch(error) {report(error);}
   });
