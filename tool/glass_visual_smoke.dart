@@ -10,8 +10,9 @@ import 'package:window_manager/window_manager.dart';
 Future<void> main(List<String> arguments) async {
   if (Platform.environment['ORION_WORKSPACE'] == null ||
       Platform.environment['ORION_GLASS_TEST_HELPER'] == null ||
-      Platform.environment['ORION_GLASS_TEST_OUTPUT'] == null)
+      Platform.environment['ORION_GLASS_TEST_OUTPUT'] == null) {
     exit(2);
+  }
   final output = Directory(Platform.environment['ORION_GLASS_TEST_OUTPUT']!);
   await output.create(recursive: true);
   final report = File('${output.path}/report.json');
