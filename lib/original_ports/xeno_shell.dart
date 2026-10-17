@@ -5,6 +5,7 @@ import '../widgets/bridge_client_manager.dart';
 
 import '../models/interface_preset.dart';
 import '../models/companion_window.dart';
+import '../services/file_paths.dart';
 import 'awp_workspace.dart';
 import 'xeno_controls.dart';
 
@@ -416,10 +417,9 @@ class XenoShellState extends AwpWorkspaceState<XenoShell> {
                   children: [
                     Expanded(
                       child: Text(
-                        file.path
-                            .split('/')
-                            .last
-                            .replaceFirst(RegExp(r'\.[^.]*$'), ''),
+                        FilePaths.basename(
+                          file.path,
+                        ).replaceFirst(RegExp(r'\.[^.]*$'), ''),
                         style: xenoType(14, mono: true),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -432,7 +432,7 @@ class XenoShellState extends AwpWorkspaceState<XenoShell> {
                           ? () async {
                               c.executeSource(
                                 await file.readAsString(),
-                                name: file.path.split('/').last,
+                                name: FilePaths.basename(file.path),
                               );
                             }
                           : null,

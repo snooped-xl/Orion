@@ -8,6 +8,7 @@ export GSETTINGS_SCHEMA_DIR="$orion_appdir/usr/share/glib-2.0/schemas"
 export GIO_EXTRA_MODULES="$orion_appdir/usr/lib/gio/modules"
 export GTK_PATH="$orion_appdir/usr/lib/gtk-3.0"
 export GDK_PIXBUF_MODULEDIR="$orion_appdir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
+export GDK_PIXBUF_MODULE_FILE="$orion_appdir/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 export WEBKIT_INJECTED_BUNDLE_PATH="$orion_appdir/usr/lib/webkit2gtk-4.1/injected-bundle"
 # AppImage's mounted usr tree remains the child process working directory.
 # Relocated WebKit helper paths use /proc/self/cwd/lib/webkit2gtk-4.1.

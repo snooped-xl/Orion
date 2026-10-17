@@ -60,11 +60,11 @@ Fragment vertex(uint id : SV_VertexID, uint instance : SV_InstanceID) {
   output.position = float4(output.pixel.x / resolution.x * 2 - 1,1 - output.pixel.y / resolution.y * 2,0,1);
   return output;
 }
-float4 scene(float2 point) {
-  float4 bg = frameImage.Sample(imageSampler,saturate(point/resolution));
+float4 scene(float2 p) {
+  float4 bg = frameImage.Sample(imageSampler,saturate(p/resolution));
   float3 rgb = bg.rgb * bg.a;
-  if (hasEditor && all(point >= editorBounds.xy) && all(point < editorBounds.xy+editorBounds.zw)) {
-    float4 ed = editorImage.Sample(imageSampler,saturate((point-editorBounds.xy)/editorBounds.zw));
+  if (hasEditor && all(p >= editorBounds.xy) && all(p < editorBounds.xy+editorBounds.zw)) {
+    float4 ed = editorImage.Sample(imageSampler,saturate((p-editorBounds.xy)/editorBounds.zw));
     rgb = ed.rgb*ed.a+rgb*(1-ed.a); bg.a = ed.a+bg.a*(1-ed.a);
   }
   return float4(bg.a>.0001 ? rgb/bg.a : float3(0,0,0),bg.a);
@@ -280,8 +280,9 @@ bool WindowsRain::Configure(const Map& args,std::string* error) {
   const double opacity=std::clamp(Number(Get(args,"opacity"),1),0.0,1.0);
   // Window alpha is independent of rain: every transparent theme needs this.
   LONG_PTR style=GetWindowLongPtr(rain.owner,GWL_EXSTYLE);
-  SetWindowLongPtr(rain.owner,GWL_EXSTYLE,style|WS_EX_LAYERED);
-  SetLayeredWindowAttributes(rain.owner,0,static_cast<BYTE>(std::round(opacity*255)),LWA_ALPHA);
+  const bool layered=opacity<1 || (style&WS_EX_TRANSPARENT)!=0;
+  SetWindowLongPtr(rain.owner,GWL_EXSTYLE,layered?style|WS_EX_LAYERED:style&~WS_EX_LAYERED);
+  if (layered) SetLayeredWindowAttributes(rain.owner,0,static_cast<BYTE>(std::round(opacity*255)),LWA_ALPHA);
   rain.radius=static_cast<float>(std::clamp(Number(Get(args,"cornerRadius"),16),0.0,64.0));
   if (enabled && !rain.Initialize(error)) { rain.enabled=false; if (rain.overlay) ShowWindow(rain.overlay,SW_HIDE); return false; }
   rain.enabled=enabled;

@@ -17,6 +17,7 @@ VIProductVersion "1.0.0.1"
 VIAddVersionKey /LANG=1033 "ProductName" "Orion"
 VIAddVersionKey /LANG=1033 "FileDescription" "Orion portable workspace"
 VIAddVersionKey /LANG=1033 "FileVersion" "1.0.0"
+VIAddVersionKey /LANG=1033 "LegalCopyright" "Orion contributors"
 Var Arguments
 Var Lock
 Var Result

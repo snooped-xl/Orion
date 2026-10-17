@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../models/interface_preset.dart';
 import '../models/orion_models.dart';
 import '../services/native_window_service.dart';
+import '../services/file_paths.dart';
 import 'awp_controls.dart';
 import 'awp_workspace.dart';
 
@@ -213,7 +214,7 @@ class AwpShellState extends AwpWorkspaceState<AwpShell> {
 
   String _tabTitle(EditorDocument document) {
     if (document.filePath != null &&
-        document.name == document.filePath!.split('/').last) {
+        document.name == FilePaths.basename(document.filePath!)) {
       return document.name.replaceFirst(RegExp(r'\.[^.]*$'), '');
     }
     return document.name;
@@ -998,11 +999,9 @@ class AwpShellState extends AwpWorkspaceState<AwpShell> {
   Widget _scriptList() {
     final files = localFiles
         .where(
-          (f) => f.path
-              .split('/')
-              .last
-              .toLowerCase()
-              .contains(_search.text.toLowerCase()),
+          (f) => FilePaths.basename(
+            f.path,
+          ).toLowerCase().contains(_search.text.toLowerCase()),
         )
         .toList();
     if (files.isEmpty) {
@@ -1036,7 +1035,7 @@ class AwpShellState extends AwpWorkspaceState<AwpShell> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    f.path.split('/').last,
+                    FilePaths.basename(f.path),
                     overflow: TextOverflow.ellipsis,
                     style: awpType(13, color: awpMuted),
                   ),

@@ -101,7 +101,7 @@ std::unordered_map<std::string, HWND> registered_windows;
 struct State {
   bool alive = true;
   uint64_t generation = 0;
-  HWND root = nullptr, flutter = nullptr, editor_host = nullptr;
+  HWND root = nullptr, flutter = nullptr, editor_host = nullptr, modal_owner = nullptr;
   flutter::FlutterViewController* view_controller = nullptr;
   ComPtr<ICoreWebView2Environment> environment;
   ComPtr<ICoreWebView2Controller> controller;
@@ -163,10 +163,22 @@ struct State {
     int width = window.right - window.left, height = window.bottom - window.top;
     int x = info.rcMonitor.left + ((info.rcMonitor.right - info.rcMonitor.left) - width) / 2;
     int y = info.rcMonitor.top + ((info.rcMonitor.bottom - info.rcMonitor.top) - height) / 2;
-    if (width <= info.rcWork.right - info.rcWork.left) x = std::clamp(x, info.rcWork.left, info.rcWork.right - width);
-    if (height <= info.rcWork.bottom - info.rcWork.top) y = std::clamp(y, info.rcWork.top, info.rcWork.bottom - height);
+    if (width <= info.rcWork.right - info.rcWork.left) x = static_cast<int>(std::clamp<LONG>(x, info.rcWork.left, info.rcWork.right - width));
+    if (height <= info.rcWork.bottom - info.rcWork.top) y = static_cast<int>(std::clamp<LONG>(y, info.rcWork.top, info.rcWork.bottom - height));
     centering = true;
     SetWindowPos(root, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    // Moving to another DPI output may synchronously apply WM_DPICHANGED's
+    // suggested size. Center that final physical size, not the old monitor's.
+    RECT settled{}; GetWindowRect(root, &settled);
+    const int settled_width = settled.right - settled.left;
+    const int settled_height = settled.bottom - settled.top;
+    if (settled_width != width || settled_height != height) {
+      x = info.rcMonitor.left + ((info.rcMonitor.right-info.rcMonitor.left)-settled_width)/2;
+      y = info.rcMonitor.top + ((info.rcMonitor.bottom-info.rcMonitor.top)-settled_height)/2;
+      if (settled_width <= info.rcWork.right-info.rcWork.left) x = static_cast<int>(std::clamp<LONG>(x,info.rcWork.left,info.rcWork.right-settled_width));
+      if (settled_height <= info.rcWork.bottom-info.rcWork.top) y = static_cast<int>(std::clamp<LONG>(y,info.rcWork.top,info.rcWork.bottom-settled_height));
+      SetWindowPos(root,nullptr,x,y,0,0,SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE);
+    }
     centering = false;
   }
   void Shape() {
@@ -231,6 +243,10 @@ class OrionNative : public flutter::Plugin {
     registrar_->UnregisterTopLevelWindowProcDelegate(delegate_id_);
     if (!state_->id.empty()) registered_windows.erase(state_->id);
     state_->alive = false;
+    if (state_->modal_owner && IsWindow(state_->modal_owner)) {
+      EnableWindow(state_->modal_owner, TRUE);
+      if (GetForegroundWindow() == state_->root) SetForegroundWindow(state_->modal_owner);
+    }
     state_->ClearEditor();
   }
  private:
@@ -276,8 +292,8 @@ class OrionNative : public flutter::Plugin {
             ComPtr<ICoreWebView2Settings3> settings3;
             if (SUCCEEDED(settings.As(&settings3))) settings3->put_AreBrowserAcceleratorKeysEnabled(FALSE);
             EventRegistrationToken token{};
-            state->webview->add_WebMessageReceived(Callback<ICoreWebView2WebMessageReceivedEventHandler>([weak](ICoreWebView2*, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
-              auto state = weak.lock(); if (!state || !state->alive) return S_OK;
+            state->webview->add_WebMessageReceived(Callback<ICoreWebView2WebMessageReceivedEventHandler>([weak, generation](ICoreWebView2*, ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+              auto state = weak.lock(); if (!state || !state->alive || state->generation != generation) return S_OK;
               LPWSTR source = nullptr, message = nullptr; args->get_Source(&source);
               const bool allowed = Utf8(source).rfind(state->origin + "/editor/", 0) == 0; CoTaskMemFree(source);
               if (allowed && SUCCEEDED(args->TryGetWebMessageAsString(&message))) {
@@ -286,17 +302,17 @@ class OrionNative : public flutter::Plugin {
               }
               return S_OK;
             }).Get(), &token);
-            state->webview->add_NavigationStarting(Callback<ICoreWebView2NavigationStartingEventHandler>([weak](ICoreWebView2*, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
+            state->webview->add_NavigationStarting(Callback<ICoreWebView2NavigationStartingEventHandler>([weak, generation](ICoreWebView2*, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
               auto state = weak.lock(); LPWSTR uri = nullptr; args->get_Uri(&uri);
-              bool allowed = state && Utf8(uri) == state->origin + "/editor/index.html"; CoTaskMemFree(uri);
+              bool allowed = state && state->alive && state->generation == generation && Utf8(uri) == state->origin + "/editor/index.html"; CoTaskMemFree(uri);
               args->put_Cancel(allowed ? FALSE : TRUE); return S_OK;
             }).Get(), &token);
             state->webview->add_NewWindowRequested(Callback<ICoreWebView2NewWindowRequestedEventHandler>([](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT { args->put_Handled(TRUE); return S_OK; }).Get(), &token);
             state->webview->add_PermissionRequested(Callback<ICoreWebView2PermissionRequestedEventHandler>([](ICoreWebView2*, ICoreWebView2PermissionRequestedEventArgs* args) -> HRESULT { args->put_State(COREWEBVIEW2_PERMISSION_STATE_DENY); return S_OK; }).Get(), &token);
-            state->webview->add_ProcessFailed(Callback<ICoreWebView2ProcessFailedEventHandler>([weak](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs*) -> HRESULT { auto state = weak.lock(); if (state) state->Error("The editor renderer stopped. Reopen Orion to restart it."); return S_OK; }).Get(), &token);
+            state->webview->add_ProcessFailed(Callback<ICoreWebView2ProcessFailedEventHandler>([weak, generation](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs*) -> HRESULT { auto state = weak.lock(); if (state && state->alive && state->generation == generation) state->Error("The editor renderer stopped. Reopen Orion to restart it."); return S_OK; }).Get(), &token);
             state->webview->AddWebResourceRequestedFilter(L"*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL);
-            state->webview->add_WebResourceRequested(Callback<ICoreWebView2WebResourceRequestedEventHandler>([weak](ICoreWebView2*, ICoreWebView2WebResourceRequestedEventArgs* args) -> HRESULT {
-              auto state = weak.lock(); if (!state || !state->alive) return S_OK;
+            state->webview->add_WebResourceRequested(Callback<ICoreWebView2WebResourceRequestedEventHandler>([weak, generation](ICoreWebView2*, ICoreWebView2WebResourceRequestedEventArgs* args) -> HRESULT {
+              auto state = weak.lock(); if (!state || !state->alive || state->generation != generation) return S_OK;
               ComPtr<ICoreWebView2WebResourceRequest> request; args->get_Request(&request); LPWSTR uri = nullptr; request->get_Uri(&uri);
               std::string address = Utf8(uri); CoTaskMemFree(uri);
               if (address.rfind(state->origin + "/editor/", 0) != 0 && address.rfind("data:", 0) != 0 && address.rfind("blob:" + state->origin + "/", 0) != 0) {
@@ -404,10 +420,16 @@ class OrionNative : public flutter::Plugin {
       auto parent = registered_windows.find(String(Get(args, "parentId")));
       if (parent != registered_windows.end() && Boolean(Get(args, "owned"))) {
         SetWindowLongPtr(state_->root, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(parent->second));
+        if (Boolean(Get(args, "modal"))) {
+          state_->modal_owner = parent->second;
+          EnableWindow(state_->modal_owner, FALSE);
+        }
       }
       result->Success();
     } else if (method == "destroyCompanion") {
-      result->Success(); PostMessageW(state_->root, WM_CLOSE, 0, 0);
+      // Dart has already flushed the child and released modal ownership.
+      // Bypass window_manager's WM_CLOSE prevention after acknowledging it.
+      result->Success(); PostMessageW(state_->root, WM_APP + 0x4A2, 0, 0);
     } else if (method == "setCornerRadius") {
       state_->corner_radius = std::clamp(Number(Get(args, "radius"), 16), 0.0, 64.0); state_->Shape(); result->Success();
     } else if (method == "configureDesktopGlass") {
@@ -420,7 +442,9 @@ class OrionNative : public flutter::Plugin {
       DWORD backdrop = enabled ? 3 : 1;  // DWMSBT_TRANSIENTWINDOW / NONE
       HRESULT status = DwmSetWindowAttribute(state_->root, 38, &backdrop, sizeof(backdrop));
       state_->glass = enabled && SUCCEEDED(status);
-      if (state_->glass) { MARGINS margins{-1, -1, -1, -1}; DwmExtendFrameIntoClientArea(state_->root, &margins); }
+      const int inset = state_->glass ? -1 : 0;
+      MARGINS margins{inset, inset, inset, inset};
+      DwmExtendFrameIntoClientArea(state_->root, &margins);
       result->Success(Value(state_->glass ? "{\"ok\":true,\"active\":true,\"mode\":\"dwm-acrylic\"}" : "{\"ok\":true,\"active\":false,\"mode\":\"flutter-glass\",\"reason\":\"windows-backdrop-unavailable\"}"));
     } else result->NotImplemented();
   }
@@ -431,7 +455,7 @@ class OrionNative : public flutter::Plugin {
       MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromWindow(state_->root, MONITOR_DEFAULTTOPRIMARY), &monitor);
       double scale = state_->dpi();
       result->Success(Value(Map{{Value("x"), Value(monitor.rcWork.left / scale)}, {Value("y"), Value(monitor.rcWork.top / scale)},
-        {Value("width"), Value((monitor.rcWork.right - monitor.rcWork.left) / scale)}, {Value("height"), Value((monitor.rcWork.bottom - monitor.rcWork.top) / scale)}, {Value("backend"), Value("windows")}}));
+        {Value("width"), Value((monitor.rcWork.right - monitor.rcWork.left) / scale)}, {Value("height"), Value((monitor.rcWork.bottom - monitor.rcWork.top) / scale)}, {Value("backend"), Value("windows")}, {Value("scale"), Value(scale)}}));
     } else if (method == "configure") {
       const double x = Number(Get(args, "x")), y = Number(Get(args, "y"));
       const double width = Number(Get(args, "width"), 396), height = Number(Get(args, "height"), 120);
@@ -440,8 +464,11 @@ class OrionNative : public flutter::Plugin {
       SetWindowLongPtr(state_->root, GWL_EXSTYLE, (style | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE) & ~WS_EX_APPWINDOW);
       SetWindowLongPtr(state_->root, GWL_STYLE, WS_POPUP | WS_CLIPCHILDREN);
       SetWindowTextW(state_->root, L"Orion Bridge");
-      const double scale = state_->dpi();
+      const double scale = std::clamp(Number(Get(args, "scale"), state_->dpi()), .5, 8.0);
+      // The supplied scale belongs to Orion's monitor, not the worker's
+      // initial primary output. Commit once more after any WM_DPICHANGED.
       SetWindowPos(state_->root, HWND_TOPMOST, static_cast<int>(x * scale), static_cast<int>(y * scale), static_cast<int>(width * scale), static_cast<int>(height * scale), SWP_NOACTIVATE | SWP_FRAMECHANGED);
+      SetWindowPos(state_->root, HWND_TOPMOST, static_cast<int>(x * scale), static_cast<int>(y * scale), static_cast<int>(width * scale), static_cast<int>(height * scale), SWP_NOACTIVATE);
       std::weak_ptr<State> weak = state_;
       state_->view_controller->engine()->SetNextFrameCallback([weak]() {
         auto state = weak.lock(); if (state && state->alive) ShowWindow(state->root, SW_SHOWNOACTIVATE);

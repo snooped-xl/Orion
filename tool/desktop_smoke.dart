@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:orion/main.dart' as launcher;
 import 'package:orion/models/companion_window.dart';
 import 'package:orion/models/interface_preset.dart';
@@ -109,8 +110,13 @@ Future<void> main(List<String> arguments) async {
     for (final preset in InterfacePresetDetails.available) {
       controller.setInterface(preset);
       await Future<void>.delayed(const Duration(milliseconds: 700));
-      await _until(() => _editor()?.ready == true, '${preset.label} editor');
-      _require(_editor()!.error == null, '${preset.label} native editor');
+      // Several historical interfaces intentionally start at a local login or
+      // home view. Their shared native editor remains initialized while hidden.
+      _require(
+        editor.ready && editor.error == null,
+        '${preset.label} native host',
+      );
+      _require(await windowManager.isVisible(), '${preset.label} window');
       steps.add('interface-${preset.name}');
     }
     controller.setInterface(InterfacePreset.orion);
@@ -119,6 +125,18 @@ Future<void> main(List<String> arguments) async {
       await Future<void>.delayed(const Duration(milliseconds: 600));
       steps.add('theme-${preset.id}');
     }
+    await const MethodChannel('orion/rain').invokeMethod<void>('configure', {
+      'enabled': true,
+      'opacity': 1.0,
+      'cornerRadius': 16.0,
+      'reducedMotion': false,
+    });
+    await const MethodChannel('orion/rain').invokeMethod<void>('configure', {
+      'enabled': false,
+      'opacity': 1.0,
+      'cornerRadius': 16.0,
+    });
+    steps.add('native-rain-shader-initialization');
     controller.resetOrionTheme();
     editor = _editor()!;
     await _until(() => editor.ready, 'Restored editor');

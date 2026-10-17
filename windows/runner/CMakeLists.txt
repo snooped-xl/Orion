@@ -30,7 +30,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_PATCH=${FLUTT
 target_compile_definitions(${BINARY_NAME} PRIVATE "FLUTTER_VERSION_BUILD=${FLUTTER_VERSION_BUILD}")
 
 # Disable Windows macros that collide with C++ standard library functions.
-target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
+target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX" "_WIN32_WINNT=0x0A00" "WINVER=0x0A00")
 
 # Add dependency libraries and include directories. Add any application-specific
 # dependencies here.
@@ -65,3 +65,5 @@ install(FILES "${orion_webview2_SOURCE_DIR}/build/native/${ORION_WEBVIEW_ARCH}/W
   DESTINATION "." COMPONENT Runtime)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/../assets/editor/"
   DESTINATION "data/monaco" COMPONENT Runtime)
+install(FILES "${orion_webview2_SOURCE_DIR}/LICENSE.txt" "${orion_webview2_SOURCE_DIR}/NOTICE.txt"
+  DESTINATION "data/licenses/WebView2-SDK" COMPONENT Runtime)

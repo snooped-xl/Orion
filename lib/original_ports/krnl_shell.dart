@@ -13,6 +13,7 @@ import '../models/interface_preset.dart';
 import '../models/orion_models.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/native_window_service.dart';
+import '../services/file_paths.dart';
 import '../state/orion_controller.dart';
 import '../widgets/monaco_editor.dart';
 import 'krnl_controls.dart';
@@ -421,11 +422,9 @@ class KrnlShellState extends State<KrnlShell>
           (a, b) =>
               (a is Directory ? 0 : 1).compareTo(b is Directory ? 0 : 1) != 0
               ? (a is Directory ? 0 : 1).compareTo(b is Directory ? 0 : 1)
-              : a.path
-                    .split('/')
-                    .last
-                    .toLowerCase()
-                    .compareTo(b.path.split('/').last.toLowerCase()),
+              : FilePaths.basename(a.path).toLowerCase().compareTo(
+                  FilePaths.basename(b.path).toLowerCase(),
+                ),
         );
         return [
           for (final entry in entries.take(1000))
@@ -1348,5 +1347,5 @@ class _KrnlFile {
   const _KrnlFile(this.path, this.children);
   final String path;
   final List<_KrnlFile>? children;
-  String get name => path.split(Platform.pathSeparator).last;
+  String get name => FilePaths.basename(path);
 }

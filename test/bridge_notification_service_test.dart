@@ -8,6 +8,9 @@ import 'package:orion/services/bridge_notification_service.dart';
 import 'package:orion/state/orion_controller.dart';
 
 class _Native implements BridgeNotificationNative {
+  _Native({this.backend = 'wayland', this.scale = 1});
+  final String backend;
+  final double scale;
   final List<({String username, Rect bounds})> fallbacks = [];
   final List<Rect> areas = [];
   final List<String> fallbackExecutors = [];
@@ -21,7 +24,8 @@ class _Native implements BridgeNotificationNative {
       areas.isEmpty
           ? const Rect.fromLTWH(1920, 32, 2560, 1408)
           : areas[i.clamp(0, areas.length - 1)],
-      backend: 'wayland',
+      backend: backend,
+      devicePixelRatio: scale,
     );
   }
 
@@ -77,6 +81,52 @@ void main() {
     );
     expect(small.bounds(), const Rect.fromLTWH(12, 12, 216, 120));
   });
+
+  test('Windows target monitor keeps its scale for the separate worker', () {
+    final monitor = BridgeNotificationMonitor.fromJson({
+      'x': -1280,
+      'y': 0,
+      'width': 1280,
+      'height': 720,
+      'backend': 'windows',
+      'scale': 1.5,
+    });
+    expect(monitor.backend, 'windows');
+    expect(monitor.devicePixelRatio, 1.5);
+    expect(monitor.bounds(), const Rect.fromLTWH(-408, 12, 396, 120));
+    expect(
+      BridgeNotificationMonitor.fromJson({
+        'scale': double.nan,
+      }).devicePixelRatio,
+      1,
+    );
+  });
+
+  test(
+    'Windows worker receives target monitor DPI independently of its own',
+    () async {
+      final c = OrionController(persistChanges: false);
+      final process = _Process();
+      Map<String, Object?>? definition;
+      final service = BridgeNotificationService(
+        c,
+        native: _Native(backend: 'windows', scale: 1.5),
+        canLaunchWindow: true,
+        launch: (value) async {
+          definition = value;
+          return process;
+        },
+      );
+      await service.initialize();
+      service.notify(clientId: 'dpi', username: 'Player');
+      await _flush();
+      expect((definition!['bounds'] as Map)['scale'], 1.5);
+      process.completed.complete(0);
+      await service.whenIdle;
+      service.dispose();
+      c.dispose();
+    },
+  );
 
   test('malformed monitor input falls back to finite usable geometry', () {
     final monitor = BridgeNotificationMonitor.fromJson({

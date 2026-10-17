@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:orion/services/companion_controller.dart';
 import 'package:orion/services/workspace_paths.dart';
 import 'package:orion/state/orion_controller.dart';
@@ -289,6 +290,41 @@ void main() {
       child.dispose();
       controller.dispose();
       await controller.flushPersistence();
+    },
+  );
+
+  test(
+    'primary and companion Save As dialogs start in the shared scripts folder',
+    () async {
+      final controller = OrionController(storageDirectory: root);
+      await controller.initialize();
+      final child = CompanionController(
+        initialState: controller.exportWindowState(),
+        sendCommand: (_, _, _) async => {},
+      );
+      final initialDirectories = <Object?>[];
+      const picker = MethodChannel('plugins.flutter.io/file_selector');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(picker, (call) async {
+        if (call.method == 'getSavePath') {
+          initialDirectories.add((call.arguments as Map)['initialDirectory']);
+        }
+        return null;
+      });
+      try {
+        expect(await controller.saveAs(), isFalse);
+        expect(await child.saveAs(), isFalse);
+        expect(initialDirectories, [
+          '${root.path}/scripts',
+          '${root.path}/scripts',
+        ]);
+      } finally {
+        messenger.setMockMethodCallHandler(picker, null);
+        child.dispose();
+        controller.dispose();
+        await controller.flushPersistence();
+      }
     },
   );
 }

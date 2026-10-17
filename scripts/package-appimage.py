@@ -97,6 +97,11 @@ def main() -> None:
     # their recursively resolved shared libraries.
     for name in ["gio/modules", "gdk-pixbuf-2.0/2.10.0/loaders", "gtk-3.0/3.0.0/immodules"]:
         copy_tree(library_dir / name, libraries / name)
+    pixbuf_cache = library_dir / "gdk-pixbuf-2.0/2.10.0/loaders.cache"
+    if pixbuf_cache.exists():
+        # GDK_PIXBUF_MODULEDIR resolves the remaining relative module names.
+        destination = libraries / "gdk-pixbuf-2.0/2.10.0/loaders.cache"
+        destination.write_text(pixbuf_cache.read_text().replace(str(pixbuf_cache.parent / "loaders") + "/", ""))
     schema = Path("/usr/share/glib-2.0/schemas/gschemas.compiled")
     if schema.exists():
         (usr / "share/glib-2.0/schemas").mkdir(parents=True)

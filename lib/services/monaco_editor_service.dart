@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'file_paths.dart';
+
 /// Serves the bundled editor and workers on one offline, loopback origin.
 class EditorAssetServer {
   EditorAssetServer({Directory? directory})
@@ -64,7 +66,7 @@ class EditorAssetServer {
       } else {
         final root = await directory.resolveSymbolicLinks();
         final target = await file.resolveSymbolicLinks();
-        if (!target.startsWith('$root${Platform.pathSeparator}')) {
+        if (!FilePaths.containsResolvedFile(root, target)) {
           response.statusCode = HttpStatus.notFound;
         } else {
           final extension = segments.last.split('.').last;

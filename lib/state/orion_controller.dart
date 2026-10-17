@@ -19,6 +19,7 @@ import '../services/script_hub_service.dart';
 import '../services/script_library_service.dart';
 import '../services/desktop_launcher.dart';
 import '../services/workspace_paths.dart';
+import '../services/file_paths.dart';
 import '../synapse_v3/synapse_v3_preferences.dart';
 
 /// Shared workspace state and the application-owned, local Orion Bridge.
@@ -629,7 +630,7 @@ class OrionController extends ChangeNotifier {
   Future<EditorDocument?> openFileAtPath(String path) async {
     try {
       final existingIndex = _documents.indexWhere(
-        (doc) => doc.filePath == path,
+        (doc) => doc.filePath != null && FilePaths.same(doc.filePath!, path),
       );
       if (existingIndex >= 0) {
         selectDocument(_documents[existingIndex].id);
@@ -714,7 +715,7 @@ class OrionController extends ChangeNotifier {
     try {
       final location = await getSaveLocation(
         suggestedName: document.name,
-        initialDirectory: _scriptLibrary?.directory.path,
+        initialDirectory: scriptsDirectory.path,
         acceptedTypeGroups: const [
           XTypeGroup(
             label: 'Luau, Lua and text files',
@@ -1414,7 +1415,9 @@ class OrionController extends ChangeNotifier {
       _documents[index] = latest.copyWith(
         // Saving an existing file keeps its chosen workspace tab name. A new
         // destination still takes the filename selected in Save as.
-        name: latest.filePath == path ? latest.name : _fileName(path),
+        name: latest.filePath != null && FilePaths.same(latest.filePath!, path)
+            ? latest.name
+            : _fileName(path),
         savedContent: savedContent,
         filePath: path,
       );
@@ -1485,8 +1488,7 @@ class OrionController extends ChangeNotifier {
     return name;
   }
 
-  static String _fileName(String path) =>
-      path.replaceAll('\\', '/').split('/').last;
+  static String _fileName(String path) => FilePaths.basename(path);
 
   void _changed({bool persist = true}) {
     if (persist) _scheduleSave();

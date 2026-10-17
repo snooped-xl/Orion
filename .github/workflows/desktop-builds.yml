@@ -3,6 +3,9 @@ name: Desktop test builds
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - README.md
+      - docs/**
   pull_request:
   workflow_dispatch:
 

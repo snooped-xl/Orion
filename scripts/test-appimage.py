@@ -17,6 +17,12 @@ with tempfile.TemporaryDirectory(prefix="orion-appimage-smoke-") as temporary:
     assert (appdir / "usr/lib/webkit2gtk-4.1/WebKitWebProcess").is_file()
     assert (appdir / "usr/data/monaco/index.html").is_file()
     workspace = directory / "workspace"
+    workspace.mkdir()
+    (workspace / "orion-workspace.json").write_text(json.dumps({
+        "version": 2, "introCompleted": True, "reducedMotion": True,
+        "documents": [{"id": "package-smoke", "name": "untitled.lua", "content": "print(\"package smoke\")", "savedContent": "", "filePath": None}],
+        "activeDocumentId": "package-smoke", "selectedInterface": "orion",
+    }))
     env = os.environ | {"ORION_WORKSPACE": str(workspace), "XDG_CONFIG_HOME": str(directory / "config"), "XDG_CACHE_HOME": str(directory / "cache"), "XDG_DATA_HOME": str(directory / "data")}
     with (directory / "app.log").open("w+") as log:
         process = subprocess.Popen([str(appdir / "AppRun")], env=env, stdout=log, stderr=log, start_new_session=True)
@@ -34,7 +40,28 @@ with tempfile.TemporaryDirectory(prefix="orion-appimage-smoke-") as temporary:
             if not bridge.is_file():
                 log.seek(0)
                 raise RuntimeError(f"AppImage did not provision its workspace:\n{log.read()}")
-            print(json.dumps({"success": True, "appImageLaunched": True, "workspaceProvisioned": True}))
+            descendants = []
+            pending = [process.pid]
+            while pending:
+                pid = pending.pop()
+                try:
+                    children = [int(p) for p in Path(f"/proc/{pid}/task/{pid}/children").read_text().split()]
+                    pending.extend(children)
+                    descendants.extend(children)
+                except (FileNotFoundError, PermissionError, ProcessLookupError):
+                    pass
+            helpers = []
+            for pid in descendants:
+                try:
+                    executable = os.readlink(f"/proc/{pid}/exe")
+                    if executable.startswith(str(appdir)) and executable.endswith("WebKitWebProcess"):
+                        helpers.append(executable)
+                except (FileNotFoundError, PermissionError, ProcessLookupError):
+                    pass
+            if not helpers:
+                log.seek(0)
+                raise RuntimeError(f"AppImage did not launch its bundled WebKit editor process:\n{log.read()}")
+            print(json.dumps({"success": True, "appImageLaunched": True, "workspaceProvisioned": True, "bundledWebKitEditorRunning": True}))
         finally:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGTERM)

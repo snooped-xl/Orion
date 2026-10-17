@@ -10,6 +10,7 @@ import '../models/interface_preset.dart';
 import '../models/orion_models.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/native_window_service.dart';
+import '../services/file_paths.dart';
 import '../state/orion_controller.dart';
 import '../widgets/monaco_editor.dart';
 import 'zenith_ui.dart';
@@ -197,8 +198,14 @@ class ZenithShellState extends State<ZenithShell>
 
     try {
       final scriptFiles = await files(scriptsDirectory);
+      final custom = preferences['scriptsDirectory'];
+      final customAutoexec = Directory(
+        '${scriptsDirectory.parent.path}/AutoExec',
+      );
       final autoFiles = await files(
-        Directory('${scriptsDirectory.parent.path}/AutoExec'),
+        custom is String && custom.isNotEmpty && await customAutoexec.exists()
+            ? customAutoexec
+            : c.autoexecuteDirectory,
       );
       if (mounted) {
         setState(() {
@@ -261,6 +268,7 @@ class ZenithShellState extends State<ZenithShell>
             ? await widget.pickSavePath!(suggested)
             : (await files.getSaveLocation(
                 suggestedName: suggested,
+                initialDirectory: scriptsDirectory.path,
                 confirmButtonText: 'Save script',
                 acceptedTypeGroups: const [
                   files.XTypeGroup(label: 'Lua script', extensions: ['lua']),
@@ -1407,7 +1415,7 @@ class ZenithShellState extends State<ZenithShell>
       Padding(
         padding: const EdgeInsets.only(left: 16),
         child: ZenithButton(
-          file.path.split('/').last.replaceFirst(RegExp(r'\.[^.]+$'), ''),
+          FilePaths.basename(file.path).replaceFirst(RegExp(r'\.[^.]+$'), ''),
           icon: 'File',
           iconStroke: true,
           alignment: Alignment.centerLeft,

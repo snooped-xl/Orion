@@ -13,9 +13,14 @@ import '../models/bridge_notification_content.dart';
 /// monitor for Orion's actual native surface, rather than the pointer monitor.
 @immutable
 class BridgeNotificationMonitor {
-  const BridgeNotificationMonitor(this.workArea, {this.backend = 'x11'});
+  const BridgeNotificationMonitor(
+    this.workArea, {
+    this.backend = 'x11',
+    this.devicePixelRatio = 1,
+  });
   final Rect workArea;
   final String backend;
+  final double devicePixelRatio;
 
   factory BridgeNotificationMonitor.fromJson(Map<Object?, Object?> value) {
     double number(String key, double fallback) {
@@ -30,7 +35,12 @@ class BridgeNotificationMonitor {
         number('width', 1920).clamp(240, 16384),
         number('height', 1080).clamp(160, 16384),
       ),
-      backend: value['backend'] == 'wayland' ? 'wayland' : 'x11',
+      backend: switch (value['backend']) {
+        'windows' => 'windows',
+        'wayland' => 'wayland',
+        _ => 'x11',
+      },
+      devicePixelRatio: number('scale', 1).clamp(.5, 8).toDouble(),
     );
   }
 
@@ -112,7 +122,7 @@ Future<BridgeNotificationProcess> _launchNotification(
     // GNOME Wayland does not let ordinary application windows request global
     // positions. An isolated XWayland surface can use the host monitor workarea
     // without changing Orion's backend or requiring a shell extension.
-    environment: const {'GDK_BACKEND': 'x11'},
+    environment: Platform.isLinux ? const {'GDK_BACKEND': 'x11'} : null,
   ),
 );
 
@@ -220,6 +230,8 @@ class BridgeNotificationService {
                 'y': bounds.top,
                 'width': bounds.width,
                 'height': bounds.height,
+                if (monitor.backend == 'windows')
+                  'scale': monitor.devicePixelRatio,
               },
               'theme': controller.orionTheme.toJson(),
               'brightness': controller.themeMode.name,

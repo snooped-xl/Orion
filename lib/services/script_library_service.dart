@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../models/local_script.dart';
+import 'file_paths.dart';
 
 /// Owns the user's filesystem library, independently of open editor tabs.
 /// Linux inotify is not recursive, so each visible directory has its own watch.
@@ -441,13 +442,17 @@ class ScriptLibraryService extends ChangeNotifier {
         path.startsWith('/') ||
         path.contains('\\') ||
         RegExp(r'^[a-zA-Z]:|[\x00-\x1f\x7f]').hasMatch(path) ||
+        (Platform.isWindows &&
+            path
+                .split('/')
+                .any((part) => !FilePaths.validWindowsComponent(part))) ||
         path
             .split('/')
             .any((part) => part.trim().isEmpty || part.startsWith('.'))) {
       throw ArgumentError.value(
         path,
         'relativePath',
-        'Use a visible relative path without traversal',
+        'Use a visible relative path with valid filenames and without traversal',
       );
     }
     return path;

@@ -1031,10 +1031,15 @@ double WindowManager::GetOpacity() {
 void WindowManager::SetOpacity(const flutter::EncodableMap& args) {
   opacity_ = std::get<double>(args.at(flutter::EncodableValue("opacity")));
   HWND hWnd = GetMainWindow();
-  long gwlExStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
-  SetWindowLong(hWnd, GWL_EXSTYLE, gwlExStyle | WS_EX_LAYERED);
-  SetLayeredWindowAttributes(hWnd, 0, static_cast<int8_t>(255 * opacity_),
-                             0x02);
+  LONG_PTR style = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+  // At full opacity ordinary DWM composition preserves the system backdrop.
+  // Click-through windows still require the layered style at full opacity.
+  const bool layered = opacity_ < 1.0 || (style & WS_EX_TRANSPARENT) != 0;
+  SetWindowLongPtr(hWnd, GWL_EXSTYLE,
+                   layered ? style | WS_EX_LAYERED : style & ~WS_EX_LAYERED);
+  if (layered) {
+    SetLayeredWindowAttributes(hWnd, 0, static_cast<BYTE>(255 * opacity_), LWA_ALPHA);
+  }
 }
 
 void WindowManager::SetBrightness(const flutter::EncodableMap& args) {

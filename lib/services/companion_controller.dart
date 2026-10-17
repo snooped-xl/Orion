@@ -501,6 +501,7 @@ class CompanionController extends OrionController {
     if (document == null) return false;
     final location = await files.getSaveLocation(
       suggestedName: document.name,
+      initialDirectory: scriptsDirectory.path,
       acceptedTypeGroups: const [
         files.XTypeGroup(
           label: 'Luau, Lua and text files',

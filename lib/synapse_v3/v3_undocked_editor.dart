@@ -11,6 +11,7 @@ import '../models/orion_models.dart';
 import '../models/interface_preset.dart';
 import '../models/synapse_studio_theme.dart';
 import '../services/synapse_theme_catalog.dart';
+import '../services/file_paths.dart';
 import '../widgets/synapse_theme_surface.dart';
 import '../services/monaco_editor_service.dart';
 import '../state/orion_controller.dart';
@@ -200,10 +201,9 @@ class V3UndockedEditorState extends State<V3UndockedEditor> {
   }
 
   String _sourceTitle(String path) {
-    final base = path
-        .split('/')
-        .last
-        .replaceFirst(RegExp(r'\.lua$', caseSensitive: false), '');
+    final base = FilePaths.basename(
+      path,
+    ).replaceFirst(RegExp(r'\.lua$', caseSensitive: false), '');
     final title = base
         .split(RegExp('[-_]+'))
         .where((word) => word.isNotEmpty)
@@ -256,6 +256,7 @@ class V3UndockedEditorState extends State<V3UndockedEditor> {
       if (widget.pickSavePath != null) return widget.pickSavePath!(name);
       return (await files.getSaveLocation(
         suggestedName: name,
+        initialDirectory: c.scriptsDirectory.path,
         confirmButtonText: 'Save script',
         acceptedTypeGroups: const [
           files.XTypeGroup(label: 'Lua', extensions: ['lua']),
@@ -285,7 +286,7 @@ class V3UndockedEditorState extends State<V3UndockedEditor> {
       if (path != null && mounted) {
         c.executeSource(
           await File(path).readAsString(),
-          name: path.split('/').last,
+          name: FilePaths.basename(path),
         );
       }
     } else {

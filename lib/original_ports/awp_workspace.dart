@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import '../models/interface_preset.dart';
 import '../services/monaco_editor_service.dart';
 import '../services/desktop_launcher.dart';
+import '../services/file_paths.dart';
 import '../state/orion_controller.dart';
 import '../widgets/monaco_editor.dart';
 import 'awp_controls.dart';
@@ -280,6 +281,7 @@ abstract class AwpWorkspaceState<T extends AwpWorkspaceHost> extends State<T>
       }
       return (await files.getSaveLocation(
         suggestedName: suggested,
+        initialDirectory: scriptsDirectory.path,
         confirmButtonText: 'Save script',
         acceptedTypeGroups: [
           const files.XTypeGroup(label: 'Lua script', extensions: ['lua']),
@@ -347,7 +349,7 @@ abstract class AwpWorkspaceState<T extends AwpWorkspaceHost> extends State<T>
                   (f) =>
                       f is File &&
                       (!excludeHiddenScripts ||
-                          !f.path.split('/').last.startsWith('.')),
+                          !FilePaths.basename(f.path).startsWith('.')),
                 )
                 .cast<File>()
                 .toList()

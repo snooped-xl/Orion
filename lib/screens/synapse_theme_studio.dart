@@ -397,6 +397,7 @@ class SynapseThemeStudioScreenState extends State<SynapseThemeStudioScreen> {
     try {
       final location = await files.getSaveLocation(
         suggestedName: '${name ?? _preset.sourceTag}-theme.json',
+        initialDirectory: '${widget.controller.workspaceDirectory.path}/themes',
         acceptedTypeGroups: [
           const files.XTypeGroup(label: 'Theme JSON', extensions: ['json']),
         ],
