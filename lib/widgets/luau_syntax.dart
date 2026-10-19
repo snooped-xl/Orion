@@ -267,12 +267,28 @@ class LuauSyntaxController extends TextEditingController {
   Color? _foreground;
   String? _tokenized;
   List<LuauToken> _tokens = const [];
-  void _themeLoaded() => notifyListeners();
+  TextSpan? _cachedSpan;
+  String? _cachedSpanTheme;
+  Color? _cachedSpanForeground;
+  TextStyle? _cachedSpanStyle;
+  TextRange? _cachedSpanComposing;
+  void _themeLoaded() {
+    _cachedSpan = null;
+    super.notifyListeners();
+  }
+
+  @override
+  void notifyListeners() {
+    _cachedSpan = null;
+    super.notifyListeners();
+  }
 
   /// Called as the source shell rebuilds, without changing text or selection.
   void useTheme(String themeId, {Color? foreground}) {
+    if (_themeId == themeId && _foreground == foreground) return;
     _themeId = themeId;
     _foreground = foreground;
+    _cachedSpan = null;
   }
 
   @override
@@ -284,10 +300,21 @@ class LuauSyntaxController extends TextEditingController {
     if (_tokenized != text) {
       _tokenized = text;
       _tokens = LuauSyntax.tokenize(text);
+      _cachedSpan = null;
     }
     final composing = withComposing && value.isComposingRangeValid
         ? value.composing
         : TextRange.empty;
+    final resolvedStyle = (style ?? const TextStyle()).copyWith(
+      color: _foreground ?? SynapseSyntaxThemes.foreground(_themeId),
+    );
+    if (_cachedSpan != null &&
+        _cachedSpanTheme == _themeId &&
+        _cachedSpanForeground == _foreground &&
+        _cachedSpanStyle == resolvedStyle &&
+        _cachedSpanComposing == composing) {
+      return _cachedSpan!;
+    }
     final spans = <TextSpan>[];
     for (final token in _tokens) {
       final tokenStyle = token.kind == 'plain'
@@ -320,12 +347,13 @@ class LuauSyntaxController extends TextEditingController {
         );
       }
     }
-    return TextSpan(
-      style: (style ?? const TextStyle()).copyWith(
-        color: _foreground ?? SynapseSyntaxThemes.foreground(_themeId),
-      ),
-      children: spans,
-    );
+    final result = TextSpan(style: resolvedStyle, children: spans);
+    _cachedSpan = result;
+    _cachedSpanTheme = _themeId;
+    _cachedSpanForeground = _foreground;
+    _cachedSpanStyle = resolvedStyle;
+    _cachedSpanComposing = composing;
+    return result;
   }
 
   @override

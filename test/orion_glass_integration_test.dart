@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'package:orion/app.dart';
 import 'package:orion/bridge_notification_app.dart';
 import 'package:orion/models/orion_theme_preferences.dart';
@@ -50,6 +51,22 @@ void main() {
     );
     expect(window.windowOpacity, .63);
     expect(window.rainEnabled, false);
+    final glassScene = tester.widget<OrionGlassScene>(
+      find.byType(OrionGlassScene).first,
+    );
+    expect(glassScene.enabled, isTrue);
+    expect(glassScene.backdrop.runtimeType, OrionGlassBackdrop);
+    expect(find.byType(LiquidGlassLens), findsWidgets);
+    expect(
+      tester
+          .widgetList<LiquidGlassLens>(find.byType(LiquidGlassLens))
+          .every((lens) => lens.honorBackdropAlpha),
+      isTrue,
+    );
+    final mainSheet = tester.widget<OrionGlassSurface>(
+      find.byType(OrionGlassSurface).first,
+    );
+    expect(mainSheet.showRim, isFalse);
     const code = 'local message = "glass"\nprint(message)';
     await tester.enterText(find.byKey(const ValueKey('code-editor')), code);
     await tester.pumpAndSettle();
@@ -67,6 +84,20 @@ void main() {
         isTrue,
       );
       expect(find.byType(OrionGlassSurface), findsWidgets);
+      expect(
+        tester
+            .widgetList<OrionGlassSurface>(find.byType(OrionGlassSurface))
+            .where(
+              (surface) =>
+                  surface.key is ValueKey<String> &&
+                  (surface.key! as ValueKey<String>).value.startsWith(
+                    'workspace-glass-',
+                  ),
+            )
+            .every((surface) => !surface.edgeRefraction && !surface.showRim),
+        isTrue,
+        reason: 'Nested workspace glass must not add another heavy outline.',
+      );
       expect(tester.takeException(), isNull, reason: page);
     }
     expect(c.activeDocument.content, code);
@@ -86,6 +117,7 @@ void main() {
     expect(backdrop.useAuthoredBackground, true);
     expect(backdrop.authoredGradient, colors.backgroundGradient);
     expect(backdrop.authoredGradient!.begin, isNot(Alignment.topLeft));
+    expect(backdrop.backdropOpacity, c.orionTheme.windowOpacity);
     c.setOrionTheme(c.orionTheme.copyWith(gradientEnabled: false));
     await tester.pumpAndSettle();
     backdrop = tester.widget<OrionGlassBackdrop>(

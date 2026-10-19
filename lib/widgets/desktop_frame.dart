@@ -114,10 +114,14 @@ class _DesktopFrameState extends State<DesktopFrame> with WindowListener {
           ? Clip.antiAliasWithSaveLayer
           : Clip.antiAlias,
       decoration: BoxDecoration(borderRadius: BorderRadius.circular(radius)),
-      foregroundDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: widget.borderColor ?? colors.outline(.65)),
-      ),
+      foregroundDecoration: colors.glassEnabled
+          ? null
+          : BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(
+                color: widget.borderColor ?? colors.outline(.65),
+              ),
+            ),
       child: widget.syncNativeCorners
           ? _CurvedResizeArea(
               enabled: !_maximized,

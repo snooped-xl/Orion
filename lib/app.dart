@@ -482,10 +482,13 @@ class _OrionAppState extends State<OrionApp> {
                         context,
                       ).backgroundGradient,
                       useAuthoredBackground: true,
+                      backdropOpacity: controller.orionTheme.windowOpacity,
                     ),
                     child: OrionGlassSurface(
                       radius: 24,
-                      blur: 0,
+                      blur: OrionGlassSurface.defaultBlur,
+                      fullSheetRefraction: true,
+                      showRim: false,
                       tint: Colors.transparent,
                       child: UiScaleViewport(
                         // Historical loaders have exact, small native card dimensions.
@@ -1354,9 +1357,13 @@ class _OrionShellState extends State<OrionShell>
                                   colors,
                                   blend: .4,
                                 ),
-                                border: Border(
-                                  bottom: BorderSide(color: colors.outline(.2)),
-                                ),
+                                border: colors.glassEnabled
+                                    ? null
+                                    : Border(
+                                        bottom: BorderSide(
+                                          color: colors.outline(.2),
+                                        ),
+                                      ),
                               ),
                               child: Row(
                                 children: [

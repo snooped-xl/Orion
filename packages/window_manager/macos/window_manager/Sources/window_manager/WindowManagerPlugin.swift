@@ -11,10 +11,9 @@ public class WindowManagerPlugin: NSObject, FlutterPlugin {
     private var registrar: FlutterPluginRegistrar!;
     private var channel: FlutterMethodChannel!
     
-    private var mainWindow: NSWindow {
-        get {
-            return (self.registrar.view?.window)!;
-        }
+    private var mainWindow: NSWindow? {
+        registrar.view?.window ??
+            (NSApplication.shared.delegate as? FlutterAppDelegate)?.mainFlutterWindow
     }
     
     private var _inited: Bool = false
@@ -26,24 +25,37 @@ public class WindowManagerPlugin: NSObject, FlutterPlugin {
         self.channel = channel
     }
     
-    private func ensureInitialized() {
-        if (!_inited) {
-            windowManager.mainWindow = mainWindow
-            windowManager.onEvent = {
-                (eventName: String) in
-                self._emitEvent(eventName)
-            }
-            _inited = true
+    @discardableResult
+    private func ensureInitialized() -> Bool {
+        if _inited {
+            return true
         }
+        guard let mainWindow = mainWindow else {
+            return false
+        }
+        windowManager.mainWindow = mainWindow
+        windowManager.onEvent = { [weak self] eventName in
+            self?._emitEvent(eventName)
+        }
+        _inited = true
+        return true
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let methodName: String = call.method
         let args: [String: Any] = call.arguments as? [String: Any] ?? [:]
-        
+
+        guard ensureInitialized() else {
+            result(FlutterError(
+                code: "window_unavailable",
+                message: "The Flutter view is not attached to a native window yet.",
+                details: nil
+            ))
+            return
+        }
+
         switch (methodName) {
         case "ensureInitialized":
-            ensureInitialized()
             result(true)
             break
         case "waitUntilReadyToShow":

@@ -106,7 +106,8 @@ class _NativeDesktopGlassViewportState
         oldWidget.supported != widget.supported ||
         (widget.supported &&
             widget.enabled &&
-            oldWidget.cornerRadius != widget.cornerRadius)) {
+            oldWidget.cornerRadius != widget.cornerRadius) ||
+        (widget.enabled && oldWidget.opacity != widget.opacity)) {
       _synchronize();
     }
   }
@@ -154,6 +155,7 @@ class _NativeDesktopGlassViewportState
             .invokeMethod<Object?>('configureDesktopGlass', {
               'enabled': configuration.enabled,
               'cornerRadius': configuration.radius,
+              'opacity': _opacity,
             })
             .timeout(_requestTimeout);
         final decoded = response is String ? jsonDecode(response) : response;
@@ -171,8 +173,9 @@ class _NativeDesktopGlassViewportState
       }
       _inFlight = null;
       if (!_disposed && configuration.revision == _revision) {
-        _setActive(active && _desiredEnabled);
-        if (_desiredEnabled && !active && reason == 'waiting-window') {
+        _setActive(active && _desiredEnabled);            if (_desiredEnabled &&
+                !active &&
+                (reason == 'waiting-window' || reason == 'unavailable')) {
           _retryWhenMapped();
         } else {
           _resetMapRetries();

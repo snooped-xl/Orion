@@ -37,7 +37,12 @@ Dart has flushed documents. Rounded regions also clip native input corners.
 premultiplied-alpha DirectComposition swapchain. This process-local DXGI
 compatibility layer applies to Flutter child windows, allowing their per-pixel
 alpha and smooth corners to reach DWM while keeping the foreground sharp. It
-falls back to ordinary Flutter presentation if composition setup fails.
+falls back to ordinary Flutter presentation if composition setup fails. It also
+patches the pinned Flutter 3.47.7 `flutter_windows.dll` accessibility bridge
+(`AccessibilityBridge::CreateRemoveReparentedNodesUpdate`,
+`accessibility_bridge.cc:229`, offset `0x3c1ca`) to skip `AXNode` entries with a
+null `parent()` instead of dereferencing `nullptr` in release builds when UI
+Automation / MSAA clients are active (`flutter#175041`, `flutter#190903`).
 
 `desktop_backdrop.cpp` obtains live desktop shared visuals through private DWM
 and interop-compositor interfaces. `windows_glass.cpp` samples that visual with

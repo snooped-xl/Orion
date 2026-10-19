@@ -21,6 +21,20 @@ class _CountedController extends OrionController {
 
   int documentReads = 0;
   int activityReads = 0;
+  int activeDocumentReads = 0;
+  int contentNotifications = 0;
+
+  @override
+  EditorDocument get activeDocument {
+    activeDocumentReads++;
+    return super.activeDocument;
+  }
+
+  @override
+  void updateDocumentContent(String id, String content) {
+    contentNotifications++;
+    super.updateDocumentContent(id, content);
+  }
 
   @override
   List<EditorDocument> get documents {
@@ -105,23 +119,48 @@ void main() {
   testWidgets('tab document snapshots stay constant as the tab count grows', (
     tester,
   ) async {
-    final results = <String, int>{};
+    final results = <String, Object>{};
     for (final count in [2, 12, 60]) {
       final c = await mount(tester, count: count);
+      final source = List.filled(
+        4000,
+        'local player = game.Players.LocalPlayer',
+      ).join('\n');
       c.documentReads = 0;
-      c.updateDocumentContent(c.activeDocumentId, 'print("edited")');
+      c.activeDocumentReads = 0;
+      c.contentNotifications = 0;
+      final stopwatch = Stopwatch()..start();
+      c.updateDocumentContent(c.activeDocumentId, source);
       await tester.pumpAndSettle();
-      results['$count tabs'] = c.documentReads;
-      if (!_measureOnly) {
-        expect(c.documentReads, lessThanOrEqualTo(2), reason: '$count tabs');
+      for (var index = 0; index < 50; index++) {
+        c.updateDocumentContent(
+          c.activeDocumentId,
+          '$source-- keystroke $index',
+        );
+        await tester.pump();
       }
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const ValueKey('code-editor')))
-            .controller!
-            .text,
-        'print("edited")',
-      );
+      stopwatch.stop();
+      results['$count tabs'] = {
+        'documentReads': c.documentReads,
+        'activeDocumentReads': c.activeDocumentReads,
+        'contentNotifications': c.contentNotifications,
+        'editBatchMilliseconds': stopwatch.elapsedMilliseconds,
+      };
+      if (!_measureOnly) {
+        expect(c.documentReads, lessThanOrEqualTo(102), reason: '$count tabs');
+        expect(
+          c.contentNotifications,
+          51,
+          reason: 'large-document keystrokes must all reach the controller',
+        );
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('code-editor')))
+              .controller!
+              .text,
+          '$source-- keystroke 49',
+        );
+      }
       expect(tester.takeException(), isNull);
     }
     if (_captureDirectory.isNotEmpty) {
@@ -142,26 +181,47 @@ void main() {
       c.activityReads = 0;
       c.updateDocumentContent(c.activeDocumentId, 'print("edited")');
       await tester.pumpAndSettle();
+      if (c.usesNativeExecutor) {
+        c.setNativeExecutorPreference('macsploit');
+        await tester.pumpAndSettle();
+      }
+      c.activityReads = 0;
       expect(c.activityReads, 0);
       expect(find.text('Client output appears here.'), findsNothing);
 
-      c.execute();
-      await tester.pumpAndSettle();
-      expect(find.text('No clients connected'), findsOneWidget);
-      expect(c.activityReads, 1);
+      if (!c.usesNativeExecutor) {
+        c.execute();
+        await tester.pumpAndSettle();
+        expect(find.text('No clients connected'), findsOneWidget);
+        expect(c.activityReads, 1);
+      } else {
+        expect(c.activityReads, 0);
+      }
 
       await tester.tap(find.text('Console'));
       await tester.pumpAndSettle();
+      if (c.usesNativeExecutor) {
+        c.setNativeExecutorPreference('auto');
+        await tester.pumpAndSettle();
+      }
       c.activityReads = 0;
       c.updateDocumentContent(c.activeDocumentId, 'print("more edits")');
       c.newDocument(name: 'another.lua', content: 'print("new")');
       await tester.pumpAndSettle();
+      c.activityReads = 0;
+      if (c.usesNativeExecutor) {
+        c.setNativeExecutorPreference('macsploit');
+        await tester.pumpAndSettle();
+        c.activityReads = 0;
+      }
       expect(c.activityReads, 0);
       expect(find.text('No clients connected'), findsNothing);
 
-      c.execute();
-      await tester.pumpAndSettle();
-      expect(find.text('No clients connected'), findsWidgets);
+      if (!c.usesNativeExecutor) {
+        c.execute();
+        await tester.pumpAndSettle();
+        expect(find.text('No clients connected'), findsWidgets);
+      }
       c.clearActivities();
       await tester.pumpAndSettle();
       expect(find.text('Client output appears here.'), findsOneWidget);

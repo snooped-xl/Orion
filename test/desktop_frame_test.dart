@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:orion/models/orion_theme_preferences.dart';
 import 'package:orion/theme/orion_theme.dart';
 import 'package:orion/widgets/desktop_frame.dart';
 import 'package:window_manager/window_manager.dart';
@@ -45,9 +46,18 @@ void main() {
     required Widget child,
     GlobalKey<NavigatorState>? navigatorKey,
     bool syncNativeCorners = true,
+    bool glass = false,
   }) => MaterialApp(
     navigatorKey: navigatorKey,
-    theme: orionTheme(Brightness.dark, Colors.blue),
+    theme: orionTheme(
+      Brightness.dark,
+      Colors.blue,
+      preferences: glass
+          ? OrionThemePreferences.builtInPresets
+                .singleWhere((preset) => preset.id == 'blue-glass')
+                .preferences
+          : null,
+    ),
     builder: (_, child) => DesktopFrame(
       enabled: true,
       reducedMotion: true,
@@ -177,6 +187,32 @@ void main() {
     expect(
       calls.where((call) => call.method == 'setCornerRadius'),
       hasLength(1),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Blue Glass has clipped native corners but no drawn outline', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      frame(
+        glass: true,
+        child: const ColoredBox(color: Colors.red),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final frameContainer = tester.widget<AnimatedContainer>(
+      find
+          .descendant(
+            of: find.byType(DesktopFrame),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    expect(frameContainer.foregroundDecoration, isNull);
+    expect(
+      calls.where((call) => call.method == 'setCornerRadius').single.arguments,
+      {'radius': 20.0},
     );
     expect(tester.takeException(), isNull);
   });

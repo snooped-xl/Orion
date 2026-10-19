@@ -79,6 +79,8 @@ class _OrionGlassSceneState extends State<OrionGlassScene> {
                 (widget.backdrop as OrionGlassBackdrop).authoredGradient &&
             (oldWidget.backdrop as OrionGlassBackdrop).useAuthoredBackground ==
                 (widget.backdrop as OrionGlassBackdrop).useAuthoredBackground &&
+            (oldWidget.backdrop as OrionGlassBackdrop).backdropOpacity ==
+                (widget.backdrop as OrionGlassBackdrop).backdropOpacity &&
             (oldWidget.backdrop as OrionGlassBackdrop).child ==
                 (widget.backdrop as OrionGlassBackdrop).child);
     if (!sameBackdrop ||
@@ -180,6 +182,7 @@ class _OrionGlassSceneState extends State<OrionGlassScene> {
             : LiquidGlassView(
                 controller: _capture,
                 backgroundWidget: widget.backdrop,
+                honorBackdropAlpha: true,
                 useImpellerBackdrop: false,
                 realTimeCapture: false,
                 pixelRatio: widget.pixelRatio.isFinite
@@ -235,8 +238,8 @@ class _GlassLayoutBox extends RenderProxyBox {
   }
 }
 
-/// A refractive, softly lit sheet over the scene's captured optical substrate.
-/// Uniform radii give the upstream renderer its physically matched outline.
+/// A broad refractive sheet over the scene's captured desktop-like substrate.
+/// Its 1.65 IOR, 52px bend band and 2.25px frost match WindowsGlass optics.
 /// Optional custom shapes clip both lens and content; their optics use a
 /// conservative rectangular SDF when the corners differ.
 class OrionGlassSurface extends StatefulWidget {
@@ -249,6 +252,9 @@ class OrionGlassSurface extends StatefulWidget {
     this.blur = 0,
     this.interactive = false,
     this.materialOpacity = defaultMaterialOpacity,
+    this.fullSheetRefraction = false,
+    this.edgeRefraction = true,
+    this.showRim = true,
     this.borderRadius,
     this.shape,
   });
@@ -257,7 +263,20 @@ class OrionGlassSurface extends StatefulWidget {
   final Color? tint;
   final bool enabled, interactive;
   static const defaultMaterialOpacity = 1.0;
+  static const defaultBlur = 2.25;
+  static const windowsGlassRefractionIndex = 1.65;
+  static const windowsGlassRefractionWidth = 52.0;
   final double materialOpacity;
+
+  /// Uses the broad, native-window refraction profile from WindowsGlass.
+  final bool fullSheetRefraction;
+
+  /// Bends the backdrop in a narrow bevel around this surface's edge.
+  /// Disable for nested workspace panels that inherit the window's glass.
+  final bool edgeRefraction;
+
+  /// Paints the polished highlight around the surface boundary.
+  final bool showRim;
   final BorderRadiusGeometry? borderRadius;
   final ShapeBorder? shape;
 
@@ -377,19 +396,27 @@ class _OrionGlassSurfaceState extends State<OrionGlassSurface> {
               curve: Curves.easeOutCubic,
               builder: (context, pointer, _) {
                 final tint = widget.tint ?? Colors.transparent;
-                final edgeWidth = math.min(
-                  9.0,
-                  math.max(2.0, opticalRadius * .65),
-                );
+                final edgeWidth = widget.fullSheetRefraction
+                    ? OrionGlassSurface.windowsGlassRefractionWidth
+                    : widget.edgeRefraction
+                    ? math.min(9.0, math.max(2.0, opticalRadius * .65))
+                    : 0.0;
+                final refractionIndex = widget.fullSheetRefraction
+                    ? OrionGlassSurface.windowsGlassRefractionIndex
+                    : widget.edgeRefraction
+                    ? 1.075
+                    : 1.0;
+                final refractionWidth = edgeWidth;
+                const lensMagnification = 1.0;
                 final lightAngle =
                     -135 + (pointer.dx - .5) * 54 + (pointer.dy - .5) * 22;
                 final edge = scope.ready
                     ? LiquidGlassLens(
                         useImpellerBackdrop: false,
-                        // Desktop translucency is applied once to the native
-                        // window. The captured optical substrate is opaque, so
-                        // a refracted pixel replaces its unrefracted source.
-                        honorBackdropAlpha: false,
+                        // Authored glass surfaces are composited over an
+                        // intentionally clear scene so refraction can sample
+                        // the real desktop (or Flutter UI) behind them.
+                        honorBackdropAlpha: true,
                         style: LiquidGlassStyle(
                           shape: LiquidGlassShape.continuousRoundedRectangle(
                             cornerRadius: opticalRadius,
@@ -398,25 +425,24 @@ class _OrionGlassSurfaceState extends State<OrionGlassSurface> {
                           blur: widget.blur.isFinite
                               ? widget.blur.clamp(0, 3)
                               : 0,
-                          refractionIndex: 1.075 + hover * .012,
-                          refractionWidth: edgeWidth,
+                          refractionIndex: refractionIndex + hover * .012,
+                          refractionWidth: refractionWidth,
                           // A clear sheet has no full-surface zoom or color
                           // wash: only its curved bevel bends the scene.
-                          magnification: 1,
+                          magnification: lensMagnification,
                           dispersion: 0,
                           saturation: 1,
-                          specular: LiquidGlassLight.specular(
-                            // Upstream uses a fifth-power depth ramp. A little
-                            // over two pixels gives one visible polished rim
-                            // plus a quiet falloff, rather than a subpixel arc.
-                            thickness: 2.1,
-                            sharpness: .74,
-                            angle: lightAngle,
-                            spread: .56,
-                            intensity: 1.4 + hover * .25,
-                            oppositeIntensity: .16,
-                            color: const Color(0xe6f4f9ff),
-                          ),
+                          specular: widget.showRim
+                              ? LiquidGlassLight.specular(
+                                  thickness: 2.1,
+                                  sharpness: .74,
+                                  angle: lightAngle,
+                                  spread: .56,
+                                  intensity: 1.4 + hover * .25,
+                                  oppositeIntensity: .16,
+                                  color: const Color(0xe6f4f9ff),
+                                )
+                              : null,
                           glow: const LiquidGlassLight.glow(intensity: 0),
                         ),
                         child: const SizedBox.expand(),
@@ -430,9 +456,9 @@ class _OrionGlassSurfaceState extends State<OrionGlassSurface> {
                               color: tint,
                               borderRadius:
                                   corners ?? BorderRadius.circular(radius),
-                              border: Border.all(
-                                color: const Color(0x30ffffff),
-                              ),
+                              border: widget.showRim
+                                  ? Border.all(color: const Color(0x30ffffff))
+                                  : null,
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -453,13 +479,16 @@ class _OrionGlassSurfaceState extends State<OrionGlassSurface> {
                         color: tint,
                       ),
                     ),
-                    ClipPath(
-                      clipper: _GlassEdgeClipper(
-                        radius: opticalRadius,
-                        width: edgeWidth,
+                    if (widget.fullSheetRefraction)
+                      edge
+                    else
+                      ClipPath(
+                        clipper: _GlassEdgeClipper(
+                          radius: opticalRadius,
+                          width: edgeWidth,
+                        ),
+                        child: edge,
                       ),
-                      child: edge,
-                    ),
                   ],
                 );
                 Widget surface = Stack(
@@ -503,10 +532,9 @@ class _OrionGlassSurfaceState extends State<OrionGlassSurface> {
   }
 }
 
-/// Restricts the expensive refractive pass to the physical bevel. The inner
-/// hole also makes the flat center an exact pass-through even when an edge
-/// explicitly requests blur. The lens shader provides the outer continuous
-/// corner mask; this clip only removes the unaffected interior.
+/// Restricts the standard glass treatment to its polished bevel. Windows-style
+/// full-sheet glass deliberately bypasses this inner cutout and bends the scene
+/// across the entire pane.
 class _GlassEdgeClipper extends CustomClipper<Path> {
   const _GlassEdgeClipper({required this.radius, required this.width});
   final double radius, width;
@@ -535,8 +563,8 @@ class _GlassEdgeClipper extends CustomClipper<Path> {
 }
 
 /// Shared by Flutter glass and the native editor's whole-window background.
-/// Optical pixels replace an opaque substrate. Desktop transparency is applied
-/// once to the native window, independently of the lens shader and text.
+/// The authored color film is composited over the platform's blurred desktop
+/// material; its opacity does not fade Flutter foreground labels or controls.
 class OrionGlassBackdrop extends StatelessWidget {
   const OrionGlassBackdrop({
     super.key,
@@ -544,16 +572,20 @@ class OrionGlassBackdrop extends StatelessWidget {
     this.tint,
     this.authoredGradient,
     this.useAuthoredBackground = false,
+    this.backdropOpacity = 1,
   });
   final Widget? child;
   final Color? tint;
   final LinearGradient? authoredGradient;
   final bool useAuthoredBackground;
 
+  /// Fades only the background paint, keeping foreground content crisp.
+  final double backdropOpacity;
+
   static const gradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xff24272d), Color(0xff1b1f25), Color(0xff30343b)],
+    colors: [Color(0xff0057ad), Color(0xff173c5e), Color(0xff49525e)],
     stops: [0, .52, 1],
   );
   static const decoration = BoxDecoration(gradient: gradient);
@@ -605,23 +637,40 @@ class OrionGlassBackdrop extends StatelessWidget {
   static List<RadialGradient> lightsFor(Color? tint) => const [];
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: gradientFor(
-        tint,
-        authoredGradient: authoredGradient,
-        useAuthoredBackground: useAuthoredBackground,
-      ),
-    ),
-    child: Stack(
+  Widget build(BuildContext context) {
+    final opacity = backdropOpacity.isFinite
+        ? backdropOpacity.clamp(0.0, 1.0)
+        : 1.0;
+    // A refractive lens composites a second copy of its captured backdrop over
+    // the scene's already-painted backdrop. Split the requested total alpha
+    // evenly across those two layers: 1 - (1 - layerOpacity)^2 = opacity.
+    final layerOpacity = 1 - math.sqrt(1 - opacity);
+    return Stack(
       fit: StackFit.passthrough,
       children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: layerOpacity,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: gradientFor(
+                  tint,
+                  authoredGradient: authoredGradient,
+                  useAuthoredBackground: useAuthoredBackground,
+                ),
+              ),
+            ),
+          ),
+        ),
         for (final light in lightsFor(tint))
           Positioned.fill(
-            child: DecoratedBox(decoration: BoxDecoration(gradient: light)),
+            child: Opacity(
+              opacity: layerOpacity,
+              child: DecoratedBox(decoration: BoxDecoration(gradient: light)),
+            ),
           ),
-        child ?? const SizedBox.expand(),
+        ?child,
       ],
-    ),
-  );
+    );
+  }
 }

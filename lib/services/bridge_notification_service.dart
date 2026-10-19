@@ -37,6 +37,7 @@ class BridgeNotificationMonitor {
       ),
       backend: switch (value['backend']) {
         'windows' => 'windows',
+        'macos' => 'macos',
         'wayland' => 'wayland',
         _ => 'x11',
       },
@@ -141,6 +142,7 @@ class BridgeNotificationService {
        _canLaunchWindow =
            canLaunchWindow ??
            (Platform.isWindows ||
+               Platform.isMacOS ||
                (Platform.isLinux &&
                    ((Platform.environment['DISPLAY']?.isNotEmpty ?? false) ||
                        (Platform.environment['WAYLAND_DISPLAY']?.isNotEmpty ??

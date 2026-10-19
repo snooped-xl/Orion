@@ -366,6 +366,19 @@ void main() {
         u_magnification
     );
 
+    // WindowsGlass adds a shallow, whole-pane lens independently of its
+    // detailed 52px bevel. Keep this only on Orion's native-profile sheet so
+    // ordinary LiquidGlassLens surfaces retain their edge-only optics.
+    vec2 sheetSamplePx = magPx;
+    if (u_refractionIndex >= 1.6 && u_refractionWidthPx >= 50.0) {
+        vec2 q = clamp((fragPx - lensCenterPx) / max(lensHalfSizePx, vec2(EPS)),
+                       vec2(-1.0), vec2(1.0));
+        float envelope = max(1.0 - q.x * q.x, 0.0) *
+                         max(1.0 - q.y * q.y, 0.0);
+        vec2 sheetDisplacement = -q * (envelope * 34.5 * max(u_shapeAaPx, 1.0));
+        sheetSamplePx += sheetDisplacement;
+    }
+
     // The rim's tint: the lens colour, so the rim lifts from the
     // tinted glass rather than the bare backdrop (a black backdrop under a
     // light tint would otherwise lift to a grey darker than the body).
@@ -374,7 +387,7 @@ void main() {
 #ifdef LIQUID_GLASS_DESKTOP
     // Outside the band: the straight magnified sample, no dispersion. One sample and
     // one border call serve both sides, so each is compiled once.
-    vec2 samplePx = magPx;
+    vec2 samplePx = sheetSamplePx;
     float dispersionShift = 0.0;
     bool drawBase = true;
     if (zoneMask >= 0.5) {
@@ -387,7 +400,7 @@ void main() {
         // Refracted position
         // ===============================
 
-        vec2 refrPx = magPx;
+        vec2 refrPx = sheetSamplePx;
 
         refrPx = computeRefractedPosition(
             magPx, shapeData.normal, refrDistPx,
@@ -429,7 +442,7 @@ void main() {
         // Outside distortion zone
         vec3 preTintCol = vec3(0.0);
         // No dispersion outside the distortion band.
-        vec4 base = finalSample(magPx, shapeMask, 0.0, xformed, preTintCol);
+        vec4 base = finalSample(sheetSamplePx, shapeMask, 0.0, xformed, preTintCol);
 
         vec3 backdropCol = preTintCol;
         vec4 borderPremul = getBorder(
@@ -459,7 +472,7 @@ void main() {
     vec2 refrPx;
 
     refrPx = computeRefractedPosition(
-        magPx, shapeData.normal, refrDistPx,
+        sheetSamplePx, shapeData.normal, refrDistPx,
         u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
     );

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orion/models/bridge_models.dart';
@@ -156,6 +158,296 @@ void main() {
         expect(expected, contains(capability));
       }
       expect((await request('/bridge.lua', method: 'POST')).status, 405);
+    },
+  );
+
+  test(
+    'native executor detection honors executor and port selections',
+    () async {
+      await bridge.close();
+      bridge.dispose();
+      final mac = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final opium = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final listeners = [mac, opium];
+      final subscriptions = listeners
+          .map(
+            (server) => server.listen((peer) {
+              peer.listen((_) {}, onDone: () {}, cancelOnError: true);
+            }),
+          )
+          .toList();
+      final service = OrionBridgeService(
+        macSploitMode: true,
+        macSploitPorts: [mac.port],
+        opiumwarePorts: [opium.port],
+      );
+      addTearDown(() async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+        for (final server in listeners) {
+          await server.close();
+        }
+      });
+
+      expect(await service.detectNativeExecutor(), 'MacSploit');
+      service.setNativeExecutorPreference('opiumware');
+      expect(await service.detectNativeExecutor(), 'Opiumware');
+      service.setNativePortPreference(opium.port);
+      expect(await service.detectNativeExecutor(), 'Opiumware');
+      service.setNativeExecutorPreference('auto');
+      service.setNativePortPreference(mac.port);
+      expect(await service.detectNativeExecutor(), 'MacSploit');
+      service.dispose();
+    },
+  );
+
+  test(
+    'Opiumware sends the compressed protocol payload on the selected port',
+    () async {
+      await bridge.close();
+      bridge.dispose();
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final accepted = <Socket>[];
+      final received = <List<int>>[];
+      final completed = Completer<void>();
+      final subscription = server.listen((peer) {
+        accepted.add(peer);
+        final bytes = BytesBuilder(copy: false);
+        peer.listen(
+          bytes.add,
+          onDone: () {
+            received.add(bytes.takeBytes());
+            if (!completed.isCompleted) completed.complete();
+          },
+          onError: (Object _) {
+            received.add(bytes.takeBytes());
+            if (!completed.isCompleted) completed.complete();
+          },
+          cancelOnError: true,
+        );
+      });
+      bridge = OrionBridgeService(
+        macSploitMode: true,
+        opiumwarePorts: [server.port],
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(() async {
+        for (final peer in accepted) {
+          peer.destroy();
+        }
+        await server.close();
+      });
+      final source = 'print("opium payload")';
+      final receipt = await bridge.executeOpiumware(source, port: server.port);
+      expect(receipt.targetIdentifiers, ['User1']);
+      await completed.future;
+      expect(accepted, hasLength(1));
+      expect(
+        utf8.decode(ZLibCodec().decode(received.single)),
+        'OpiumwareScript $source',
+      );
+    },
+  );
+
+  test(
+    'MacSploit executes once on the first responsive port with the Rust frame format',
+    () async {
+      await bridge.close();
+      bridge.dispose();
+      final first = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final second = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final servers = [first, second]
+        ..sort((left, right) => left.port.compareTo(right.port));
+      final accepted = [<Socket>[], <Socket>[]];
+      final received = [<List<int>>[], <List<int>>[]];
+      final completed = [<Completer<void>>[], <Completer<void>>[]];
+      final subscriptions = <StreamSubscription<Socket>>[];
+      for (var index = 0; index < servers.length; index++) {
+        final serverIndex = index;
+        subscriptions.add(
+          servers[index].listen((peer) {
+            accepted[serverIndex].add(peer);
+            final bytes = BytesBuilder(copy: false);
+            final done = Completer<void>();
+            completed[serverIndex].add(done);
+            peer.listen(
+              bytes.add,
+              onDone: () {
+                received[serverIndex].add(bytes.takeBytes());
+                // Mimic MacSploit closing/resetting its accepted connection
+                // immediately after it receives the complete execute frame.
+                peer.destroy();
+                if (!done.isCompleted) done.complete();
+              },
+              onError: (Object error) {
+                received[serverIndex].add(bytes.takeBytes());
+                if (!done.isCompleted) done.complete();
+              },
+              cancelOnError: true,
+            );
+          }),
+        );
+      }
+      bridge = OrionBridgeService(
+        macSploitMode: true,
+        macSploitPorts: servers.map((server) => server.port),
+      );
+      addTearDown(() async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+        for (final peers in accepted) {
+          for (final peer in peers) {
+            peer.destroy();
+          }
+        }
+        await Future.wait(servers.map((server) => server.close()));
+      });
+
+      final source = 'print("héllo")';
+      final receipt = await bridge.executeMacSploit(source);
+      expect(receipt.targetIdentifiers, ['User1']);
+      for (var attempt = 0; attempt < 50 && accepted.first.isEmpty; attempt++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(accepted.first, hasLength(1));
+      await Future.wait(completed.first.map((done) => done.future));
+      expect(
+        accepted.last,
+        isEmpty,
+      ); // The second responsive instance is unused.
+      expect(received.first, hasLength(1));
+      final frame = Uint8List.fromList(received.first.single);
+      final sourceBytes = utf8.encode(source);
+      expect(frame, hasLength(16 + sourceBytes.length + 1));
+      expect(frame.sublist(0, 8), List<int>.filled(8, 0));
+      expect(
+        ByteData.sublistView(frame).getUint32(8, Endian.little),
+        sourceBytes.length + 1,
+      );
+      expect(utf8.decode(frame.sublist(16, frame.length - 1)), source);
+      expect(frame.last, 0);
+
+      await bridge.close();
+      expect(bridge.listening, isFalse);
+    },
+  );
+
+  test('MacSploit uses the full inclusive 5553–5563 port range', () {
+    final service = OrionBridgeService(macSploitMode: true);
+    expect(service.macSploitPorts, hasLength(11));
+    expect(service.macSploitPorts.first, 5553);
+    expect(service.macSploitPorts.last, 5563);
+    expect(service.macSploitPorts, List.generate(11, (index) => 5553 + index));
+    expect(service.nativeScanInterval, const Duration(seconds: 5));
+    service.dispose();
+  });
+
+  test(
+    'native executor scanner emits a single join event when a port becomes available',
+    () async {
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final accepted = <Socket>[];
+      final subscription = server.listen((peer) {
+        accepted.add(peer);
+        peer.listen((_) {}, onDone: () {}, cancelOnError: true);
+      });
+      final service = OrionBridgeService(
+        macSploitMode: true,
+        macSploitPorts: [server.port],
+        nativeScanInterval: const Duration(milliseconds: 25),
+      );
+      final joins = <BridgeClient>[];
+      final joinSubscription = service.clientConnected.listen(joins.add);
+      addTearDown(joinSubscription.cancel);
+      addTearDown(subscription.cancel);
+      addTearDown(() async {
+        for (final peer in accepted) {
+          peer.destroy();
+        }
+        await server.close();
+      });
+
+      expect(await service.start(), isTrue);
+      for (var attempt = 0; attempt < 20 && joins.isEmpty; attempt++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(joins, hasLength(1));
+      expect(joins.single.executorName, 'MacSploit');
+      expect(joins.single.sessionId, 'macsploit:${server.port}');
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(joins, hasLength(1));
+      await service.close();
+      service.dispose();
+    },
+  );
+
+  test('MacSploit status probe detects an available configured port', () async {
+    final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final accepted = <Socket>[];
+    final subscription = server.listen((peer) {
+      accepted.add(peer);
+      peer.listen((_) {}, onDone: () {}, cancelOnError: true);
+    });
+    final service = OrionBridgeService(
+      macSploitMode: true,
+      macSploitPorts: [server.port],
+    );
+    addTearDown(subscription.cancel);
+    addTearDown(() async {
+      for (final peer in accepted) {
+        peer.destroy();
+      }
+      await server.close();
+    });
+
+    expect(await service.isMacSploitRunning(), isTrue);
+    service.dispose();
+  });
+
+  test(
+    'MacSploit status probe returns false when ports refuse connections',
+    () async {
+      final unavailable = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final port = unavailable.port;
+      await unavailable.close();
+      final service = OrionBridgeService(
+        macSploitMode: true,
+        macSploitPorts: [port],
+      );
+
+      expect(await service.isMacSploitRunning(), isFalse);
+      service.dispose();
+    },
+  );
+
+  test(
+    'MacSploit execution reports no instance if every probe fails',
+    () async {
+      await bridge.close();
+      bridge.dispose();
+      final unavailable = await ServerSocket.bind(
+        InternetAddress.loopbackIPv4,
+        0,
+      );
+      final port = unavailable.port;
+      await unavailable.close();
+      bridge = OrionBridgeService(macSploitMode: true, macSploitPorts: [port]);
+      await expectLater(
+        bridge.executeMacSploit('print("offline")'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('no instance found'),
+          ),
+        ),
+      );
+      expect(bridge.clients, isEmpty);
     },
   );
 

@@ -94,7 +94,12 @@ class MultiWindowManager: NSObject {
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
 
-        notifyWindowsChanged()
+        // Plugin registration can run before the root engine messenger has
+        // started its Dart isolate. Defer this initial event to the next main
+        // run-loop turn so no message targets the bootstrap-only engine window.
+        DispatchQueue.main.async { [weak self] in
+            self?.notifyWindowsChanged()
+        }
     }
 
     func CreateWindow(arguments: [String: Any?]) -> WindowId {
@@ -124,7 +129,9 @@ class MultiWindowManager: NSObject {
         let channel = registerMultiWindowChannel(window: flutterWindow, with: registrar)
         flutterWindow.setChannel(channel)
 
-        notifyWindowsChanged()
+        // The new engine's channel is installed before its Dart isolate can
+        // consume this event; other already-running engines are safe to notify.
+        notifyWindowsChanged(excluding: windowId)
 
         return windowId
     }
@@ -148,8 +155,8 @@ class MultiWindowManager: NSObject {
         }
     }
 
-    private func notifyWindowsChanged() {
-        for (_, window) in windows {
+    private func notifyWindowsChanged(excluding excludedWindowId: WindowId? = nil) {
+        for (windowId, window) in windows where windowId != excludedWindowId {
             window.notifyWindowEvent("onWindowsChanged", data: [:])
         }
     }
