@@ -76,7 +76,11 @@ void main() {
     await tester.pump(const Duration(seconds: 15));
     expect(calls, hasLength(1));
     expect(calls.single.method, 'configureDesktopGlass');
-    expect(calls.single.arguments, {'enabled': false, 'cornerRadius': 20.0});
+    expect(calls.single.arguments, {
+      'enabled': false,
+      'cornerRadius': 20.0,
+      'opacity': .9,
+    });
     expect(find.text('false/false/0.7'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

@@ -111,6 +111,9 @@ class _IntroScreenState extends State<IntroScreen>
       final subtitle = still
           ? 1.0
           : OrionMotion.effects.transform(phase(.2, .44)).clamp(0.0, 1.0);
+      final typeProgress = still
+          ? 1.0
+          : Curves.easeOutCubic.transform(phase(.04, .44));
       final exit = still
           ? 0.0
           : Curves.easeInCubic.transform(phase(2650 / 3000, 1));
@@ -139,10 +142,11 @@ class _IntroScreenState extends State<IntroScreen>
                     opacity: title,
                     child: Transform.translate(
                       offset: Offset(0, 10 * (1 - title)),
-                      child: Text(
+                      child: _typewriterText(
                         widget.showcase
                             ? 'Orion Expressive: Showcase'
                             : 'Orion Expressive',
+                        typeProgress,
                         textAlign: TextAlign.center,
                         style: OrionType.pageTitle.copyWith(
                           fontSize: 32,
@@ -159,8 +163,9 @@ class _IntroScreenState extends State<IntroScreen>
                       offset: Offset(0, 8 * (1 - subtitle)),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 560),
-                        child: Text(
+                        child: _typewriterText(
                           'Orion is back, this time under the Google material 3 expressive design language.',
+                          typeProgress,
                           textAlign: TextAlign.center,
                           style: OrionType.body.copyWith(
                             fontSize: 14,
@@ -179,4 +184,23 @@ class _IntroScreenState extends State<IntroScreen>
       );
     },
   );
+
+  Widget _typewriterText(
+    String text,
+    double progress, {
+    required TextAlign textAlign,
+    required TextStyle style,
+  }) {
+    final codePoints = text.runes.toList(growable: false);
+    final visibleCount = progress >= 1
+        ? codePoints.length
+        : (codePoints.length * progress).floor().clamp(0, codePoints.length);
+    final visible = String.fromCharCodes(codePoints.take(visibleCount));
+    return Semantics(
+      label: text,
+      child: ExcludeSemantics(
+        child: Text(visible, textAlign: textAlign, style: style),
+      ),
+    );
+  }
 }

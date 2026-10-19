@@ -26,11 +26,17 @@ void main() {
     addTearDown(controller.dispose);
     var completions = 0;
     await _mount(tester, controller, () => completions++);
+    expect(find.bySemanticsLabel('Orion Expressive'), findsNothing);
+    expect(find.bySemanticsLabel(_subtitle), findsNothing);
+    expect(find.text('Orion Expressive'), findsNothing);
+    expect(find.text(_subtitle), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.bySemanticsLabel('Orion Expressive'), findsOneWidget);
+    expect(find.bySemanticsLabel(_subtitle), findsOneWidget);
     expect(find.text('Orion Expressive'), findsOneWidget);
-    expect(find.text(_subtitle), findsOneWidget);
     expect(find.byType(FilledButton), findsNothing);
     expect(find.byType(TextButton), findsNothing);
-    await tester.pump(const Duration(milliseconds: 2999));
+    await tester.pump(const Duration(milliseconds: 1399));
     expect(completions, 0);
     await tester.pump(const Duration(milliseconds: 1));
     expect(completions, 1);
@@ -49,6 +55,8 @@ void main() {
     var completions = 0;
     await _mount(tester, controller, () => completions++, showcase: true);
     await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.bySemanticsLabel('Orion Expressive: Showcase'), findsOneWidget);
+    expect(find.bySemanticsLabel(_subtitle), findsOneWidget);
     expect(find.text('Orion Expressive: Showcase'), findsOneWidget);
     expect(find.text(_subtitle), findsOneWidget);
     final introOpacities = tester.widgetList<Opacity>(
@@ -103,6 +111,28 @@ void main() {
       },
     );
   }
+
+  testWidgets('welcome copy types in and reduced motion reveals it at once', (
+    tester,
+  ) async {
+    final controller = OrionController();
+    addTearDown(controller.dispose);
+    var completions = 0;
+    await _mount(tester, controller, () => completions++);
+    await tester.pump(const Duration(milliseconds: 300));
+    final visibleCopy = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data)
+        .whereType<String>()
+        .toList();
+    expect(visibleCopy, contains('Orion '));
+    expect(visibleCopy, isNot(contains('Orion Expressive')));
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.text('Orion Expressive'), findsOneWidget);
+    expect(find.text(_subtitle), findsOneWidget);
+    expect(completions, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('disposing an intro cancels the automatic callback', (
     tester,

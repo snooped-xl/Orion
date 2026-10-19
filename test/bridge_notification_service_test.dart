@@ -76,6 +76,17 @@ void main() {
     });
     expect(monitor.bounds(), const Rect.fromLTWH(-408, 60, 396, 120));
     expect(monitor.backend, 'wayland');
+    final macosMonitor = BridgeNotificationMonitor.fromJson({
+      'x': 0,
+      'y': 25,
+      'width': 1512,
+      'height': 957,
+      'backend': 'macos',
+      'scale': 2,
+    });
+    expect(macosMonitor.backend, 'macos');
+    expect(macosMonitor.devicePixelRatio, 2);
+    expect(macosMonitor.bounds(), const Rect.fromLTWH(1104, 37, 396, 120));
     final small = const BridgeNotificationMonitor(
       Rect.fromLTWH(0, 0, 240, 160),
     );

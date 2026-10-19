@@ -392,13 +392,16 @@ public class WindowManager: NSObject, NSWindowDelegate {
         
         mainWindow.isOpaque = false
         mainWindow.hasShadow = true
-        
-        let titleBarView: NSView = (mainWindow.standardWindowButton(.closeButton)?.superview)!.superview!
-        titleBarView.isHidden = false
-        
-        mainWindow.standardWindowButton(.closeButton)?.isHidden = !windowButtonVisibility
-        mainWindow.standardWindowButton(.miniaturizeButton)?.isHidden = !windowButtonVisibility
-        mainWindow.standardWindowButton(.zoomButton)?.isHidden = !windowButtonVisibility
+
+        let hidesNativeControls =
+            mainWindow.identifier?.rawValue == "com.orion.main-window"
+        if let titlebar = mainWindow.standardWindowButton(.closeButton)?.superview?.superview {
+            titlebar.isHidden = hidesNativeControls
+        }
+        let showNativeControls = windowButtonVisibility && !hidesNativeControls
+        mainWindow.standardWindowButton(.closeButton)?.isHidden = !showNativeControls
+        mainWindow.standardWindowButton(.miniaturizeButton)?.isHidden = !showNativeControls
+        mainWindow.standardWindowButton(.zoomButton)?.isHidden = !showNativeControls
     }
     
     public func getTitleBarHeight() -> Int {

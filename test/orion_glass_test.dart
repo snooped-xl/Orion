@@ -109,6 +109,14 @@ void main() {
     for (var c = 0; c < 4; c++) pixels.getUint8((y * width + x) * 4 + c),
   ];
 
+  test('Windows glass optics keep the native radius and frost tuning', () {
+    expect(OrionGlassSurface.windowsGlassRefractionIndex, 1.65);
+    expect(OrionGlassSurface.windowsGlassRefractionWidth, 52);
+    expect(OrionGlassSurface.defaultBlur, 2.25);
+    expect(const OrionGlassSurface(child: SizedBox()).blur, 0);
+    expect(OrionGlassSurface.windowsGlassRefractionIndex, greaterThan(1));
+  });
+
   testWidgets('inactive scene never loads shaders or adds a capture view', (
     tester,
   ) async {
@@ -221,38 +229,69 @@ void main() {
         pixelRatio: 1,
         backdrop: const CustomPaint(painter: _Stripes()),
         child: lens
-            ? const OrionGlassSurface(blur: 3, child: foreground)
+            ? const OrionGlassSurface(
+                blur: 0,
+                fullSheetRefraction: true,
+                child: foreground,
+              )
             : foreground,
       );
+
       await mount(tester, scene(lens: false));
       final baseline = await pixels(tester);
       await mount(tester, scene(lens: true));
       final refracted = await pixels(tester);
+      var centerDisplaced = 0;
       for (var y = 28; y < 132; y++) {
-        for (var x = 36; x < 224; x++) {
-          expect(
-            at(refracted, x, y),
-            at(baseline, x, y),
-            reason: 'The flat center must not add blur, tint or global zoom.',
-          );
-        }
-      }
-      var displaced = 0;
-      for (var y = 36; y < 124; y++) {
-        for (var x = 2; x < 8; x++) {
-          if ((at(refracted, x, y)[0] - at(baseline, x, y)[0]).abs() > 20) {
-            displaced++;
-          }
+        for (var x = 90; x < 170; x++) {
+          if (at(refracted, x, y) != at(baseline, x, y)) centerDisplaced++;
         }
       }
       expect(
+        centerDisplaced,
+        greaterThan(500),
+        reason:
+            'WindowsGlass bends backdrop samples through the pane, including '
+            'its center, while the Flutter foreground stays sharp.',
+      );
+      var displaced = 0;
+      for (var y = 36; y < 124; y++) {
+        for (var x = 0; x < 24; x++) {
+          if (at(refracted, x, y) != at(baseline, x, y)) displaced++;
+        }
+      }
+      var bodyDisplaced = 0;
+      for (var y = 48; y < 112; y++) {
+        for (var x = 36; x < 224; x++) {
+          if (at(refracted, x, y) != at(baseline, x, y)) bodyDisplaced++;
+        }
+      }
+      expect(
+        bodyDisplaced,
+        greaterThan(500),
+        reason:
+            'WindowsGlass applies its shallow lens displacement across the pane, '
+            'not only at the 52px bevel.',
+      );
+      expect(
         displaced,
-        greaterThan(150),
-        reason: 'The narrow bevel must still refract the actual scene samples.',
+        greaterThan(0),
+        reason: 'The Windows-style full-sheet lens must refract real samples.',
       );
       final lens = tester.widget<LiquidGlassLens>(find.byType(LiquidGlassLens));
-      expect(lens.style.refractionWidth, lessThanOrEqualTo(9));
+      expect(
+        lens.style.refractionWidth,
+        OrionGlassSurface.windowsGlassRefractionWidth,
+      );
+      expect(
+        lens.style.refractionIndex,
+        OrionGlassSurface.windowsGlassRefractionIndex,
+      );
+      expect(lens.style.specular!.thickness, 2.1);
+      expect(lens.style.specular!.intensity, greaterThan(0));
+      expect(lens.style.specular!.oppositeIntensity, greaterThan(0));
       expect(lens.style.magnification, 1);
+      expect(lens.honorBackdropAlpha, isTrue);
       expect(lens.style.saturation, 1);
       expect(lens.style.glow!.intensity, 0);
       expect(at(refracted, 130, 80), [255, 255, 255, 255]);
@@ -260,6 +299,36 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  testWidgets('glass can disable the heavy edge refraction and rim', (
+    tester,
+  ) async {
+    await load(tester);
+    await mount(
+      tester,
+      const OrionGlassScene(
+        pixelRatio: 1,
+        backdrop: ColoredBox(color: Color(0xff111b27)),
+        child: OrionGlassSurface(
+          edgeRefraction: false,
+          showRim: false,
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+    final lens = tester.widget<LiquidGlassLens>(find.byType(LiquidGlassLens));
+    expect(lens.style.refractionIndex, 1);
+    expect(lens.style.refractionWidth, 0);
+    expect(lens.style.specular, isNull);
+    final image = await pixels(tester);
+    for (var y = 20; y < 140; y += 4) {
+      for (var x = 24; x < 236; x += 4) {
+        expect(at(image, x, y), [17, 27, 39, 255]);
+      }
+    }
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets(
     'dark glass has a visible directional caustic without lifting its center',
@@ -316,11 +385,13 @@ void main() {
         tester,
         const OrionGlassScene(
           backdrop: OrionGlassBackdrop(
-            tint: Color(0xa61c2431),
+            tint: Color(0xff1c2431),
             useAuthoredBackground: true,
+            backdropOpacity: .5,
           ),
           child: OrionGlassSurface(
             blur: 0,
+            fullSheetRefraction: true,
             child: Center(
               child: SizedBox(
                 width: 10,
@@ -333,10 +404,15 @@ void main() {
       );
       final image = await pixels(tester);
       expect(at(image, 130, 80), [255, 255, 255, 255]);
-      expect(at(image, 90, 80)[3], 255);
+      expect(
+        at(image, 90, 80)[3],
+        inInclusiveRange(120, 136),
+        reason:
+            'Half-opacity glass must preserve backdrop alpha over the clear scene.',
+      );
       expect(OrionGlassSurface.defaultMaterialOpacity, 1);
       final lens = tester.widget<LiquidGlassLens>(find.byType(LiquidGlassLens));
-      expect(lens.honorBackdropAlpha, isFalse);
+      expect(lens.honorBackdropAlpha, isTrue);
       expect(lens.useImpellerBackdrop, isFalse);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

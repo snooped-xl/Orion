@@ -77,6 +77,62 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'unchanged fallback source reuses syntax spans until text or theme changes',
+    (tester) async {
+      final controller = LuauSyntaxController(text: 'local value = 42');
+      addTearDown(controller.dispose);
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (value) {
+              context = value;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      final style = const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 14);
+      final first = controller.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: false,
+      );
+      expect(
+        identical(
+          first,
+          controller.buildTextSpan(
+            context: context,
+            style: style,
+            withComposing: false,
+          ),
+        ),
+        isTrue,
+        reason: 'rebuilds without edits should not allocate another span tree',
+      );
+      controller.value = const TextEditingValue(
+        text: 'local value = 43',
+        selection: TextSelection.collapsed(offset: 16),
+      );
+      final edited = controller.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: false,
+      );
+      expect(identical(first, edited), isFalse);
+      expect(edited.toPlainText(), 'local value = 43');
+      controller.useTheme('synapse-v3', foreground: Colors.cyan);
+      final themed = controller.buildTextSpan(
+        context: context,
+        style: style,
+        withComposing: false,
+      );
+      expect(identical(edited, themed), isFalse);
+      expect(themed.style!.color, Colors.cyan);
+    },
+  );
+
   test(
     'stateful Luau lexing preserves comments, long strings, escapes and types',
     () {

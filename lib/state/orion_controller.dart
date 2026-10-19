@@ -28,11 +28,22 @@ class OrionController extends ChangeNotifier {
     Directory? storageDirectory,
     ScriptHubService? scriptHubService,
     OrionBridgeService? bridgeService,
+    bool? useMacSploit,
+    String nativeExecutorPreference = 'auto',
+    int? nativePortPreference,
     bool persistChanges = true,
   }) : _storageDirectory = storageDirectory,
        _persistChanges = persistChanges,
        _scriptHub = scriptHubService ?? ScriptHubService(),
-       _bridge = bridgeService ?? OrionBridgeService() {
+       _bridge =
+           bridgeService ??
+           OrionBridgeService(
+             // The Rojo macOS fork talks directly to MacSploit's local TCP
+             // API; keep the HTTP Bridge backend on other platforms.
+             macSploitMode: useMacSploit ?? Platform.isMacOS,
+             nativeExecutorPreference: nativeExecutorPreference,
+             nativePortPreference: nativePortPreference,
+           ) {
     _documents.add(
       const EditorDocument(
         id: 'welcome-constellation',
@@ -61,6 +72,23 @@ class OrionController extends ChangeNotifier {
   bool _bridgeListening = false;
   String? _bridgeError;
   int _bridgePort = 31337;
+  bool get usesNativeExecutor => _bridge.usesNativeExecutor;
+  bool get usesMacSploit =>
+      _bridge.usesNativeExecutor &&
+      (_bridge.nativeExecutorPreference != 'opiumware');
+  String get nativeExecutorPreference => _bridge.nativeExecutorPreference;
+  String? get detectedNativeExecutor => _bridge.nativeExecutorName;
+  int? get nativePortPreference => _bridge.nativePortPreference;
+  List<int> get availableNativePorts => _bridge.availableNativePorts;
+  void setNativeExecutorPreference(String value) {
+    _bridge.setNativeExecutorPreference(value);
+    _changed(persist: false);
+  }
+
+  void setNativePortPreference(int? value) {
+    _bridge.setNativePortPreference(value);
+    _changed(persist: false);
+  }
 
   List<BridgeClient> get bridgeClients => List.unmodifiable(_bridgeClients);
   bool get bridgeListening => _bridgeListening;
@@ -163,10 +191,18 @@ class OrionController extends ChangeNotifier {
       _bridge.disconnectClient(identifier);
   void disconnectAllBridgeClients() => _bridge.disconnectAll();
 
-  Future<String> loadBridgeScript() =>
-      rootBundle.loadString('assets/bridge/Orion Bridge.lua');
-  String get bridgeLoader =>
-      'loadstring(game:HttpGet("http://127.0.0.1:$_bridgePort/bridge.lua"))()';
+  Future<String> loadBridgeScript() {
+    if (usesMacSploit) {
+      throw UnsupportedError(
+        'Orion Bridge Lua is only used on Windows and Linux.',
+      );
+    }
+    return rootBundle.loadString('assets/bridge/Orion Bridge.lua');
+  }
+
+  String get bridgeLoader => usesMacSploit
+      ? 'MacSploit API · localhost ports 5553–5563'
+      : 'loadstring(game:HttpGet("http://127.0.0.1:$_bridgePort/bridge.lua"))()';
   Future<bool> saveBridgeScript({bool rethrowErrors = false}) async {
     try {
       final source = await loadBridgeScript();
@@ -999,10 +1035,16 @@ class OrionController extends ChangeNotifier {
       _changed();
       return;
     }
+    if (usesNativeExecutor) {
+      unawaited(_executeViaNativeExecutor(body, scriptName));
+      return;
+    }
     if (!bridgeConnected) {
       _addActivity(
         'No clients connected',
-        'Connect Orion Bridge to run $scriptName. Open Clients to copy Orion Bridge.lua.',
+        usesMacSploit
+            ? 'Start MacSploit and open a Roblox client to run $scriptName.'
+            : 'Connect Orion Bridge to run $scriptName. Open Clients to copy Orion Bridge.lua.',
         ActivityKind.execution,
         ActivitySeverity.warning,
       );
@@ -1047,13 +1089,52 @@ class OrionController extends ChangeNotifier {
     _changed();
   }
 
+  Future<void> _executeViaNativeExecutor(
+    String source,
+    String scriptName,
+  ) async {
+    try {
+      final receipt = await _bridge.executeNativeExecutor(
+        source,
+        targetIdentifiers: _bridgeTargetAll ? null : _selectedBridgeClients,
+      );
+      final target = receipt.targetIdentifiers.single;
+      final executor = _bridge.nativeExecutorName ?? 'executor';
+      final client = _bridgeClients
+          .where((item) => item.identifier == target)
+          .firstOrNull;
+      _addActivity(
+        'Script sent',
+        '$scriptName → $executor on $target${client == null ? '' : ' (${client.username})'}',
+        ActivityKind.execution,
+        ActivitySeverity.success,
+      );
+    } on Object catch (error) {
+      _addActivity(
+        'Script could not be executed',
+        error.toString(),
+        ActivityKind.execution,
+        ActivitySeverity.error,
+      );
+    }
+    if (!_disposed) _changed();
+  }
+
   void attach() {
     if (_disposed) return;
     _addActivity(
-      bridgeConnected ? 'Orion Bridge connected' : 'Waiting for Orion Bridge',
+      bridgeConnected
+          ? (usesNativeExecutor
+                ? '${detectedNativeExecutor ?? 'Executor'} connected'
+                : 'Orion Bridge connected')
+          : (usesNativeExecutor
+                ? 'Waiting for executor'
+                : 'Waiting for Orion Bridge'),
       bridgeConnected
           ? '${_bridgeClients.length} clients connected. Choose execution targets in Clients.'
-          : 'Run Orion Bridge.lua in your client. Open Clients to copy the script or loader.',
+          : (usesNativeExecutor
+                ? 'Select MacSploit or Opiumware, or leave Auto to detect an available executor.'
+                : 'Run Orion Bridge.lua in your client. Open Clients to copy the script or loader.'),
       ActivityKind.execution,
       bridgeConnected ? ActivitySeverity.success : ActivitySeverity.info,
     );

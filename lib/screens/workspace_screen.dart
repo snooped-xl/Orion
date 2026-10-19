@@ -69,7 +69,11 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
   Object? _nativePresentation;
   OrionColors? _windowColors;
   BuildContext? _editorLayerContext;
+  final Map<String, int> _lineCountByDocument = {};
+  final Map<String, String> _lastSyncedContentByDocument = {};
   bool _studioGeometryQueued = false;
+  (double, double, double)? _lineHeightCacheLayout;
+  final Map<int, (String, double)> _lineHeightCache = {};
   String? _lastExecution;
   String _documentId = '';
   bool _syncing = false;
@@ -142,6 +146,8 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
       radius: _studioStyle(id)?.radius ?? radius,
       tint: Colors.transparent,
       blur: id == 'editor' ? 2 : 3,
+      showRim: false,
+      edgeRefraction: false,
       interactive: interactive,
       // Lists and output inherit the window's material. Their faint tone
       // separates content without stacking more lenses or border boxes.
@@ -225,6 +231,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
     if (latest != null && latest != _lastExecution) _showConsole = true;
     _lastExecution = latest;
     final doc = c.activeDocument;
+    _lineCountByDocument[doc.id] = doc.lineCount;
     if (doc.id != _documentId || doc.content != _editor.text) {
       _syncing = true;
       final changing = doc.id != _documentId;
@@ -247,9 +254,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
                 ),
         ),
       );
+      _lastSyncedContentByDocument[doc.id] = doc.content;
       _syncing = false;
     }
   }
+
+  int get _activeLineCount => _lineCountByDocument[_documentId] ?? 1;
 
   void _controllerChanged() {
     _sync();
@@ -258,7 +268,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
 
   void _edited() {
     if (_syncing) return;
-    c.updateDocumentContent(_documentId, _editor.text);
+    final content = _editor.text;
+    _lastSyncedContentByDocument[_documentId] = content;
+    c.updateDocumentContent(_documentId, content);
     if (mounted) setState(() {});
   }
 
@@ -869,12 +881,8 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
             child: _editorPanel(colors),
           );
           final divider = SizedBox(
-            width: _glassEnabled(colors) ? _space(8, 6) : 1,
-            child: ColoredBox(
-              color: _glassEnabled(colors)
-                  ? Colors.transparent
-                  : colors.outline(.24),
-            ),
+            width: _space(8, 6),
+            child: const ColoredBox(color: Colors.transparent),
           );
           return Container(
             clipBehavior: Clip.antiAlias,
@@ -895,9 +903,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
                       bottomLeft: Radius.circular(_space(22, 18)),
                       bottomRight: Radius.circular(_space(22, 18)),
                     ),
-              border: _glassEnabled(colors)
-                  ? null
-                  : Border.all(color: colors.outline(.2)),
+              border: null,
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1729,22 +1735,14 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
                         .62 +
                     30,
               );
-        final lineHeights = lines.map((line) {
-          if (!c.wordWrap) return lineHeight;
-          final painter = TextPainter(
-            text: TextSpan(
-              text: line.isEmpty ? ' ' : line,
-              style: TextStyle(
-                fontFamily: 'JetBrainsMono',
-                fontSize: size,
-                height: 1.8,
-              ),
-            ),
-            textDirection: TextDirection.ltr,
-          )..layout(maxWidth: math.max(1, width - 24));
-          return math.max(1, (painter.height / lineHeight - .001).ceil()) *
-              lineHeight;
-        }).toList();
+        final wrapWidth = math.max(1.0, width - 24);
+        final lineHeights = _measureLineHeights(
+          lines,
+          size: size,
+          lineHeight: lineHeight,
+          wrapWidth: wrapWidth,
+          wordWrap: c.wordWrap,
+        );
         return Scrollbar(
           controller: _vertical,
           child: SingleChildScrollView(
@@ -1807,10 +1805,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
                           readOnly: readOnly,
                           keyboardType: TextInputType.multiline,
                           maxLines: null,
-                          minLines: math.max(
-                            1,
-                            (constraints.maxHeight / lineHeight).floor(),
-                          ),
+                          minLines: c.wordWrap
+                              ? null
+                              : math.max(
+                                  1,
+                                  (constraints.maxHeight / lineHeight).floor(),
+                                ),
                           autocorrect: false,
                           enableSuggestions: false,
                           spellCheckConfiguration:
@@ -1847,6 +1847,48 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
         );
       },
     );
+  }
+
+  List<double> _measureLineHeights(
+    List<String> lines, {
+    required double size,
+    required double lineHeight,
+    required double wrapWidth,
+    required bool wordWrap,
+  }) {
+    if (!wordWrap) return List<double>.filled(lines.length, lineHeight);
+    final layout = (size, lineHeight, wrapWidth);
+    if (_lineHeightCacheLayout != layout) {
+      _lineHeightCacheLayout = layout;
+      _lineHeightCache.clear();
+    }
+    final heights = List<double>.filled(lines.length, lineHeight);
+    for (var index = 0; index < lines.length; index++) {
+      final line = lines[index];
+      final cached = _lineHeightCache[index];
+      if (cached != null && cached.$1 == line) {
+        heights[index] = cached.$2;
+        continue;
+      }
+      final painter = TextPainter(
+        text: TextSpan(
+          text: line.isEmpty ? ' ' : line,
+          style: TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: size,
+            height: 1.8,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: wrapWidth);
+      final height =
+          math.max(1, (painter.height / lineHeight - .001).ceil()) * lineHeight;
+      painter.dispose();
+      heights[index] = height;
+      _lineHeightCache[index] = (line, height);
+    }
+    _lineHeightCache.removeWhere((index, _) => index >= lines.length);
+    return heights;
   }
 
   Widget _console(OrionColors _) => _studioLayer('consoleOutput', _consoleBody);
@@ -2034,7 +2076,7 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
           Text('Luau', style: OrionType.metadata.copyWith(color: colors.muted)),
           SizedBox(width: _space(16, 10)),
           Text(
-            '${c.activeDocument.lineCount} ${c.activeDocument.lineCount == 1 ? 'line' : 'lines'}',
+            '$_activeLineCount ${_activeLineCount == 1 ? 'line' : 'lines'}',
             style: OrionType.metadata.copyWith(color: colors.muted),
           ),
         ],
@@ -2060,9 +2102,46 @@ class _ConsoleExpansion extends StatelessWidget {
 
 class LuaEditingController extends TextEditingController {
   OrionColors? colors;
+  static const _keywords = {
+    'local',
+    'function',
+    'end',
+    'return',
+    'if',
+    'then',
+    'else',
+    'elseif',
+    'for',
+    'while',
+    'do',
+    'in',
+    'and',
+    'or',
+    'not',
+    'true',
+    'false',
+    'nil',
+    'repeat',
+    'until',
+  };
+  static final _numberStart = RegExp(r'^\d');
   static final _tokens = RegExp(
     r'''--[^\n]*|"[^"\n]*"|'[^'\n]*'|\b(?:local|function|end|return|if|then|else|elseif|for|while|do|in|and|or|not|true|false|nil|repeat|until)\b|\b\d+(?:\.\d+)?\b|\b[a-zA-Z_]\w*(?=\s*\()''',
   );
+  String? _spanText;
+  int? _spanTextLength;
+  TextStyle? _spanStyle;
+  OrionColors? _spanColors;
+  TextRange? _spanComposing;
+  bool _spanWithComposing = false;
+  TextSpan? _span;
+
+  @override
+  void notifyListeners() {
+    _span = null;
+    super.notifyListeners();
+  }
+
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
@@ -2070,6 +2149,18 @@ class LuaEditingController extends TextEditingController {
     required bool withComposing,
   }) {
     final c = colors ?? OrionColors.of(context);
+    final composing = withComposing && value.isComposingRangeValid
+        ? value.composing
+        : TextRange.empty;
+    if (_span != null &&
+        _spanTextLength == text.length &&
+        identical(_spanText, text) &&
+        _spanStyle == style &&
+        _spanColors == c &&
+        _spanComposing == composing &&
+        _spanWithComposing == withComposing) {
+      return _span!;
+    }
     final spans = <TextSpan>[];
     int last = 0;
     for (final m in _tokens.allMatches(text)) {
@@ -2081,11 +2172,9 @@ class LuaEditingController extends TextEditingController {
           ? c.muted
           : token.startsWith('"') || token.startsWith("'")
           ? c.readableAccent
-          : RegExp(r'^\d').hasMatch(token)
+          : _numberStart.hasMatch(token)
           ? c.readablePeach
-          : RegExp(
-              r'^(local|function|end|return|if|then|else|elseif|for|while|do|in|and|or|not|true|false|nil|repeat|until)$',
-            ).hasMatch(token)
+          : _keywords.contains(token)
           ? c.readableLavender
           : c.readableAccent;
       spans.add(
@@ -2097,6 +2186,13 @@ class LuaEditingController extends TextEditingController {
       last = m.end;
     }
     if (last < text.length) spans.add(TextSpan(text: text.substring(last)));
-    return TextSpan(style: style, children: spans);
+    final result = TextSpan(style: style, children: spans);
+    _spanText = text;
+    _spanTextLength = text.length;
+    _spanStyle = style;
+    _spanColors = c;
+    _spanComposing = composing;
+    _spanWithComposing = withComposing;
+    return _span = result;
   }
 }

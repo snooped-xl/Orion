@@ -26,7 +26,8 @@ const _sam = BridgeClient(
 );
 
 class _Controller extends OrionController {
-  _Controller() : super(persistChanges: false) {
+  _Controller({bool useMacSploit = false, super.nativeExecutorPreference})
+    : super(persistChanges: false, useMacSploit: useMacSploit) {
     setReducedMotion(true);
   }
   final disconnected = <String>[];
@@ -127,6 +128,81 @@ Future<void> _mount(
 }
 
 void main() {
+  testWidgets('MacSploit manager explains first-responsive execution', (
+    tester,
+  ) async {
+    final c = _Controller(useMacSploit: true)
+      ..clients([
+        const BridgeClient(
+          identifier: 'User1',
+          username: 'Roblox',
+          transport: 'MacSploit',
+          sessionId: 'macsploit:5553',
+        ),
+      ]);
+    await _mount(tester, c);
+    expect(
+      find.textContaining('Available ports: 5553, 5554, 5555'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('bridge-target-mode')), findsNothing);
+    expect(find.byKey(const ValueKey('bridge-copy-loader')), findsNothing);
+    expect(find.byKey(const ValueKey('bridge-copy-script')), findsNothing);
+    expect(find.byKey(const ValueKey('bridge-save-script')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    c.dispose();
+  });
+
+  testWidgets('native manager offers executor and port selectors', (
+    tester,
+  ) async {
+    final c = _Controller(
+      useMacSploit: true,
+      nativeExecutorPreference: 'opiumware',
+    );
+    await _mount(tester, c);
+    expect(
+      find.byKey(const ValueKey('native-executor-selector')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('native-port-selector')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('native-executor-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Opiumware').last);
+    await tester.pumpAndSettle();
+    expect(c.nativeExecutorPreference, 'opiumware');
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('native-port-description-auto')),
+              matching: find.byType(Text),
+            ),
+          )
+          .data,
+      'Available ports: 8392, 8393, 8394, 8395, 8396, 8397',
+    );
+    await tester.tap(find.byKey(const ValueKey('native-port-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('8395').last);
+    await tester.pumpAndSettle();
+    expect(c.nativePortPreference, 8395);
+    final pinnedDescription = find.byKey(
+      const ValueKey('native-port-description-8395'),
+    );
+    expect(pinnedDescription, findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(of: pinnedDescription, matching: find.byType(Text)),
+          )
+          .data,
+      'Pinned to localhost:8395',
+    );
+    await tester.pumpWidget(const SizedBox());
+    c.dispose();
+  });
+
   testWidgets(
     'live clients share all and explicit targets and disconnect individually',
     (tester) async {

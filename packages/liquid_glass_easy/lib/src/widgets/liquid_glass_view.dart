@@ -166,15 +166,11 @@ class LiquidGlassView extends StatefulWidget {
   /// `useSync: false` (async captures are always full-frame).
   final bool regionCapture;
 
-  /// **Internal.** Whether each `children` lens folds the captured
-  /// backdrop's alpha into its coverage (the shader's
-  /// `u_honorBackdropAlpha`), on the Skia capture path only. Defaults to
-  /// `false` — the capture is treated as opaque (matching Impeller), which
-  /// keeps the optical rim and avoids washing the lens body white. Set
-  /// `true` only when the captured `backgroundWidget` carries *authored*
-  /// transparency that must show through the glass — i.e. the
-  /// slider/toggle track. No effect on the Impeller path or on lens-
-  /// anywhere `child` lenses.
+  /// Whether Skia lenses treat captured alpha as transparent coverage.
+  /// Set `true` when [backgroundWidget] has authored alpha to show through.
+  /// Applies to positioned [children] and descendant lenses in [child].
+  /// Impeller ignores this setting because live-backdrop alpha is not a
+  /// transparency signal.
   final bool honorBackdropAlpha;
 
   /// Enables the background-luminance sampler behind
@@ -211,12 +207,12 @@ class LiquidGlassView extends StatefulWidget {
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
     this.regionCapture = false,
+    this.honorBackdropAlpha = false,
     this.batch = true,
     this.foregroundBatchId,
     this.adaptiveSampling,
     this.shrinkWrap = false,
-  })  : children = const [],
-        honorBackdropAlpha = false;
+  }) : children = const [];
 
   /// **Internal.** The classic, position-driven path: renders a list of
   /// [LiquidGlass] lenses ([children]) over [backgroundWidget]. Retained

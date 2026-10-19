@@ -45,8 +45,10 @@ Future<OrionController?> runOrion(List<String> arguments) async {
   }
   final controller = OrionController();
   await controller.initialize();
+  // macOS desktop widgets query window state as soon as OrionApp mounts. The
+  // native window_manager plugin needs its NSWindow before those first queries.
+  await windowManager.ensureInitialized();
   if (Platform.isLinux || Platform.isWindows) {
-    await windowManager.ensureInitialized();
     await CompanionWindowService(controller, window!).initialize();
     final icon = File(
       '${File(Platform.resolvedExecutable).parent.path}/data/flutter_assets/assets/branding/orion-icon.png',

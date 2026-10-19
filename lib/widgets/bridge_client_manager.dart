@@ -124,9 +124,14 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
     try {
       if (action == 'loader') {
         await Clipboard.setData(ClipboardData(text: c.bridgeLoader));
-        feedback = 'Loader copied';
+        feedback = c.usesNativeExecutor
+            ? 'Native executor connection info copied'
+            : 'Loader copied';
       } else {
-        if (action == 'copy') {
+        if (c.usesNativeExecutor) {
+          feedback = 'Orion Bridge script is only used on Windows and Linux';
+          failed = true;
+        } else if (action == 'copy') {
           final source = await c.loadBridgeScript();
           if (!mounted) return;
           await Clipboard.setData(ClipboardData(text: source));
@@ -191,13 +196,18 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                       c.selectedBridgeClients.contains(client.identifier),
                 )
                 .length;
+      final backend = c.usesNativeExecutor
+          ? (c.detectedNativeExecutor ?? 'Executor')
+          : 'Bridge';
       final status = c.bridgeError != null
-          ? 'Bridge unavailable'
+          ? '$backend unavailable'
           : clients.isNotEmpty
           ? '${clients.length} connected'
           : c.bridgeListening
-          ? 'Waiting for clients'
-          : 'Bridge offline';
+          ? (c.usesNativeExecutor
+                ? 'Scanning local clients'
+                : 'Waiting for clients')
+          : '$backend offline';
       return Material(
         type: MaterialType.transparency,
         child: Column(
@@ -219,7 +229,14 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   child: Text(status, style: theme.textTheme.labelLarge),
                 ),
                 Text(
-                  'Orion Bridge',
+                  c.usesNativeExecutor
+                      ? (c.detectedNativeExecutor ??
+                            (c.nativeExecutorPreference == 'auto'
+                                ? 'Auto executor'
+                                : c.nativeExecutorPreference == 'macsploit'
+                                ? 'MacSploit'
+                                : 'Opiumware'))
+                      : 'Orion Bridge',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -233,6 +250,74 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.error),
               ),
             ],
+            if (c.usesNativeExecutor) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('native-executor-selector'),
+                initialValue: c.nativeExecutorPreference,
+                decoration: const InputDecoration(
+                  labelText: 'Executor',
+                  isDense: true,
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'auto', child: Text('Auto-detect')),
+                  DropdownMenuItem(
+                    value: 'macsploit',
+                    child: Text('MacSploit'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'opiumware',
+                    child: Text('Opiumware'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) c.setNativeExecutorPreference(value);
+                },
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('native-port-selector'),
+                initialValue: c.nativePortPreference?.toString() ?? 'auto',
+                decoration: const InputDecoration(
+                  labelText: 'Port',
+                  isDense: true,
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: 'auto',
+                    child: Text('Auto port'),
+                  ),
+                  for (final port in c.availableNativePorts)
+                    DropdownMenuItem(value: '$port', child: Text('$port')),
+                ],
+                onChanged: (value) => c.setNativePortPreference(
+                  value == null || value == 'auto' ? null : int.parse(value),
+                ),
+              ),
+            ],
+            if (c.usesNativeExecutor)
+              Container(
+                key: ValueKey(
+                  'native-port-description-${c.nativePortPreference ?? 'auto'}',
+                ),
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.stateFill(.07, base: colors.elevated),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  c.nativePortPreference == null
+                      ? 'Available ports: ${c.availableNativePorts.join(', ')}'
+                      : 'Pinned to localhost:${c.nativePortPreference}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
             if (!c.bridgeListening || c.bridgeError != null)
               Align(
                 alignment: Alignment.centerLeft,
@@ -240,41 +325,48 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   key: const ValueKey('bridge-retry'),
                   onPressed: _busy ? null : _retryBridge,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Retry bridge'),
+                  label: Text(
+                    c.usesNativeExecutor
+                        ? 'Retry executor scan'
+                        : 'Retry bridge',
+                  ),
                 ),
               ),
-            const SizedBox(height: 14),
-            SegmentedButton<bool>(
-              key: const ValueKey('bridge-target-mode'),
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: true,
-                  label: Text('All clients'),
-                  icon: Icon(Icons.select_all_rounded, size: 18),
+            if (!c.usesNativeExecutor) ...[
+              const SizedBox(height: 14),
+              SegmentedButton<bool>(
+                key: const ValueKey('bridge-target-mode'),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    label: Text('All clients'),
+                    icon: Icon(Icons.select_all_rounded, size: 18),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Selected'),
+                    icon: Icon(Icons.checklist_rounded, size: 18),
+                  ),
+                ],
+                selected: {c.bridgeTargetAll},
+                onSelectionChanged: (value) =>
+                    c.setBridgeTargetAll(value.single),
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
                 ),
-                ButtonSegment(
-                  value: false,
-                  label: Text('Selected'),
-                  icon: Icon(Icons.checklist_rounded, size: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                c.bridgeTargetAll
+                    ? 'Execute sends to every connected client.'
+                    : '$selected of ${clients.length} selected for Execute.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
                 ),
-              ],
-              selected: {c.bridgeTargetAll},
-              onSelectionChanged: (value) => c.setBridgeTargetAll(value.single),
-              style: SegmentedButton.styleFrom(
-                visualDensity: VisualDensity.compact,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              c.bridgeTargetAll
-                  ? 'Execute sends to every connected client.'
-                  : '$selected of ${clients.length} selected for Execute.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 14),
+              const SizedBox(height: 14),
+            ],
             if (clients.isEmpty)
               Container(
                 padding: const EdgeInsets.all(18),
@@ -304,13 +396,34 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Run Orion Bridge in your executor to connect.',
+                      c.usesNativeExecutor
+                          ? 'Choose Auto-detect or select MacSploit or Opiumware above. Auto-detect prefers MacSploit; port can be selected explicitly or left on Auto port.'
+                          : 'Run Orion Bridge in your executor to connect.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
+                ),
+              )
+            else if (c.usesNativeExecutor)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.stateFill(.09, base: colors.elevated),
+                  border: colors.transparentSurfaces
+                      ? Border.all(color: colors.outline(.35), width: .67)
+                      : null,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  c.detectedNativeExecutor == null
+                      ? 'Waiting for MacSploit (5553–5563) or Opiumware (8392–8397).'
+                      : 'Detected ${c.detectedNativeExecutor}. Execution uses its first responsive port unless you choose a specific port above.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               )
             else ...[
@@ -403,37 +516,40 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Copy the loader or full script and run it in each executor. Clients appear here automatically.',
+                    c.usesNativeExecutor
+                        ? 'Native executor mode detects MacSploit (5553–5563) or Opiumware (8392–8397), then sends scripts to the selected or first responsive port. No Orion Bridge script is needed.'
+                        : 'Copy the loader or full script and run it in each executor. Clients appear here automatically.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ),
                 const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    FilledButton.icon(
-                      key: const ValueKey('bridge-copy-loader'),
-                      onPressed: _busy ? null : () => _setupAction('loader'),
-                      icon: const Icon(Icons.copy_rounded, size: 16),
-                      label: const Text('Copy loader'),
-                    ),
-                    FilledButton.tonalIcon(
-                      key: const ValueKey('bridge-copy-script'),
-                      onPressed: _busy ? null : () => _setupAction('copy'),
-                      icon: const Icon(Icons.code_rounded, size: 16),
-                      label: const Text('Copy script'),
-                    ),
-                    TextButton.icon(
-                      key: const ValueKey('bridge-save-script'),
-                      onPressed: _busy ? null : () => _setupAction('save'),
-                      icon: const Icon(Icons.save_alt_rounded, size: 16),
-                      label: const Text('Save script'),
-                    ),
-                  ],
-                ),
+                if (!c.usesNativeExecutor)
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      FilledButton.icon(
+                        key: const ValueKey('bridge-copy-loader'),
+                        onPressed: _busy ? null : () => _setupAction('loader'),
+                        icon: const Icon(Icons.copy_rounded, size: 16),
+                        label: const Text('Copy loader'),
+                      ),
+                      FilledButton.tonalIcon(
+                        key: const ValueKey('bridge-copy-script'),
+                        onPressed: _busy ? null : () => _setupAction('copy'),
+                        icon: const Icon(Icons.code_rounded, size: 16),
+                        label: const Text('Copy script'),
+                      ),
+                      TextButton.icon(
+                        key: const ValueKey('bridge-save-script'),
+                        onPressed: _busy ? null : () => _setupAction('save'),
+                        icon: const Icon(Icons.save_alt_rounded, size: 16),
+                        label: const Text('Save script'),
+                      ),
+                    ],
+                  ),
               ],
             ),
             if (_busy)

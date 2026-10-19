@@ -5,6 +5,9 @@
 #include <dxgi1_2.h>
 #include <wrl/client.h>
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstring>
 #include <cwchar>
 #include <memory>
@@ -29,6 +32,10 @@ struct ImportPatch {
   void** address;
   void* original;
 };
+struct CodePatch {
+  uint8_t* address = nullptr;
+  std::array<uint8_t, 25> original{};
+};
 
 // Flutter statically links ANGLE, so EGL cannot be wrapped at its DLL imports.
 // Its DXGI factory imports are the stable boundary available to the runner.
@@ -37,9 +44,89 @@ std::mutex state_mutex;
 std::unordered_map<void**, CreateHwndSwapchain> swapchain_methods;
 std::unordered_map<HWND, std::shared_ptr<CompositionHost>> hosts;
 std::vector<ImportPatch> import_patches;
+CodePatch accessibility_patch;
 CreateFactory create_factory = nullptr;
 CreateFactory create_factory1 = nullptr;
 HWINEVENTHOOK destroy_hook = nullptr;
+
+// Flutter 3.47.7 (engine deb287481e3ce9468f3434937ced4240a70539ca) crashes in
+// AccessibilityBridge::CreateRemoveReparentedNodesUpdate (accessibility_bridge.cc:229,
+// RVA 0x3c1ca in release, 0x3c1da in profile) when an AXNode in tree_ has a
+// null parent() during transient/offstage semantics updates (flutter#175041,
+// flutter#190903, flutter#193410). In release/profile builds assert(child->parent())
+// compiles out and `mov eax, [rax+0x48]` dereferences rax == 0.
+//
+// Original 31-byte sequence in flutter_windows.dll (.text):
+//   +00: ff 15 XX XX XX XX  callq *__guard_dispatch_icall_fptr(%rip) ; tree_->GetFromId(child_id)
+//   +06: 48 85 c0           testq %rax, %rax                         ; if (!child)
+//   +09: 0f 84 e6 00 00 00  je    +0xe6 (to +0xf5)                   ;   continue;
+//   +0f: 48 8b 40 20        movq  0x20(%rax), %rax                   ; rax = child->parent()
+//   +13: 8b 40 48           movl  0x48(%rax), %eax                   ; CRASH when rax == 0
+//   +16: 3b 46 18           cmpl  0x18(%rsi), %eax                   ; parent->id() == node_update.second.id
+//   +19: 0f 84 d6 00 00 00  je    +0xd6 (to +0xf5)                   ;   continue;
+//
+// Replacement 25-byte sequence at +00 (leaving +19..+1f untouched):
+//   +00: ff d0              callq *%rax                              ; tree_->GetFromId(child_id)
+//   +02: 48 85 c0           testq %rax, %rax                         ; if (!child)
+//   +05: 74 12              je    +0x12 (to +0x19, ZF=1 -> +0xf5)    ;   continue;
+//   +07: 48 8b 40 20        movq  0x20(%rax), %rax                   ; rax = child->parent()
+//   +0b: 48 85 c0           testq %rax, %rax                         ; if (!child->parent())
+//   +0e: 74 09              je    +0x09 (to +0x19, ZF=1 -> +0xf5)    ;   continue;
+//   +10: 8b 40 48           movl  0x48(%rax), %eax                   ; parent->id()
+//   +13: 3b 46 18           cmpl  0x18(%rsi), %eax                   ; parent->id() == node_update.second.id
+//   +16: 0f 1f 00           nopl  (%rax)
+//   +19: 0f 84 d6 00 00 00  je    +0xd6 (to +0xf5)                   ;   continue;
+constexpr std::array<uint8_t, 26> kAccessibilityCrashPattern = {
+    0x48, 0x85, 0xC0, 0x0F, 0x84, 0xE6, 0x00, 0x00, 0x00,
+    0x48, 0x8B, 0x40, 0x20, 0x8B, 0x40, 0x48, 0x3B, 0x46,
+    0x18, 0x0F, 0x84, 0xD6, 0x00, 0x00, 0x00, 0x89};
+constexpr std::array<uint8_t, 25> kAccessibilitySafePatch = {
+    0xFF, 0xD0, 0x48, 0x85, 0xC0, 0x74, 0x12, 0x48, 0x8B,
+    0x40, 0x20, 0x48, 0x85, 0xC0, 0x74, 0x09, 0x8B, 0x40,
+    0x48, 0x3B, 0x46, 0x18, 0x0F, 0x1F, 0x00};
+
+bool ReplaceBytes(uint8_t* address, const uint8_t* replacement, size_t size) {
+  DWORD protection = 0;
+  if (!VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &protection)) {
+    return false;
+  }
+  std::memcpy(address, replacement, size);
+  FlushInstructionCache(GetCurrentProcess(), address, size);
+  DWORD ignored = 0;
+  VirtualProtect(address, size, protection, &ignored);
+  return true;
+}
+
+void PatchAccessibilityBridge(BYTE* module, const IMAGE_NT_HEADERS* pe) noexcept {
+  if (accessibility_patch.address) return;
+  const auto* section = IMAGE_FIRST_SECTION(pe);
+  for (WORD i = 0; i < pe->FileHeader.NumberOfSections; ++i, ++section) {
+    if ((section->Characteristics & IMAGE_SCN_CNT_CODE) == 0 ||
+        section->Misc.VirtualSize < kAccessibilityCrashPattern.size() + 6) {
+      continue;
+    }
+    uint8_t* begin = module + section->VirtualAddress;
+    uint8_t* end = begin + section->Misc.VirtualSize;
+    uint8_t* found = std::search(begin + 6, end,
+                                 kAccessibilityCrashPattern.begin(),
+                                 kAccessibilityCrashPattern.end());
+    if (found == end) continue;
+    if (std::search(found + 1, end, kAccessibilityCrashPattern.begin(),
+                    kAccessibilityCrashPattern.end()) != end) {
+      return;
+    }
+    uint8_t* call_site = found - 6;
+    if (call_site[0] != 0xFF || call_site[1] != 0x15) return;
+    std::array<uint8_t, 25> backup{};
+    std::memcpy(backup.data(), call_site, backup.size());
+    if (ReplaceBytes(call_site, kAccessibilitySafePatch.data(),
+                     kAccessibilitySafePatch.size())) {
+      accessibility_patch.address = call_site;
+      accessibility_patch.original = backup;
+    }
+    return;
+  }
+}
 
 bool ReplacePointer(void** address, void* replacement) {
   DWORD protection = 0;
@@ -206,6 +293,7 @@ bool OrionEnableAlphaComposition() {
   if (dos->e_magic != IMAGE_DOS_SIGNATURE) return false;
   const auto pe = reinterpret_cast<IMAGE_NT_HEADERS*>(module + dos->e_lfanew);
   if (pe->Signature != IMAGE_NT_SIGNATURE) return false;
+  PatchAccessibilityBridge(module, pe);
   const auto directory = pe->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
   if (!directory.VirtualAddress) return false;
   auto imports = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(module + directory.VirtualAddress);
@@ -268,4 +356,10 @@ void OrionDisableAlphaComposition() {
   swapchain_methods.clear();
   for (const auto& patch : import_patches) ReplacePointer(patch.address, patch.original);
   import_patches.clear();
+  if (accessibility_patch.address) {
+    ReplaceBytes(accessibility_patch.address,
+                 accessibility_patch.original.data(),
+                 accessibility_patch.original.size());
+    accessibility_patch.address = nullptr;
+  }
 }
