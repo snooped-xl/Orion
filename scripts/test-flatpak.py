@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import select
+import socket
 import shutil
 import subprocess
 import tempfile
@@ -35,6 +36,20 @@ with tempfile.TemporaryDirectory(prefix="private-", dir=smoke_directory) as temp
         "-c", "ldd /app/orion/orion"], env=env, text=True, stderr=subprocess.STDOUT)
     if "not found" in libraries:
         raise RuntimeError(f"Unresolved native dependencies in Flatpak runtime:\n{libraries}")
+    relapse_path = Path("/tmp/relapse.sock")
+    if relapse_path.exists() or relapse_path.is_symlink():
+        raise RuntimeError("Refusing to replace an existing /tmp/relapse.sock")
+    relapse_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        relapse_socket.bind(str(relapse_path))
+        relapse_socket.listen(1)
+        visible = subprocess.run(["flatpak", "run", "--command=sh", APP_ID,
+            "-c", "test -S /tmp/relapse.sock"], env=env, check=False)
+        if visible.returncode != 0:
+            raise RuntimeError("Flatpak cannot see the granted Relapse Unix socket")
+    finally:
+        relapse_socket.close()
+        relapse_path.unlink(missing_ok=True)
     workspace = directory / "workspace"
     workspace.mkdir()
     (workspace / "orion-workspace.json").write_text(json.dumps({
@@ -95,6 +110,7 @@ with tempfile.TemporaryDirectory(prefix="private-", dir=smoke_directory) as temp
                 raise RuntimeError(f"Flatpak did not start its genuine WebKit editor process:\n{log.read()}")
             result = {"success": True, "flatpakInstalled": True, "flatpakLaunched": True,
                 "workspaceProvisioned": True, "runtimeDependenciesResolved": True,
+                "relapseSocketVisible": True,
                 "genuineWebKitEditorRunning": True}
             output = ROOT / "build/package-smoke/flatpak/report.json"
             output.parent.mkdir(parents=True, exist_ok=True)

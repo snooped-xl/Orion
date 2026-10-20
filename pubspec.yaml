@@ -1,7 +1,7 @@
 name: orion
 description: A native Material 3 script workspace with a live script hub.
 publish_to: none
-version: 1.0.4+4
+version: 1.0.5+5
 
 environment:
   sdk: '>=3.9.0 <4.0.0'
@@ -34,6 +34,7 @@ flutter:
     - assets/branding/orion-logo.png
     - assets/branding/orion-wordmark.png
     - assets/bridge/
+    - assets/relapsegtk/
     - assets/editor/synapse-syntax-themes.json
     - assets/effects/
     - assets/interface_logos/

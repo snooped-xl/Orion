@@ -147,6 +147,34 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   Future<void> tick() => Future<void>.delayed(Duration.zero);
 
+  test('companion windows mirror the active Relapse connection', () {
+    if (!Platform.isLinux) return;
+    final owner = OrionController(persistChanges: false);
+    owner.setRelapseSupportEnabled(true);
+    final state = {
+      ...owner.exportWindowState(),
+      'relapseActive': true,
+      'relapseConnected': true,
+      'relapseReady': true,
+      'relapseOutputCaptureActive': true,
+      'relapseSession': 42,
+    };
+    final child = CompanionController(
+      initialState: state,
+      sendCommand: (_, _, _) async => {},
+    );
+    addTearDown(() {
+      child.dispose();
+      owner.dispose();
+    });
+
+    expect(child.usesRelapseSupport, isTrue);
+    expect(child.bridgeConnected, isTrue);
+    expect(child.relapseReady, isTrue);
+    expect(child.relapseOutputCaptureActive, isTrue);
+    expect(child.bridgeClients.single.identifier, 'Relapse');
+  });
+
   test(
     'rapid edits survive old acknowledgments without intermediate rollback or feedback',
     () async {

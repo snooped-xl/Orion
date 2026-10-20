@@ -13,5 +13,5 @@
   <url type="homepage">https://github.com/snooped-xl/Orion</url>
   <provides><binary>orion</binary></provides>
   <content_rating type="oars-1.1"/>
-  <releases><release version="1.0.4" date="2026-10-20"/><release version="1.0.2" date="2026-10-17"/><release version="1.0.1" date="2026-10-17"/><release version="1.0.0" date="2026-10-17"/></releases>
+  <releases><release version="1.0.5" date="2026-10-20"/><release version="1.0.2" date="2026-10-17"/><release version="1.0.1" date="2026-10-17"/><release version="1.0.0" date="2026-10-17"/></releases>
 </component>

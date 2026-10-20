@@ -108,6 +108,28 @@ void main() {
     }
   });
 
+  testWidgets('Linux settings expose the Relapse compatibility switch', (
+    tester,
+  ) async {
+    final controller = OrionController(persistChanges: false);
+    try {
+      await mount(tester, controller);
+      if (!controller.relapseSupportAvailable) {
+        expect(find.text('Relapse support'), findsNothing);
+        return;
+      }
+      final toggle = preference('relapse-support');
+      expect(toggle, findsOneWidget);
+      expect(controller.relapseSupportEnabled, isFalse);
+      await tapVisible(tester, toggle);
+      expect(controller.relapseSupportEnabled, isTrue);
+      expect(tester.widget<Switch>(toggle).value, isTrue);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+    }
+  });
+
   for (final glassy in [false, true]) {
     for (final scale in [.8, 1.0, 1.25]) {
       testWidgets(

@@ -141,6 +141,8 @@ class CompanionCommands {
             c.setShowLineNumbers(value as bool);
           case 'autosave':
             c.setAutosave(value as bool);
+          case 'relapseSupport':
+            c.setRelapseSupportEnabled(value as bool);
           case 'reducedMotion':
             c.setReducedMotion(value as bool);
           case 'themeMode':
