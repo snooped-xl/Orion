@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - README.md
       - docs/**
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -20,6 +21,139 @@ env:
   FLUTTER_VERSION: '3.47.7'
 
 jobs:
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download platform release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Orion-Release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create detailed release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          # Orion release
+
+          ## Downloads
+
+          | File | Platform | CPU architecture |
+          | --- | --- | --- |
+          | `Orion.exe` | Windows 10/11 | x86_64 |
+          | `Orion-x86_64.flatpak` | Linux (Flatpak / GNOME 50 runtime) | x86_64 |
+          | `Orion-macOS-arm64.zip` | macOS | Apple Silicon (arm64) |
+          | `Orion-macOS-x86_64.zip` | macOS | Intel (x86_64) |
+
+          Every package has a matching `.sha256` checksum file. The macOS archives
+          contain an `.app` bundle; unzip and move Orion.app to Applications. These
+          builds are not code-signed or notarized, so macOS may display a first-open
+          security warning. Linux requires Flatpak and downloads the GNOME runtime
+          separately on first install.
+
+          ## What changed
+
+          See the automatically generated commit and pull-request notes below for
+          this release's changes and fixes.
+
+          ## How issues were investigated and fixed
+
+          This release's fixes were developed by reproducing reported behavior,
+          tracing the relevant UI, service, and native-platform paths, then adding
+          regression tests around the failure. CI runs the app's Flutter tests and
+          builds each desktop target on its native GitHub-hosted runner. Release
+          packages are published only when all platform jobs pass.
+
+          ## Checksums
+
+          Verify a downloaded file with `shasum -a 256 -c <artifact>.sha256`
+          (macOS/Linux), or `Get-FileHash <artifact> -Algorithm SHA256` (PowerShell).
+          EOF
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \\
+            -f tag_name="$TAG" > generated-notes.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          generated = json.loads(Path('generated-notes.json').read_text())['body']
+          notes = Path('release-notes.md').read_text()
+          notes += '\n## Commits and pull requests\n\n' + generated + '\n'
+          Path('release-notes.md').write_text(notes)
+          PY
+          sed -i "s/^# Orion release$/# Orion $TAG/" release-notes.md
+          gh release create "$TAG" release-assets/* \\
+            --repo "$GITHUB_REPOSITORY" \\
+            --title "Orion $TAG" \\
+            --notes-file release-notes.md
+
+  macos:
+    name: macOS ${{ matrix.arch }} app bundle
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Set release version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          sed -i '' "s/^version: .*/version: ${version}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
+      - name: Enable macOS desktop and restore dependencies
+        run: |
+          flutter config --enable-macos-desktop
+          flutter pub get
+      - name: Analyze and run Flutter tests
+        run: |
+          flutter analyze
+          flutter test --reporter compact
+      - name: Confirm native runner architecture
+        run: |
+          actual_arch="$(uname -m)"
+          expected_arch="${{ matrix.arch }}"
+          if [[ "$actual_arch" != "$expected_arch" ]]; then
+            echo "Expected $expected_arch runner but got $actual_arch" >&2
+            exit 1
+          fi
+      - name: Build macOS release on native ${{ matrix.arch }} runner
+        run: flutter build macos --release --no-tree-shake-icons --target lib/main.dart
+      - name: Package app and checksum
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          artifact="Orion-macOS-${{ matrix.arch }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/orion.app "dist/$artifact"
+          shasum -a 256 "dist/$artifact" > "dist/$artifact.sha256"
+      - name: Upload macOS release package
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: Orion-Release-macOS-${{ matrix.arch }}
+          path: |
+            dist/Orion-macOS-${{ matrix.arch }}.zip
+            dist/Orion-macOS-${{ matrix.arch }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+
   windows:
     name: Windows x64 portable EXE
     runs-on: windows-2022
@@ -31,6 +165,15 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Set release version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          $version = $env:TAG.Substring(1)
+          (Get-Content pubspec.yaml -Raw) -replace '(?m)^version: .*$', "version: $version+$env:BUILD_NUMBER" | Set-Content pubspec.yaml -NoNewline
       - name: Enable desktop and restore dependencies
         run: |
           flutter config --enable-windows-desktop
@@ -64,6 +207,7 @@ jobs:
         shell: pwsh
         run: ./scripts/test-windows-package.ps1
       - name: Upload runnable Windows test build
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Windows-x64
@@ -72,6 +216,16 @@ jobs:
             dist/Orion.exe.sha256
           if-no-files-found: error
           retention-days: 30
+      - name: Upload Windows release package
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: Orion-Release-Windows-x64
+          path: |
+            dist/Orion.exe
+            dist/Orion.exe.sha256
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain Windows smoke diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -90,6 +244,16 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+      - name: Set release version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TAG: ${{ github.ref_name }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          version="${TAG#v}"
+          sed -i "s/^version: .*/version: ${version}+${BUILD_NUMBER}/" pubspec.yaml
       - name: Install native and packaging dependencies
         run: |
           sudo apt-get update
@@ -120,6 +284,7 @@ jobs:
       - name: Validate and launch Flatpak
         run: xvfb-run -a dbus-run-session -- python3 scripts/test-flatpak.py
       - name: Upload Linux Flatpak test build
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Flatpak-x86_64

@@ -39,6 +39,12 @@ void main() {
       });
       final prepared = await NativeWindowService.prepareStartupPlacement();
       final applied = await NativeWindowService.applyStartupPlacement();
+      if (!Platform.isLinux && !Platform.isWindows) {
+        expect(prepared['reason'], 'unsupported-platform');
+        expect(applied['reason'], 'unsupported-platform');
+        expect(calls, isEmpty);
+        return;
+      }
       expect(calls.map((call) => call.$1), ['native', 'native']);
       expect(calls.map((call) => call.$2.method), [
         'prepareStartupPlacement',
@@ -60,6 +66,20 @@ void main() {
         calls.add(('native', call));
         return '{"ok":true}';
       });
+      if (!Platform.isLinux && !Platform.isWindows) {
+        expect(
+          await NativeWindowService.applyStartupPlacement(
+            followInitialResize: true,
+          ),
+          {'ok': false, 'reason': 'unsupported-platform'},
+        );
+        expect(await NativeWindowService.completeStartupPlacement(), {
+          'ok': true,
+          'reason': 'completed',
+        });
+        expect(calls, isEmpty);
+        return;
+      }
       await NativeWindowService.applyStartupPlacement(
         followInitialResize: true,
       );
@@ -79,6 +99,14 @@ void main() {
     () async {
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      if (!Platform.isLinux && !Platform.isWindows) {
+        expect(await NativeWindowService.prepareStartupPlacement(), {
+          'ok': false,
+          'reason': 'unsupported-platform',
+        });
+        expect(calls, isEmpty);
+        return;
+      }
       for (final response in ['not-json', '[]', 'true', null]) {
         messenger.setMockMethodCallHandler(native, (call) async => response);
         expect(
@@ -222,6 +250,10 @@ void main() {
     () async {
       await NativeWindowService.setCornerRadius(20);
       await NativeWindowService.setCornerRadius(0);
+      if (!Platform.isLinux && !Platform.isWindows) {
+        expect(calls, isEmpty);
+        return;
+      }
       expect(calls.map((call) => call.$1), ['native', 'native']);
       expect(calls.map((call) => call.$2.method), [
         'setCornerRadius',

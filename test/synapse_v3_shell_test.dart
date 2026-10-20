@@ -17,6 +17,8 @@ import 'package:orion/theme/orion_theme.dart';
 import 'package:orion/widgets/ui_scale_viewport.dart';
 
 class _Controller extends OrionController {
+  _Controller() : super(useMacSploit: false);
+
   String? savedId, savedSource, executedSource, executedName;
   int opened = 0;
   @override

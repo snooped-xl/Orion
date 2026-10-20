@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -13,11 +14,16 @@ void main() {
   const plugin = MethodChannel('window_manager');
   const native = MethodChannel('orion/window');
   final calls = <MethodCall>[];
+  final listenersAdded = <WindowListener>[];
   var maximized = false;
   var fullscreen = false;
+  var platform = TargetPlatform.macOS;
 
   setUp(() {
     calls.clear();
+    listenersAdded
+      ..clear()
+      ..addAll(windowManager.listeners);
     maximized = false;
     fullscreen = false;
     final messenger =
@@ -36,11 +42,23 @@ void main() {
     });
   });
   tearDown(() {
+    for (final listener in windowManager.listeners.toList()) {
+      if (!listenersAdded.contains(listener)) {
+        windowManager.removeListener(listener);
+      }
+    }
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(plugin, null);
     messenger.setMockMethodCallHandler(native, null);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('window_manager'),
+      null,
+    );
   });
+
+  final nativeCornerPlatform = Platform.isLinux || Platform.isWindows;
+  bool syncCorners = true;
 
   Widget frame({
     required Widget child,
@@ -57,12 +75,17 @@ void main() {
                 .singleWhere((preset) => preset.id == 'blue-glass')
                 .preferences
           : null,
-    ),
+    ).copyWith(platform: platform),
     builder: (_, child) => DesktopFrame(
       enabled: true,
       reducedMotion: true,
       cornerRadius: 20,
-      syncNativeCorners: syncNativeCorners,
+      syncNativeCorners:
+          syncNativeCorners &&
+              (platform == TargetPlatform.linux ||
+                  platform == TargetPlatform.windows)
+          ? syncCorners
+          : syncNativeCorners && nativeCornerPlatform,
       child: child!,
     ),
     home: child,
@@ -85,6 +108,7 @@ void main() {
   testWidgets('clips the page and every dialog at the same 20px window edge', (
     tester,
   ) async {
+    syncCorners = nativeCornerPlatform;
     final navigator = GlobalKey<NavigatorState>();
     var pageTaps = 0;
     var dialogTaps = 0;
@@ -101,13 +125,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
     expect(
-      calls.where((call) => call.method == 'setCornerRadius').single.arguments,
-      {'radius': 20.0},
+      calls
+          .where((call) => call.method == 'setCornerRadius')
+          .map((c) => (c.arguments as Map)['radius']),
+      nativeCornerPlatform ? [20.0] : isEmpty,
     );
     await tester.tapAt(const Offset(1, 1));
     expect(pageTaps, 0);
     await tester.tapAt(const Offset(40, 40));
     expect(pageTaps, 1);
+    await tester.pump(const Duration(milliseconds: 100));
 
     showGeneralDialog<void>(
       context: navigator.currentContext!,
@@ -122,12 +149,15 @@ void main() {
     expect(dialogTaps, 0);
     await tester.tapAt(const Offset(40, 40));
     expect(dialogTaps, 1);
+    await tester.pump(const Duration(milliseconds: 100));
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('the visible arc resizes diagonally without covering controls', (
     tester,
   ) async {
+    platform = TargetPlatform.linux;
+    syncCorners = true;
     var contentTaps = 0;
     await tester.pumpWidget(
       frame(
@@ -157,36 +187,47 @@ void main() {
     // The arc's inner area remains part of the content, not a resize handle.
     await tester.tapAt(const Offset(18, 18));
     expect(contentTaps, 1);
+    await tester.pump(const Duration(milliseconds: 100));
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('maximized and fullscreen edges are square until restored', (
     tester,
   ) async {
+    platform = TargetPlatform.linux;
+    syncCorners = true;
+    calls.clear();
     final original = windowManager.listeners;
     maximized = true;
     await tester.pumpWidget(frame(child: const ColoredBox(color: Colors.red)));
     await tester.pumpAndSettle();
+    await tester.pump();
     final listener = windowManager.listeners.singleWhere(
       (listener) => !original.contains(listener),
     );
+    await tester.pump();
     expect(radius(tester), 0);
     expect(find.byType(DragToResizeArea), findsNothing);
     maximized = false;
     listener.onWindowUnmaximize();
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
+    await tester.pump();
     fullscreen = true;
     listener.onWindowEnterFullScreen();
     await tester.pumpAndSettle();
     expect(radius(tester), 0);
+    await tester.pump();
     fullscreen = false;
     listener.onWindowLeaveFullScreen();
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
+    await tester.pump();
     expect(
-      calls.where((call) => call.method == 'setCornerRadius'),
-      hasLength(1),
+      calls
+          .where((call) => call.method == 'setCornerRadius')
+          .map((c) => (c.arguments as Map)['radius']),
+      nativeCornerPlatform ? [20.0] : isEmpty,
     );
     expect(tester.takeException(), isNull);
   });
@@ -194,11 +235,9 @@ void main() {
   testWidgets('Blue Glass has clipped native corners but no drawn outline', (
     tester,
   ) async {
+    syncCorners = true;
     await tester.pumpWidget(
-      frame(
-        glass: true,
-        child: const ColoredBox(color: Colors.red),
-      ),
+      frame(glass: true, child: const ColoredBox(color: Colors.red)),
     );
     await tester.pumpAndSettle();
     final frameContainer = tester.widget<AnimatedContainer>(
@@ -211,8 +250,10 @@ void main() {
     );
     expect(frameContainer.foregroundDecoration, isNull);
     expect(
-      calls.where((call) => call.method == 'setCornerRadius').single.arguments,
-      {'radius': 20.0},
+      calls
+          .where((call) => call.method == 'setCornerRadius')
+          .map((c) => (c.arguments as Map)['radius']),
+      nativeCornerPlatform ? [20.0] : isEmpty,
     );
     expect(tester.takeException(), isNull);
   });

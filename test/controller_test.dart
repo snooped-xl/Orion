@@ -78,7 +78,10 @@ void main() {
   test(
     'saving writes real files and reopening selects the existing tab',
     () async {
-      final controller = OrionController(storageDirectory: temporaryDirectory);
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
       await controller.initialize();
       final document = controller.newDocument(content: 'print("first")');
       controller.updateDocumentContent(document.id, 'print("saved")');
@@ -103,7 +106,10 @@ void main() {
   test(
     'renamed file tabs keep their label through Save and recovery',
     () async {
-      final controller = OrionController(storageDirectory: temporaryDirectory);
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
       await controller.initialize();
       final document = controller.newDocument(content: 'print("original")');
       final path = '${temporaryDirectory.path}/disk-name.lua';
@@ -132,7 +138,10 @@ void main() {
   );
 
   test('library collection and text search compose correctly', () async {
-    final controller = OrionController(storageDirectory: temporaryDirectory);
+    final controller = OrionController(
+      storageDirectory: temporaryDirectory,
+      useMacSploit: false,
+    );
     await controller.initialize();
     controller.setCollection('Utilities');
     controller.setSearchQuery('motion');
@@ -150,7 +159,10 @@ void main() {
   });
 
   test('closing the final tab leaves an editable empty document', () async {
-    final controller = OrionController(storageDirectory: temporaryDirectory);
+    final controller = OrionController(
+      storageDirectory: temporaryDirectory,
+      useMacSploit: false,
+    );
     await controller.initialize();
     controller.closeDocument(controller.activeDocument.id);
     expect(controller.documents, hasLength(1));
@@ -198,7 +210,10 @@ void main() {
   test(
     'execute and attach report missing bridge clients without pretending to execute',
     () async {
-      final controller = OrionController(storageDirectory: temporaryDirectory);
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
       await controller.initialize();
       controller.updateDocumentContent(
         controller.activeDocument.id,
@@ -252,7 +267,10 @@ void main() {
           ],
         }),
       );
-      final controller = OrionController(storageDirectory: temporaryDirectory);
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
       await controller.initialize();
       expect(controller.activities, hasLength(1));
       expect(controller.activities.first.id, 'current');
@@ -301,7 +319,10 @@ void main() {
           ],
         }),
       );
-      final controller = OrionController(storageDirectory: temporaryDirectory);
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
       await controller.initialize();
       expect(controller.activities.map((entry) => entry.id), [
         'print',
@@ -345,7 +366,10 @@ void main() {
           'activities': [printed.toJson()],
         }),
       );
-      final controller = OrionController(storageDirectory: temporaryDirectory);
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
       await controller.initialize();
       expect(controller.activities.single.id, 'genuine-print');
       expect(controller.activities.single.detail, printedText);

@@ -7,6 +7,8 @@ import 'package:orion/state/orion_controller.dart';
 import 'package:orion/screens/workspace_screen.dart';
 
 class _MemoryController extends OrionController {
+  _MemoryController() : super(useMacSploit: false);
+
   @override
   Future<void> flushPersistence() async {}
 }

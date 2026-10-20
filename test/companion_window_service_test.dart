@@ -24,7 +24,7 @@ class _Desktop {
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   final parent = WindowController.fromWindowId('main');
-  final owner = OrionController(persistChanges: false);
+  final owner = OrionController(persistChanges: false, useMacSploit: false);
   late final service = CompanionWindowService(owner, parent);
   final allocated = <String>{'main'};
   final creations = <Map<String, Object?>>[];
@@ -313,6 +313,8 @@ void main() {
         desktop.command('child-1', 1, 'execute', {'source': 'print("one")'}),
       ]);
 
+      // The default macOS controller routes execution through the native
+      // executor asynchronously; this fixture explicitly uses the Bridge path.
       expect(desktop.owner.activities, hasLength(1));
       for (final reply in replies) {
         expect(((reply as Map)['envelope'] as Map)['ack'], 1);

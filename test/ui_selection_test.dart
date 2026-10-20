@@ -18,7 +18,7 @@ import 'package:orion/widgets/interface_logo.dart';
 import 'package:orion/widgets/ui_scale_viewport.dart';
 
 class _SourceClientController extends OrionController {
-  _SourceClientController() : super(persistChanges: false);
+  _SourceClientController() : super(persistChanges: false, useMacSploit: false);
   String? executedSource;
   @override
   void execute({String? source, String? name}) {

@@ -54,6 +54,7 @@ class RecordingExecutionController extends OrionController {
   RecordingExecutionController({
     required super.storageDirectory,
     required super.scriptHubService,
+    super.useMacSploit = false,
   });
 
   final executionRequests = <({String? source, String? name})>[];
@@ -83,6 +84,7 @@ void main() {
     final c = OrionController(
       storageDirectory: directory,
       scriptHubService: hub,
+      useMacSploit: false,
     );
     controllers.add(c);
     await c.initialize();
@@ -93,6 +95,7 @@ void main() {
     final c = RecordingExecutionController(
       storageDirectory: directory,
       scriptHubService: hub,
+      useMacSploit: false,
     );
     controllers.add(c);
     await c.initialize();

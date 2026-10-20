@@ -232,6 +232,11 @@ class ZenithShellState extends State<ZenithShell>
     if (page == _page && _loggedIn) return;
     await flushEditor();
     if (!mounted) return;
+    if (_loading) {
+      _loadingTimer?.cancel();
+      _loadingFade.stop();
+      setState(() => _loading = false);
+    }
     FocusScope.of(context).unfocus();
     setState(() {
       _page = page;
@@ -1203,6 +1208,7 @@ class ZenithShellState extends State<ZenithShell>
         .where(
           (line) =>
               line.kind == ActivityKind.execution &&
+              line.title != 'Workspace ready' &&
               !_clearedOutput.contains(line.id),
         )
         .toList()

@@ -44,7 +44,7 @@ void main() {
   test(
     'Orion Studio commits palette, document and recovery atomically over IPC',
     () async {
-      final owner = OrionController(persistChanges: false);
+      final owner = OrionController(persistChanges: false, useMacSploit: false);
       final child = _mirror(owner);
       addTearDown(() {
         child.dispose();
@@ -132,7 +132,7 @@ void main() {
   test(
     'native codec preserves optimistic IDs across insert reorder close and last replacement',
     () async {
-      final owner = OrionController(persistChanges: false);
+      final owner = OrionController(persistChanges: false, useMacSploit: false);
       final child = _mirror(owner);
       addTearDown(() {
         child.dispose();
@@ -170,7 +170,7 @@ void main() {
       addTearDown(() => directory.delete(recursive: true));
       final source = File('${directory.path}/imported.lua');
       await source.writeAsString('print("from disk")\n');
-      final owner = OrionController(persistChanges: false);
+      final owner = OrionController(persistChanges: false, useMacSploit: false);
       final fixed = owner.activeDocumentId;
       owner.newDocument(name: 'other.lua', content: 'leave this intact');
       final primaryActive = owner.activeDocumentId;
@@ -269,7 +269,7 @@ void main() {
   test(
     'native remote script maps retain source and share favorites and honest execution status',
     () async {
-      final owner = OrionController(persistChanges: false);
+      final owner = OrionController(persistChanges: false, useMacSploit: false);
       final child = _mirror(owner);
       addTearDown(() {
         child.dispose();
