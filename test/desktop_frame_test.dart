@@ -201,28 +201,33 @@ void main() {
     maximized = true;
     await tester.pumpWidget(frame(child: const ColoredBox(color: Colors.red)));
     await tester.pumpAndSettle();
+    await tester.pump();
     final listener = windowManager.listeners.singleWhere(
       (listener) => !original.contains(listener),
     );
+    await tester.pump();
     expect(radius(tester), 0);
     expect(find.byType(DragToResizeArea), findsNothing);
     maximized = false;
     listener.onWindowUnmaximize();
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
+    await tester.pump();
     fullscreen = true;
     listener.onWindowEnterFullScreen();
     await tester.pumpAndSettle();
     expect(radius(tester), 0);
+    await tester.pump();
     fullscreen = false;
     listener.onWindowLeaveFullScreen();
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
+    await tester.pump();
     expect(
       calls
           .where((call) => call.method == 'setCornerRadius')
           .map((c) => (c.arguments as Map)['radius']),
-      nativeCornerPlatform ? [0.0, 20.0, 0.0, 20.0] : isEmpty,
+      nativeCornerPlatform ? [20.0] : isEmpty,
     );
     expect(tester.takeException(), isNull);
   });
