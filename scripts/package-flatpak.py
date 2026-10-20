@@ -73,7 +73,8 @@ def main() -> None:
     run("flatpak", "build-finish", "--command=orion", "--require-version=1.12.0",
         "--share=network", "--share=ipc", "--socket=wayland", "--socket=x11",
         "--socket=pulseaudio", "--socket=session-bus", "--device=dri",
-        "--filesystem=home", "--filesystem=/media", "--filesystem=/mnt",
+        "--filesystem=home", "--filesystem=/tmp/relapse.sock",
+        "--filesystem=/media", "--filesystem=/mnt",
         "--filesystem=/run/media", "--env=GTK_USE_PORTAL=1", str(build))
     run("flatpak", "build-export", "--arch=x86_64", "--subject=Orion desktop test build",
         str(repository), str(build), BRANCH)

@@ -23,6 +23,7 @@ class SettingsScreen extends StatelessWidget {
       controller.orionCompactMode,
       controller.orionEnlargedMode,
       controller.alwaysOnTop,
+      controller.relapseSupportEnabled,
       controller.autosave,
       controller.persistenceError,
       controller.editorFontSize,
@@ -67,6 +68,23 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              if (controller.relapseSupportAvailable) ...[
+                const SizedBox(height: 12),
+                _SettingsSection(
+                  title: 'Execution',
+                  icon: Icons.cable_rounded,
+                  children: [
+                    _PreferenceSwitch(
+                      preferenceKey: 'relapse-support',
+                      title: 'Relapse support',
+                      description:
+                          'Use Relapse’s local socket for execution and output. Orion Bridge is disabled while this is on.',
+                      value: controller.relapseSupportEnabled,
+                      onChanged: controller.setRelapseSupportEnabled,
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 12),
               _Editor(controller: controller),
               const SizedBox(height: 12),

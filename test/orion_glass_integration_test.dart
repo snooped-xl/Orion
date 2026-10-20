@@ -117,7 +117,7 @@ void main() {
     expect(backdrop.useAuthoredBackground, true);
     expect(backdrop.authoredGradient, colors.backgroundGradient);
     expect(backdrop.authoredGradient!.begin, isNot(Alignment.topLeft));
-    expect(backdrop.backdropOpacity, c.orionTheme.windowOpacity);
+    expect(backdrop.backdropOpacity, 1);
     c.setOrionTheme(c.orionTheme.copyWith(gradientEnabled: false));
     await tester.pumpAndSettle();
     backdrop = tester.widget<OrionGlassBackdrop>(

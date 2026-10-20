@@ -97,7 +97,11 @@ class _MonacoEditorState extends State<MonacoEditor>
       box.getTransformTo(null),
       Offset.zero & box.size,
     );
-    if (!bounds.isFinite) return;
+    // During page/size transitions Flutter can briefly report a zero-area
+    // transform. Keep the last valid native placement instead of hiding the
+    // WebKit editor for a frame; real visibility changes are handled by the
+    // service's active/obscured state.
+    if (!bounds.isFinite || bounds.width <= 0 || bounds.height <= 0) return;
     if (widget.service.visualMirror) {
       // GTK allocates integer logical pixels. Paint its complete image at
       // that same global rectangle, then undo UI scale in local space. Only

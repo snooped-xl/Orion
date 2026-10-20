@@ -165,14 +165,20 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
       final listening = await c.initializeBridge();
       if (mounted) {
         setState(() {
-          _feedback = listening ? 'Bridge ready' : 'Could not start the bridge';
+          _feedback = c.usesRelapseSupport
+              ? 'Relapse support is active'
+              : listening
+              ? 'Bridge ready'
+              : 'Could not start the bridge';
           _failed = !listening;
         });
       }
     } on Object catch (error) {
       if (mounted) {
         setState(() {
-          _feedback = 'Could not start bridge: $error';
+          _feedback = c.usesRelapseSupport
+              ? 'Could not connect to Relapse: $error'
+              : 'Could not start bridge: $error';
           _failed = true;
         });
       }
@@ -196,16 +202,24 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                       c.selectedBridgeClients.contains(client.identifier),
                 )
                 .length;
-      final backend = c.usesNativeExecutor
+      final backend = c.usesRelapseSupport
+          ? 'Relapse'
+          : c.usesNativeExecutor
           ? (c.detectedNativeExecutor ?? 'Executor')
           : 'Bridge';
       final status = c.bridgeError != null
           ? '$backend unavailable'
+          : c.usesRelapseSupport && c.relapseReady
+          ? 'Connected · ready'
+          : c.usesRelapseSupport && c.bridgeConnected
+          ? 'Connected · waiting for game'
           : clients.isNotEmpty
           ? '${clients.length} connected'
           : c.bridgeListening
           ? (c.usesNativeExecutor
                 ? 'Scanning local clients'
+                : c.usesRelapseSupport
+                ? 'Waiting for Relapse'
                 : 'Waiting for clients')
           : '$backend offline';
       return Material(
@@ -229,7 +243,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   child: Text(status, style: theme.textTheme.labelLarge),
                 ),
                 Text(
-                  c.usesNativeExecutor
+                  c.usesRelapseSupport
+                      ? 'Relapse support'
+                      : c.usesNativeExecutor
                       ? (c.detectedNativeExecutor ??
                             (c.nativeExecutorPreference == 'auto'
                                 ? 'Auto executor'
@@ -318,7 +334,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   ),
                 ),
               ),
-            if (!c.bridgeListening || c.bridgeError != null)
+            if (!c.bridgeListening ||
+                c.bridgeError != null ||
+                (c.usesRelapseSupport && !c.bridgeConnected))
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -328,11 +346,13 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   label: Text(
                     c.usesNativeExecutor
                         ? 'Retry executor scan'
+                        : c.usesRelapseSupport
+                        ? 'Retry Relapse'
                         : 'Retry bridge',
                   ),
                 ),
               ),
-            if (!c.usesNativeExecutor) ...[
+            if (!c.usesNativeExecutor && !c.usesRelapseSupport) ...[
               const SizedBox(height: 14),
               SegmentedButton<bool>(
                 key: const ValueKey('bridge-target-mode'),
@@ -396,7 +416,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      c.usesNativeExecutor
+                      c.usesRelapseSupport
+                          ? 'Start Relapse on Linux. Orion watches ${c.relapseSocketPath} and connects automatically.'
+                          : c.usesNativeExecutor
                           ? 'Choose Auto-detect or select MacSploit or Opiumware above. Auto-detect prefers MacSploit; port can be selected explicitly or left on Auto port.'
                           : 'Run Orion Bridge in your executor to connect.',
                       textAlign: TextAlign.center,
@@ -424,6 +446,37 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
+                ),
+              )
+            else if (c.usesRelapseSupport)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: colors.stateFill(.09, base: colors.elevated),
+                  border: colors.transparentSurfaces
+                      ? Border.all(color: colors.outline(.35), width: .67)
+                      : null,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      c.relapseReady
+                          ? 'Relapse is ready for scripts.'
+                          : 'Relapse is connected and waiting for a game session.',
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      c.relapseOutputCaptureActive
+                          ? 'Luau output is being forwarded to the Orion console.'
+                          : 'Output capture is starting. Socket: ${c.relapseSocketPath}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               )
             else ...[
@@ -508,7 +561,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
               shape: const Border(),
               collapsedShape: const Border(),
               title: Text(
-                'Connect a client',
+                c.usesRelapseSupport
+                    ? 'Relapse connection'
+                    : 'Connect a client',
                 style: theme.textTheme.titleSmall,
               ),
               leading: const Icon(Icons.add_link_rounded, size: 20),
@@ -516,7 +571,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    c.usesNativeExecutor
+                    c.usesRelapseSupport
+                        ? 'Orion connects to Relapse through its local Unix socket, sends scripts, and forwards captured output. Turn off Relapse support to use Orion Bridge again.'
+                        : c.usesNativeExecutor
                         ? 'Native executor mode detects MacSploit (5553–5563) or Opiumware (8392–8397), then sends scripts to the selected or first responsive port. No Orion Bridge script is needed.'
                         : 'Copy the loader or full script and run it in each executor. Clients appear here automatically.',
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -525,7 +582,7 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                if (!c.usesNativeExecutor)
+                if (!c.usesNativeExecutor && !c.usesRelapseSupport)
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,

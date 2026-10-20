@@ -628,6 +628,12 @@ class CompanionController extends OrionController {
   @override
   void setAutosave(bool value) =>
       _preference('autosave', value, () => super.setAutosave(value));
+  @override
+  void setRelapseSupportEnabled(bool value) => _preference(
+    'relapseSupport',
+    value,
+    () => super.setRelapseSupportEnabled(value),
+  );
 
   @override
   void setRemoteSearchQuery(String query) {

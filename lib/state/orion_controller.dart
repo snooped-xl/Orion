@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../models/orion_models.dart';
 import '../models/bridge_models.dart';
 import '../services/orion_bridge_service.dart';
+import '../services/relapse_gtk_service.dart';
 import '../models/interface_preset.dart';
 import '../models/companion_window.dart';
 import '../models/interface_preferences.dart';
@@ -28,6 +29,7 @@ class OrionController extends ChangeNotifier {
     Directory? storageDirectory,
     ScriptHubService? scriptHubService,
     OrionBridgeService? bridgeService,
+    RelapseGtkService? relapseService,
     bool? useMacSploit,
     String nativeExecutorPreference = 'auto',
     int? nativePortPreference,
@@ -43,7 +45,8 @@ class OrionController extends ChangeNotifier {
              macSploitMode: useMacSploit ?? Platform.isMacOS,
              nativeExecutorPreference: nativeExecutorPreference,
              nativePortPreference: nativePortPreference,
-           ) {
+           ),
+       _relapse = relapseService ?? RelapseGtkService() {
     _documents.add(
       const EditorDocument(
         id: 'welcome-constellation',
@@ -64,8 +67,18 @@ class OrionController extends ChangeNotifier {
 
   final ScriptHubService _scriptHub;
   final OrionBridgeService _bridge;
+  final RelapseGtkService _relapse;
   StreamSubscription<BridgeLogEntry>? _bridgeLogSubscription;
+  StreamSubscription<BridgeLogEntry>? _relapseLogSubscription;
   bool _bridgeInitialized = false;
+  bool _relapseSupportEnabled = false;
+  int _connectionModeGeneration = 0;
+  bool _mirroredRelapseActive = false;
+  bool _mirroredRelapseConnected = false;
+  bool _mirroredRelapseReady = false;
+  bool _mirroredRelapseOutputCaptureActive = false;
+  int? _mirroredRelapseSession;
+  String? _mirroredRelapseError;
   final List<BridgeClient> _bridgeClients = [];
   final Set<String> _selectedBridgeClients = {};
   bool _bridgeTargetAll = true;
@@ -90,15 +103,54 @@ class OrionController extends ChangeNotifier {
     _changed(persist: false);
   }
 
-  List<BridgeClient> get bridgeClients => List.unmodifiable(_bridgeClients);
-  bool get bridgeListening => _bridgeListening;
-  bool get bridgeConnected => _bridgeClients.isNotEmpty;
-  String? get bridgeError => _bridgeError;
+  bool get _relapseIsConnected =>
+      _bridgeInitialized ? _relapse.isConnected : _mirroredRelapseConnected;
+  bool get _relapseIsReady =>
+      _bridgeInitialized ? _relapse.isReady : _mirroredRelapseReady;
+  bool get _relapseIsActive =>
+      _bridgeInitialized ? _relapse.isActive : _mirroredRelapseActive;
+  int? get _relapseSession =>
+      _bridgeInitialized ? _relapse.session : _mirroredRelapseSession;
+  String? get _relapseError =>
+      _bridgeInitialized ? _relapse.error : _mirroredRelapseError;
+  bool get _relapseOutputActive => _bridgeInitialized
+      ? _relapse.outputCaptureActive
+      : _mirroredRelapseOutputCaptureActive;
+
+  List<BridgeClient> get bridgeClients => relapseSupportEnabled
+      ? _relapseIsConnected
+            ? [
+                BridgeClient(
+                  identifier: 'Relapse',
+                  username: 'Relapse',
+                  transport: 'Unix socket',
+                  clientLabel: 'RelapseGtk',
+                  executorName: 'Relapse',
+                  sessionId: 'relapse-${_relapseSession ?? 0}',
+                ),
+              ]
+            : const []
+      : List.unmodifiable(_bridgeClients);
+  bool get bridgeListening =>
+      relapseSupportEnabled ? _relapseIsActive : _bridgeListening;
+  bool get bridgeConnected =>
+      relapseSupportEnabled ? _relapseIsConnected : _bridgeClients.isNotEmpty;
+  String? get bridgeError =>
+      relapseSupportEnabled ? _relapseError : _bridgeError;
+  bool get relapseSupportAvailable => Platform.isLinux;
+  bool get relapseSupportEnabled => Platform.isLinux && _relapseSupportEnabled;
+  bool get relapseReady => relapseSupportEnabled && _relapseIsReady;
+  bool get usesRelapseSupport => relapseSupportEnabled;
+  bool get relapseOutputCaptureActive =>
+      relapseSupportEnabled && _relapseOutputActive;
+  String get relapseSocketPath => _relapse.socketPath;
   int get bridgePort => _bridgePort;
   Set<String> get selectedBridgeClients =>
       Set.unmodifiable(_selectedBridgeClients);
   bool get bridgeTargetAll => _bridgeTargetAll;
-  int get bridgeTargetCount => _bridgeTargetAll
+  int get bridgeTargetCount => relapseSupportEnabled
+      ? (_relapseIsReady ? 1 : 0)
+      : _bridgeTargetAll
       ? _bridgeClients.length
       : _bridgeClients
             .where((c) => _selectedBridgeClients.contains(c.identifier))
@@ -112,9 +164,41 @@ class OrionController extends ChangeNotifier {
       _bridgeInitialized = true;
       _bridge.addListener(_bridgeChanged);
       _bridgeLogSubscription = _bridge.logReceived.listen(_bridgeLogReceived);
+      _relapse.addListener(_relapseChanged);
+      _relapseLogSubscription = _relapse.logReceived.listen(
+        _relapseLogReceived,
+      );
     }
-    final started = await _bridge.start(port: port);
-    if (!_disposed) _bridgeChanged();
+    _bridgePort = port;
+    return _applyConnectionMode();
+  }
+
+  void setRelapseSupportEnabled(bool value) {
+    if (!Platform.isLinux || _relapseSupportEnabled == value) return;
+    _relapseSupportEnabled = value;
+    _changed();
+    if (_bridgeInitialized && !_disposed) {
+      unawaited(_applyConnectionMode());
+    }
+  }
+
+  Future<bool> _applyConnectionMode() async {
+    final generation = ++_connectionModeGeneration;
+    if (relapseSupportEnabled) {
+      await _bridge.close();
+      if (_disposed || generation != _connectionModeGeneration) return false;
+      _bridgeChanged();
+      await _relapse.start();
+      if (_disposed || generation != _connectionModeGeneration) return false;
+      _relapseChanged();
+      return true;
+    }
+    await _relapse.stop();
+    if (_disposed || generation != _connectionModeGeneration) return false;
+    _relapseChanged();
+    final started = await _bridge.start(port: _bridgePort);
+    if (_disposed || generation != _connectionModeGeneration) return false;
+    _bridgeChanged();
     return started;
   }
 
@@ -124,6 +208,7 @@ class OrionController extends ChangeNotifier {
     bridgeShutdownHook = null;
     await shutdown?.call();
     await _bridge.close();
+    await _relapse.stop();
   }
 
   void _bridgeChanged() {
@@ -164,6 +249,23 @@ class OrionController extends ChangeNotifier {
       ActivityKind.execution,
       severity,
     );
+    _changed(persist: false);
+  }
+
+  void _relapseChanged() {
+    if (_disposed) return;
+    _changed(persist: false);
+  }
+
+  void _relapseLogReceived(BridgeLogEntry entry) {
+    if (_disposed || !relapseSupportEnabled) return;
+    final severity = switch (entry.level.toLowerCase()) {
+      'error' => ActivitySeverity.error,
+      'warn' || 'warning' => ActivitySeverity.warning,
+      'success' => ActivitySeverity.success,
+      _ => ActivitySeverity.info,
+    };
+    _addActivity('Relapse', entry.message, ActivityKind.execution, severity);
     _changed(persist: false);
   }
 
@@ -1035,6 +1137,10 @@ class OrionController extends ChangeNotifier {
       _changed();
       return;
     }
+    if (relapseSupportEnabled) {
+      unawaited(_executeViaRelapse(body, scriptName));
+      return;
+    }
     if (usesNativeExecutor) {
       unawaited(_executeViaNativeExecutor(body, scriptName));
       return;
@@ -1089,6 +1195,26 @@ class OrionController extends ChangeNotifier {
     _changed();
   }
 
+  Future<void> _executeViaRelapse(String source, String scriptName) async {
+    try {
+      final id = await _relapse.execute(source, name: scriptName);
+      _addActivity(
+        'Script queued',
+        '$scriptName → Relapse · request $id',
+        ActivityKind.execution,
+        ActivitySeverity.info,
+      );
+    } on Object catch (error) {
+      _addActivity(
+        'Script could not be executed',
+        error.toString(),
+        ActivityKind.execution,
+        ActivitySeverity.error,
+      );
+    }
+    if (!_disposed) _changed();
+  }
+
   Future<void> _executeViaNativeExecutor(
     String source,
     String scriptName,
@@ -1122,6 +1248,22 @@ class OrionController extends ChangeNotifier {
 
   void attach() {
     if (_disposed) return;
+    if (relapseSupportEnabled) {
+      _addActivity(
+        bridgeConnected
+            ? (relapseReady ? 'Relapse connected' : 'Relapse waiting for game')
+            : 'Waiting for Relapse',
+        bridgeConnected
+            ? (relapseReady
+                  ? 'The Relapse socket is ready to receive scripts.'
+                  : 'Relapse is connected and waiting for a ready game session.')
+            : 'Start Relapse. Orion is watching ${_relapse.socketPath}.',
+        ActivityKind.execution,
+        bridgeConnected ? ActivitySeverity.success : ActivitySeverity.info,
+      );
+      _changed();
+      return;
+    }
     _addActivity(
       bridgeConnected
           ? (usesNativeExecutor
@@ -1623,6 +1765,7 @@ class OrionController extends ChangeNotifier {
     'wordWrap': _wordWrap,
     'showLineNumbers': _showLineNumbers,
     'autosave': _autosave,
+    'relapseSupport': Platform.isLinux && _relapseSupportEnabled,
     'introCompleted': _introCompleted,
   };
 
@@ -1636,6 +1779,22 @@ class OrionController extends ChangeNotifier {
     'bridgeListening': _bridgeListening,
     'bridgeError': _bridgeError,
     'bridgePort': _bridgePort,
+    'relapseActive': _bridgeInitialized
+        ? _relapse.isActive
+        : _mirroredRelapseActive,
+    'relapseConnected': _bridgeInitialized
+        ? _relapse.isConnected
+        : _mirroredRelapseConnected,
+    'relapseReady': _bridgeInitialized
+        ? _relapse.isReady
+        : _mirroredRelapseReady,
+    'relapseOutputCaptureActive': _bridgeInitialized
+        ? _relapse.outputCaptureActive
+        : _mirroredRelapseOutputCaptureActive,
+    'relapseSession': _bridgeInitialized
+        ? _relapse.session
+        : _mirroredRelapseSession,
+    'relapseError': _bridgeInitialized ? _relapse.error : _mirroredRelapseError,
     'detachedDocumentIds': _detachedDocumentIds.toList(),
     'searchQuery': _searchQuery,
     'remoteQuery': _remoteQuery,
@@ -1678,6 +1837,13 @@ class OrionController extends ChangeNotifier {
       _bridgeListening = json['bridgeListening'] == true;
       _bridgeError = json['bridgeError'] as String?;
       _bridgePort = json['bridgePort'] as int? ?? 31337;
+      _mirroredRelapseActive = json['relapseActive'] == true;
+      _mirroredRelapseConnected = json['relapseConnected'] == true;
+      _mirroredRelapseReady = json['relapseReady'] == true;
+      _mirroredRelapseOutputCaptureActive =
+          json['relapseOutputCaptureActive'] == true;
+      _mirroredRelapseSession = json['relapseSession'] as int?;
+      _mirroredRelapseError = json['relapseError'] as String?;
     }
     _bridgeTargetAll = json['bridgeTargetAll'] != false;
     _selectedBridgeClients
@@ -1854,6 +2020,7 @@ class OrionController extends ChangeNotifier {
     _wordWrap = _readBool(json, 'wordWrap', false);
     _showLineNumbers = _readBool(json, 'showLineNumbers', true);
     _autosave = _readBool(json, 'autosave', true);
+    _relapseSupportEnabled = _readBool(json, 'relapseSupport', false);
     _introCompleted = _readBool(json, 'introCompleted', false);
     final uiScale = json['uiScale'];
     _uiScale = uiScale is num ? _normalizeUiScale(uiScale.toDouble()) : 1.0;
@@ -1875,6 +2042,9 @@ class OrionController extends ChangeNotifier {
     _scriptLibrary?.dispose();
     _bridge.removeListener(_bridgeChanged);
     unawaited(_bridgeLogSubscription?.cancel());
+    _relapse.removeListener(_relapseChanged);
+    unawaited(_relapseLogSubscription?.cancel());
+    _relapse.dispose();
     final shutdown = bridgeShutdownHook;
     bridgeShutdownHook = null;
     if (shutdown != null) unawaited(Future<void>.sync(shutdown));

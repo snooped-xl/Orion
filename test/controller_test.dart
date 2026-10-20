@@ -58,6 +58,23 @@ void main() {
     },
   );
 
+  test('persists the Linux-only Relapse support preference', () async {
+    if (!Platform.isLinux) return;
+    final first = OrionController(storageDirectory: temporaryDirectory);
+    await first.initialize();
+    first.setRelapseSupportEnabled(true);
+    await first.flushPersistence();
+    first.dispose();
+    await first.flushPersistence();
+
+    final restored = OrionController(storageDirectory: temporaryDirectory);
+    await restored.initialize();
+    expect(restored.relapseSupportAvailable, isTrue);
+    expect(restored.relapseSupportEnabled, isTrue);
+    restored.dispose();
+    await restored.flushPersistence();
+  });
+
   test(
     'saving writes real files and reopening selects the existing tab',
     () async {

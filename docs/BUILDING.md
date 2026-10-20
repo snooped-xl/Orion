@@ -136,12 +136,19 @@ the runtime is installed, Orion's editor, local scripts, and Bridge work
 offline; remote script search still requires a network connection.
 
 The package allows network access for script sources and Orion Bridge's
-host loopback connection, GPU rendering, Wayland and X11 windows, and access
+host loopback connection, the exact `/tmp/relapse.sock` path for optional
+Relapse support, GPU rendering, Wayland and X11 windows, and access
 to the user's home and mounted drives for scripts and files. It uses the
 session bus directly so Orion's own GNOME compositor companion can verify the
 real process that owns each window. It does not request Flatpak host-process
 execution. Folder and browser opening and file dialogs use desktop portals.
 The workspace remains `~/orion`, including when launched from Flatpak.
+
+On Linux, **Settings → Relapse support** switches execution from Orion Bridge
+to a running Relapse GTK instance over `/tmp/relapse.sock`. Orion sends scripts
+to Relapse's ready session and captures output through its output channel. The
+Flatpak grants access to that exact socket path, not all of `/tmp`. This option
+is hidden on other platforms, and Orion does not bundle Relapse's GTK UI.
 
 The optional GNOME companion supplies live behind-window refraction,
 monitor-based launch placement, and Wayland topmost support on supported

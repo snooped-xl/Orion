@@ -43,6 +43,48 @@ class _GeometryService extends MonacoEditorService {
 }
 
 void main() {
+  testWidgets('transient zero-size layout does not hide Monaco', (
+    tester,
+  ) async {
+    final recorder = ui.PictureRecorder();
+    Canvas(
+      recorder,
+    ).drawRect(const Rect.fromLTWH(0, 0, 4, 2), Paint()..color = Colors.blue);
+    final picture = recorder.endRecording();
+    final image = (await tester.runAsync(() => picture.toImage(4, 2)))!;
+    picture.dispose();
+    final frame = ValueNotifier<ui.Image?>(image);
+    final service = _GeometryService(false, frame);
+    final size = ValueNotifier<Size>(const Size(500, 320));
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: ValueListenableBuilder<Size>(
+              valueListenable: size,
+              child: MonacoEditor(service: service, active: true),
+              builder: (_, value, child) =>
+                  SizedBox.fromSize(size: value, child: child),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final validMeasurements = service.measurements;
+      expect(validMeasurements, greaterThan(0));
+      size.value = Size.zero;
+      await tester.pumpAndSettle();
+      expect(service.measurements, validMeasurements);
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      service.dispose();
+      size.dispose();
+      frame.dispose();
+      image.dispose();
+    }
+  });
+
   for (final mirror in [false, true]) {
     for (final scale in [1.0, 1.25]) {
       testWidgets(

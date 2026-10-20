@@ -109,6 +109,20 @@ Disconnecting a client in Orion removes that session; it does not close Roblox.
 A bridge that is still running can reconnect. Only one Orion instance can own
 port 31337 at a time. If no client is connected, execution has nowhere to go.
 
+### Relapse GTK support on Linux
+
+Start Relapse GTK, then enable **Settings → Relapse support** in Orion. Orion
+connects to Relapse's local `/tmp/relapse.sock`, submits editor and script-hub
+code to its ready game session, and forwards captured output to Orion's console.
+This setting is Linux-only. While enabled, Orion's own HTTP bridge is stopped;
+turn it off to return to Orion Bridge. Orion uses Relapse's socket capabilities
+without bundling or opening Relapse's GTK interface.
+
+The Flatpak grants access to this one socket path so Relapse can run on the
+desktop host. Orion does not request general host `/tmp` access. The bundled
+output-capture helper is attributed and licensed in
+[`assets/relapsegtk/`](assets/relapsegtk/).
+
 ## Editor, scripts, and search
 
 - **Monaco:** bundled offline, with Luau syntax colours, Roblox/Luau completion,
@@ -197,9 +211,10 @@ glass material. See the [Windows native host
 notes](windows/runner/NATIVE_WINDOWS.md) for implementation and validation details.
 
 Flatpak permits network access for the bridge and script search, home and mounted
-folders for your files, and the session bus for authenticated GNOME integration.
-It does not request host command execution. File dialogs and external opening use
-desktop portals. See [build and platform details](docs/BUILDING.md).
+folders for your files, the session bus for authenticated GNOME integration, and
+the single `/tmp/relapse.sock` path for optional Relapse support. It does not
+request host command execution. File dialogs and external opening use desktop
+portals. See [build and platform details](docs/BUILDING.md).
 
 ## Your workspace
 
