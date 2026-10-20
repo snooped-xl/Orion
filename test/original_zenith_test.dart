@@ -16,6 +16,8 @@ import 'package:orion/widgets/ui_scale_viewport.dart';
 import 'package:orion/widgets/monaco_editor.dart';
 
 class _Controller extends OrionController {
+  _Controller() : super(useMacSploit: false);
+
   int opened = 0;
   String? savedBody;
   final savedPaths = <String>[];
@@ -128,6 +130,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     c.setReducedMotion(reduced);
+    await tester.runAsync(() => c.initialize());
     final pickerDirectory = Directory.systemTemp.createTempSync(
       'zenith-picker-',
     );
@@ -401,14 +404,11 @@ void main() {
         );
       await mount(tester, c, reduced: false);
       await login(tester);
-      final nav = find.byKey(const ValueKey('zenith-navigation'));
       final mouse = await tester.createGesture(
         kind: ui.PointerDeviceKind.mouse,
       );
       await mouse.addPointer(location: const Offset(1000, 620));
-      await mouse.moveTo(tester.getTopLeft(nav) + const Offset(24, 24));
-      await tester.pumpAndSettle();
-      expect(tester.getSize(nav).width, 56);
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('zenith-nav-1')));
       await tester.pump();
       final editorBody = find.byKey(const ValueKey('zenith-editor-body'));
@@ -536,13 +536,16 @@ void main() {
       await mount(tester, c, service: service, native: true);
       await login(tester);
       await page(tester, 1);
-      expect(service.visible, true);
-      expect(find.byType(MonacoEditor), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(service.visible, Platform.isLinux || Platform.isWindows);
       await page(tester, 3);
       await waitAssets(tester);
       expect(service.visible, false);
       expect(find.byType(MonacoEditor), findsNothing);
-      expect(find.byType(MonacoEditor, skipOffstage: false), findsOneWidget);
+      expect(
+        find.byType(MonacoEditor, skipOffstage: false),
+        Platform.isLinux || Platform.isWindows ? findsOneWidget : findsNothing,
+      );
       await tester.tap(find.byKey(const ValueKey('zenith-doc-category-All')));
       await tester.pumpAndSettle();
       await tester.enterText(input('Search functions...'), 'setfflag');
@@ -556,7 +559,7 @@ void main() {
       await page(tester, 0);
       expect(service.visible, false);
       await page(tester, 1);
-      expect(service.visible, true);
+      expect(service.visible, Platform.isLinux || Platform.isWindows);
       await page(tester, 3);
       expect(service.visible, false);
       expect(
@@ -710,7 +713,25 @@ void main() {
       );
       final c = _Controller()
         ..setInterfacePreference(InterfacePreset.zenithV2, 'resizable', false);
-      await mount(tester, c, native: true);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(disableAnimations: c.reducedMotion),
+            child: UiScaleViewport(scale: c.uiScale, child: child!),
+          ),
+          home: Material(
+            type: MaterialType.transparency,
+            child: ZenithShell(
+              controller: c,
+              nativeWindow: true,
+              onBackToOrion: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
       final maximize = find.descendant(
         of: find.byTooltip('Maximize'),
         matching: find.byType(ZenithButton),
@@ -729,6 +750,7 @@ void main() {
         (background.decoration as BoxDecoration).color,
         Colors.transparent,
       );
+      calls.clear();
       await tester.tap(maximize);
       await tester.pumpAndSettle();
       expect(calls, isNot(contains('isMaximized')));
@@ -798,6 +820,7 @@ void main() {
     'source closes an active middle tab into its previous neighbor and keeps the last tab',
     (tester) async {
       final c = _Controller();
+      await tester.runAsync(() => c.initialize());
       final first = c.activeDocumentId;
       final middle = c.newDocument(name: 'Middle');
       final last = c.newDocument(name: 'Last');

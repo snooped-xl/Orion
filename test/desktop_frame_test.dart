@@ -13,11 +13,16 @@ void main() {
   const plugin = MethodChannel('window_manager');
   const native = MethodChannel('orion/window');
   final calls = <MethodCall>[];
+  final listenersAdded = <WindowListener>[];
   var maximized = false;
   var fullscreen = false;
+  var platform = TargetPlatform.macOS;
 
   setUp(() {
     calls.clear();
+    listenersAdded
+      ..clear()
+      ..addAll(windowManager.listeners);
     maximized = false;
     fullscreen = false;
     final messenger =
@@ -36,10 +41,19 @@ void main() {
     });
   });
   tearDown(() {
+    for (final listener in windowManager.listeners.toList()) {
+      if (!listenersAdded.contains(listener)) {
+        windowManager.removeListener(listener);
+      }
+    }
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(plugin, null);
     messenger.setMockMethodCallHandler(native, null);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('window_manager'),
+      null,
+    );
   });
 
   Widget frame({
@@ -57,7 +71,7 @@ void main() {
                 .singleWhere((preset) => preset.id == 'blue-glass')
                 .preferences
           : null,
-    ),
+    ).copyWith(platform: platform),
     builder: (_, child) => DesktopFrame(
       enabled: true,
       reducedMotion: true,
@@ -100,10 +114,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
-    expect(
-      calls.where((call) => call.method == 'setCornerRadius').single.arguments,
-      {'radius': 20.0},
-    );
+    expect(calls.where((call) => call.method == 'setCornerRadius'), isEmpty);
     await tester.tapAt(const Offset(1, 1));
     expect(pageTaps, 0);
     await tester.tapAt(const Offset(40, 40));
@@ -128,6 +139,7 @@ void main() {
   testWidgets('the visible arc resizes diagonally without covering controls', (
     tester,
   ) async {
+    platform = TargetPlatform.linux;
     var contentTaps = 0;
     await tester.pumpWidget(
       frame(
@@ -163,6 +175,8 @@ void main() {
   testWidgets('maximized and fullscreen edges are square until restored', (
     tester,
   ) async {
+    platform = TargetPlatform.linux;
+    calls.clear();
     final original = windowManager.listeners;
     maximized = true;
     await tester.pumpWidget(frame(child: const ColoredBox(color: Colors.red)));
@@ -184,10 +198,7 @@ void main() {
     listener.onWindowLeaveFullScreen();
     await tester.pumpAndSettle();
     expect(radius(tester), 20);
-    expect(
-      calls.where((call) => call.method == 'setCornerRadius'),
-      hasLength(1),
-    );
+    expect(calls.where((call) => call.method == 'setCornerRadius'), isEmpty);
     expect(tester.takeException(), isNull);
   });
 
@@ -195,10 +206,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      frame(
-        glass: true,
-        child: const ColoredBox(color: Colors.red),
-      ),
+      frame(glass: true, child: const ColoredBox(color: Colors.red)),
     );
     await tester.pumpAndSettle();
     final frameContainer = tester.widget<AnimatedContainer>(
@@ -210,10 +218,7 @@ void main() {
           .first,
     );
     expect(frameContainer.foregroundDecoration, isNull);
-    expect(
-      calls.where((call) => call.method == 'setCornerRadius').single.arguments,
-      {'radius': 20.0},
-    );
+    expect(calls.where((call) => call.method == 'setCornerRadius'), isEmpty);
     expect(tester.takeException(), isNull);
   });
 

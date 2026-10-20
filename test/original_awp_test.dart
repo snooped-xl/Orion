@@ -15,6 +15,8 @@ import 'package:orion/state/orion_controller.dart';
 import 'package:orion/widgets/ui_scale_viewport.dart';
 
 class OriginalPortController extends OrionController {
+  OriginalPortController() : super(useMacSploit: false);
+
   int opened = 0;
   String? savedBody;
   final List<String> savedPaths = [];
