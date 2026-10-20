@@ -381,7 +381,9 @@ class RelapseGtkService extends ChangeNotifier {
     final type = message['type'];
     if (type == 'subscribed') {
       if (message['version'] != protocolVersion) {
-        _protocolError('Relapse output channel version is not supported.');
+        _outputProtocolError(
+          'Relapse output channel version is not supported.',
+        );
         return;
       }
       _outputSubscribed = true;
@@ -403,7 +405,7 @@ class RelapseGtkService extends ChangeNotifier {
     if (type == 'dropped') {
       final count = message['count'];
       if (count is! int || count < 1) {
-        _protocolError('Relapse sent an invalid dropped-message count.');
+        _outputProtocolError('Relapse sent an invalid dropped-message count.');
       } else {
         _emitLog('warn', '$count output messages were dropped by Relapse.');
       }
@@ -412,33 +414,47 @@ class RelapseGtkService extends ChangeNotifier {
     if (type == 'output') {
       final entries = message['entries'];
       final dropped = message['dropped'];
-      if (!_outputSubscribed ||
+      // Relapse registers the peer before it writes the subscription ack. A
+      // print from the game can therefore race that ack on the output socket.
+      // The request has already been sent on this channel, so a valid batch is
+      // sufficient proof that output capture is active.
+      if (!_outputDesired ||
           entries is! List ||
           entries.isEmpty ||
           entries.length > 32 ||
           dropped is! int ||
           dropped < 0) {
-        _protocolError('Relapse sent an invalid output batch.');
+        _outputProtocolError('Relapse sent an invalid output batch.');
         return;
+      }
+      final validatedEntries = <MapEntry<String, String>>[];
+      for (final rawEntry in entries) {
+        if (rawEntry is! Map ||
+            rawEntry['text'] is! String ||
+            rawEntry['level'] is! String) {
+          _outputProtocolError('Relapse sent an invalid output entry.');
+          return;
+        }
+        final level = rawEntry['level'] as String;
+        final text = rawEntry['text'] as String;
+        if (!const {'print', 'warn', 'error', 'info'}.contains(level) ||
+            utf8.encode(text).length > 4096) {
+          _outputProtocolError('Relapse sent an unsupported output entry.');
+          return;
+        }
+        validatedEntries.add(MapEntry(level, text));
+      }
+      if (!_outputSubscribed) {
+        _outputSubscribed = true;
+        _outputTimeoutReported = false;
+        _stopOutputRetries();
+        notifyListeners();
       }
       if (dropped > 0) {
         _emitLog('warn', '$dropped output messages were dropped by Relapse.');
       }
-      for (final entry in entries) {
-        if (entry is! Map ||
-            entry['text'] is! String ||
-            entry['level'] is! String) {
-          _protocolError('Relapse sent an invalid output entry.');
-          return;
-        }
-        final level = entry['level'] as String;
-        final text = entry['text'] as String;
-        if (!const {'print', 'warn', 'error', 'info'}.contains(level) ||
-            utf8.encode(text).length > 4096) {
-          _protocolError('Relapse sent an unsupported output entry.');
-          return;
-        }
-        _emitLog(level, text);
+      for (final entry in validatedEntries) {
+        _emitLog(entry.key, entry.value);
       }
     }
   }
@@ -450,6 +466,20 @@ class RelapseGtkService extends ChangeNotifier {
     if (main != null) unawaited(main.close());
     final output = _output;
     if (output != null) unawaited(output.close());
+  }
+
+  /// An output-capture protocol issue must not tear down the execution
+  /// channel. Keep the Relapse session usable and stop retrying this capture
+  /// stream until the next session starts.
+  void _outputProtocolError(String detail) {
+    _outputDesired = false;
+    _outputSubscribed = false;
+    _stopOutputRetries();
+    final output = _output;
+    _output = null;
+    if (output != null) unawaited(output.close());
+    _emitLog('error', detail);
+    if (!_disposed) notifyListeners();
   }
 
   void _emitLog(String level, String message, {String? executionId}) {
