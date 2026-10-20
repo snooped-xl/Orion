@@ -35,6 +35,9 @@ static void companion_window_created(FlPluginRegistry* registry) {
   orion_bind_renderer_engine_lifetime(
       GTK_WIDGET(view), G_OBJECT(fl_view_get_engine(view)));
   auto* window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  // Give auxiliary Orion windows the same desktop identity and branded icon
+  // as the primary window (task switchers do not always inherit the default).
+  gtk_window_set_icon_name(window, APPLICATION_ID);
   gtk_window_set_decorated(window, FALSE);
   gtk_window_set_titlebar(window, nullptr);
   orion_configure_frameless_window(window);
@@ -65,6 +68,7 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  gtk_window_set_icon_name(window, APPLICATION_ID);
 
   // Let Flutter draw the frame. An RGBA visual keeps its rounded corners clear.
   GdkScreen* screen = gtk_window_get_screen(window);

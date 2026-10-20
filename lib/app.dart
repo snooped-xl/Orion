@@ -482,7 +482,11 @@ class _OrionAppState extends State<OrionApp> {
                         context,
                       ).backgroundGradient,
                       useAuthoredBackground: true,
-                      backdropOpacity: controller.orionTheme.windowOpacity,
+                      // Keep the authored glass substrate fully painted. The
+                      // desktop compositor applies window transparency; fading
+                      // this layer as well made Glassy and Blue Glass much
+                      // clearer than their v1.0.2 appearance.
+                      backdropOpacity: 1,
                     ),
                     child: OrionGlassSurface(
                       radius: 24,

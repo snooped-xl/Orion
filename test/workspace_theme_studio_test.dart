@@ -126,6 +126,7 @@ void main() {
       expect(channel.options['autocomplete'], isTrue);
       expect(channel.options['bracketPairColorization'], isTrue);
       expect(channel.options['renderWhitespace'], isFalse);
+      expect(channel.options['animateReveal'], isFalse);
       final source = c.activeDocument.content;
       final id = c.activeDocumentId;
       c.setShowMinimap(true);

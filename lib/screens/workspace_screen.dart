@@ -392,6 +392,10 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
               'renderWhitespace': c.renderWhitespace,
               'reducedMotion':
                   c.reducedMotion || MediaQuery.disableAnimationsOf(context),
+              // Orion already animates page changes in Flutter. Replaying the
+              // GTK WebKit reveal on each map/unmap made Monaco flash in normal
+              // themes when a transient layout transition hid the native view.
+              'animateReveal': false,
               'brightness': colors.isLight ? 'light' : 'dark',
               'shell': c.selectedInterface == InterfacePreset.orion
                   ? 'orion'
