@@ -620,7 +620,8 @@ class _AppHarness {
 /// Persistence is tested with real files in controller_test.dart. Keeping the
 /// widget harness in memory avoids asynchronous disk writes in FakeAsync.
 class _WidgetController extends OrionController {
-  _WidgetController({required super.storageDirectory, super.scriptHubService});
+  _WidgetController({required super.storageDirectory, super.scriptHubService})
+    : super(useMacSploit: false);
 
   @override
   Future<void> flushPersistence() async {}
