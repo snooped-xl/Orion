@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:orion/theme/orion_theme.dart';
 import 'package:orion/services/monaco_editor_service.dart';
 import 'package:orion/widgets/monaco_editor.dart';
 import 'package:orion/widgets/ui_scale_viewport.dart';
@@ -13,6 +14,7 @@ class _GeometryService extends MonacoEditorService {
   final bool mirror;
   final ValueNotifier<ui.Image?> frame;
   int measurements = 0;
+  final bounds = <Rect>[];
 
   @override
   bool get visualMirror => mirror;
@@ -32,6 +34,7 @@ class _GeometryService extends MonacoEditorService {
     required double height,
   }) async {
     measurements++;
+    bounds.add(Rect.fromLTWH(x, y, width, height));
   }
 
   @override
@@ -170,4 +173,49 @@ void main() {
       );
     }
   }
+
+  testWidgets('Linux editor bounds track ancestor scroll offsets', (
+    tester,
+  ) async {
+    final frame = ValueNotifier<ui.Image?>(null);
+    final service = _GeometryService(false, frame);
+    final controller = ScrollController();
+    final theme = orionTheme(Brightness.dark, const Color(0xFF88B5FF));
+    try {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: ListView(
+              controller: controller,
+              children: [
+                const SizedBox(height: 180),
+                SizedBox(
+                  height: 160,
+                  child: MonacoEditor(service: service, active: true),
+                ),
+                const SizedBox(height: 500),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final initialY = tester.getTopLeft(find.byType(MonacoEditor)).dy;
+      final initialNativeY = service.bounds.last.top;
+      expect(initialY, greaterThan(0));
+      controller.jumpTo(45);
+      await tester.pump();
+      final scrolledY = tester.getTopLeft(find.byType(MonacoEditor)).dy;
+      expect(scrolledY, lessThan(initialY));
+      expect(service.bounds.last.top, lessThan(initialNativeY));
+      expect(service.measurements, greaterThan(1));
+      expect(tester.takeException(), isNull);
+    } finally {
+      await tester.pumpWidget(const SizedBox.shrink());
+      service.dispose();
+      frame.dispose();
+      controller.dispose();
+    }
+  });
 }
