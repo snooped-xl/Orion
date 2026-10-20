@@ -127,7 +127,7 @@ void main() {
     expect(
       calls
           .where((call) => call.method == 'setCornerRadius')
-          .map((c) => c.arguments),
+          .map((c) => (c.arguments as Map)['radius']),
       nativeCornerPlatform ? [20.0] : isEmpty,
     );
     await tester.tapAt(const Offset(1, 1));
@@ -221,7 +221,7 @@ void main() {
     expect(
       calls
           .where((call) => call.method == 'setCornerRadius')
-          .map((c) => c.arguments),
+          .map((c) => (c.arguments as Map)['radius']),
       nativeCornerPlatform ? [0.0, 20.0, 0.0, 20.0] : isEmpty,
     );
     expect(tester.takeException(), isNull);
@@ -247,7 +247,7 @@ void main() {
     expect(
       calls
           .where((call) => call.method == 'setCornerRadius')
-          .map((c) => c.arguments),
+          .map((c) => (c.arguments as Map)['radius']),
       nativeCornerPlatform ? [20.0] : isEmpty,
     );
     expect(tester.takeException(), isNull);
