@@ -31,6 +31,8 @@ class _MonacoEditorState extends State<MonacoEditor>
   final _surface = GlobalKey();
   final _presentationOwner = Object();
   final _mirrorPaintBounds = ValueNotifier<Rect?>(null);
+  final Set<ScrollPosition> _scrollPositions = {};
+  bool _measureQueued = false;
   bool _tickerEnabled = true;
   bool _windowVisible = true;
   Object? _presentation;
@@ -56,7 +58,36 @@ class _MonacoEditorState extends State<MonacoEditor>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _tickerEnabled = TickerMode.valuesOf(context).enabled;
+    _observeAncestorScrollPositions();
     _updatePresentation();
+  }
+
+  void _observeAncestorScrollPositions() {
+    final next = <ScrollPosition>{};
+    context.visitAncestorElements((element) {
+      if (element is StatefulElement && element.state is ScrollableState) {
+        next.add((element.state as ScrollableState).position);
+      }
+      return true;
+    });
+    for (final position in _scrollPositions.difference(next)) {
+      position.removeListener(_queueMeasure);
+    }
+    for (final position in next.difference(_scrollPositions)) {
+      position.addListener(_queueMeasure);
+    }
+    _scrollPositions
+      ..clear()
+      ..addAll(next);
+  }
+
+  void _queueMeasure() {
+    if (!mounted || _measureQueued) return;
+    _measureQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureQueued = false;
+      if (mounted) _measure();
+    });
   }
 
   @override
@@ -102,6 +133,10 @@ class _MonacoEditorState extends State<MonacoEditor>
     // WebKit editor for a frame; real visibility changes are handled by the
     // service's active/obscured state.
     if (!bounds.isFinite || bounds.width <= 0 || bounds.height <= 0) return;
+    // GTK/WebKit is positioned in a sibling GtkOverlay, so it does not inherit
+    // Flutter's scrolling transforms. Keep its native rectangle synchronized
+    // as ancestor scroll offsets change.
+    widget.service.setActive(widget.active);
     if (widget.service.visualMirror) {
       // GTK allocates integer logical pixels. Paint its complete image at
       // that same global rectangle, then undo UI scale in local space. Only
@@ -140,13 +175,19 @@ class _MonacoEditorState extends State<MonacoEditor>
       widget.service.addListener(_changed);
       unawaited(widget.service.initialize());
     }
-    widget.service.setActive(widget.active);
+    if (oldWidget.active != widget.active) {
+      widget.service.setActive(widget.active);
+    }
     _updatePresentation();
   }
 
   @override
   void dispose() {
     widget.service.removeListener(_changed);
+    for (final position in _scrollPositions) {
+      position.removeListener(_queueMeasure);
+    }
+    _scrollPositions.clear();
     widget.service.setMirrorPresentationActive(
       false,
       owner: _presentationOwner,
