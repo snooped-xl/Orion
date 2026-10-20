@@ -39,6 +39,50 @@ void main() {
     server.sendOutput('hello from Relapse');
     expect((await output.timeout(const Duration(seconds: 2))).level, 'print');
   });
+
+  test(
+    'output before the subscription acknowledgement keeps the session up',
+    () async {
+      final server = await _FakeRelapseServer.start(
+        outputBeforeSubscribed: true,
+      );
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        outputScriptLoader: () async => '-- output capture fixture',
+      );
+      final output = service.logReceived.firstWhere(
+        (entry) => entry.message == 'early Relapse output',
+      );
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await server.mainReady.future.timeout(const Duration(seconds: 2));
+      await server.outputSubscribed.future.timeout(const Duration(seconds: 2));
+      expect((await output.timeout(const Duration(seconds: 2))).level, 'print');
+      expect(service.outputCaptureActive, isTrue);
+      expect(service.isReady, isTrue);
+
+      final captureError = service.logReceived.firstWhere(
+        (entry) => entry.message == 'Relapse sent an invalid output batch.',
+      );
+      server.sendInvalidOutput();
+      await captureError.timeout(const Duration(seconds: 2));
+      expect(service.outputCaptureActive, isFalse);
+      expect(service.isReady, isTrue);
+
+      final id = await service.execute(
+        'print("still connected")',
+        name: 'test.lua',
+      );
+      final request = await server.userScript.future.timeout(
+        const Duration(seconds: 2),
+      );
+      expect(request['script_id'], id);
+      expect(service.isReady, isTrue);
+    },
+  );
 }
 
 Future<void> _waitFor(bool Function() condition) async {
@@ -50,12 +94,17 @@ Future<void> _waitFor(bool Function() condition) async {
 }
 
 class _FakeRelapseServer {
-  _FakeRelapseServer(this.directory, this.server) {
+  _FakeRelapseServer(
+    this.directory,
+    this.server, {
+    required this.outputBeforeSubscribed,
+  }) {
     server.listen(_accept);
   }
 
   final Directory directory;
   final ServerSocket server;
+  final bool outputBeforeSubscribed;
   final Completer<void> mainReady = Completer<void>();
   final Completer<void> outputSubscribed = Completer<void>();
   final Completer<Map<String, dynamic>> userScript =
@@ -65,7 +114,9 @@ class _FakeRelapseServer {
 
   String get path => '${directory.path}/relapse.sock';
 
-  static Future<_FakeRelapseServer> start() async {
+  static Future<_FakeRelapseServer> start({
+    bool outputBeforeSubscribed = false,
+  }) async {
     final directory = await Directory.systemTemp.createTemp(
       'orion-relapse-test-',
     );
@@ -74,7 +125,11 @@ class _FakeRelapseServer {
       InternetAddress(path, type: InternetAddressType.unix),
       0,
     );
-    return _FakeRelapseServer(directory, socket);
+    return _FakeRelapseServer(
+      directory,
+      socket,
+      outputBeforeSubscribed: outputBeforeSubscribed,
+    );
   }
 
   void _accept(Socket socket) {
@@ -114,19 +169,18 @@ class _FakeRelapseServer {
     }
     if (peer.channel == 'relapsegtk.output.v1' &&
         message['op'] == 'subscribe') {
+      if (outputBeforeSubscribed) peer.sendOutput('early Relapse output');
       peer.send({'type': 'subscribed', 'version': 1});
       if (!outputSubscribed.isCompleted) outputSubscribed.complete();
     }
   }
 
   void sendOutput(String text) {
-    _outputPeer?.send({
-      'type': 'output',
-      'entries': [
-        {'level': 'print', 'text': text},
-      ],
-      'dropped': 0,
-    });
+    _outputPeer?.sendOutput(text);
+  }
+
+  void sendInvalidOutput() {
+    _outputPeer?.send({'type': 'output', 'entries': <Object?>[], 'dropped': 0});
   }
 
   Future<void> close() async {
@@ -167,6 +221,16 @@ class _Peer {
         Map<String, dynamic>.from(jsonDecode(utf8.decode(payload)) as Map),
       );
     }
+  }
+
+  void sendOutput(String text) {
+    send({
+      'type': 'output',
+      'entries': [
+        {'level': 'print', 'text': text},
+      ],
+      'dropped': 0,
+    });
   }
 
   void send(Map<String, Object?> message) {
