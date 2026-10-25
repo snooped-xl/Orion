@@ -1,6 +1,7 @@
 #include "rain_effect.h"
 
 #include <epoxy/gl.h>
+#include <gdk/gdkx.h>
 
 #include <algorithm>
 #include <cmath>
@@ -138,6 +139,20 @@ double number(FlValue* value,double fallback){
   return std::isfinite(n)?n:fallback;
 }
 bool boolean(FlValue* value){return value!=nullptr&&fl_value_get_type(value)==FL_VALUE_TYPE_BOOL&&fl_value_get_bool(value);}
+
+void apply_window_opacity(RainEffect* host){
+  GtkWidget* window=GTK_WIDGET(host->window);
+  if(!gtk_widget_get_realized(window))return;
+  GdkWindow* native=gtk_widget_get_window(window);
+  if(native==nullptr)return;
+#ifdef GDK_WINDOWING_X11
+  if(GDK_IS_X11_DISPLAY(gtk_widget_get_display(window))){
+    gdk_window_set_opacity(native,host->opacity);
+    return;
+  }
+#endif
+  gtk_widget_set_opacity(window,host->opacity);
+}
 
 GdkPixbuf* decode_png(FlValue* value){
   if(value==nullptr||fl_value_get_type(value)!=FL_VALUE_TYPE_UINT8_LIST)return nullptr;
@@ -280,7 +295,7 @@ void queue(RainEffect* host){
 }
 void configure(RainEffect* host,bool enabled,bool reduced,double opacity,double radius){
   host->enabled=enabled;host->reduced_motion=reduced;host->opacity=opacity;host->corner_radius=radius;
-  gtk_widget_set_opacity(GTK_WIDGET(host->window),opacity);
+  apply_window_opacity(host);
   if(enabled){gtk_widget_show(host->canvas);pass_through(host->canvas);queue(host);}
   else{
     gtk_widget_hide(host->canvas);g_clear_object(&host->frame);g_clear_object(&host->editor);host->drops.clear();
@@ -335,6 +350,7 @@ void release(gpointer data){auto* host=static_cast<RainEffect*>(data);disconnect
 
 void rain_effect_attach(GtkWindow* window,FlView* view,GtkOverlay* overlay){
   auto* host=new RainEffect();host->window=window;host->overlay=overlay;
+  g_signal_connect(window,"realize",G_CALLBACK(+[](GtkWidget*,gpointer data){apply_window_opacity(static_cast<RainEffect*>(data));}),host);
   host->canvas=gtk_gl_area_new();gtk_gl_area_set_required_version(GTK_GL_AREA(host->canvas),3,3);gtk_gl_area_set_use_es(GTK_GL_AREA(host->canvas),FALSE);gtk_gl_area_set_has_alpha(GTK_GL_AREA(host->canvas),TRUE);gtk_gl_area_set_auto_render(GTK_GL_AREA(host->canvas),FALSE);
   gtk_widget_set_halign(host->canvas,GTK_ALIGN_FILL);gtk_widget_set_valign(host->canvas,GTK_ALIGN_FILL);gtk_widget_set_hexpand(host->canvas,TRUE);gtk_widget_set_vexpand(host->canvas,TRUE);gtk_widget_set_can_focus(host->canvas,FALSE);gtk_widget_set_sensitive(host->canvas,FALSE);gtk_widget_set_no_show_all(host->canvas,TRUE);
   gtk_overlay_add_overlay(overlay,host->canvas);gtk_overlay_set_overlay_pass_through(overlay,host->canvas,TRUE);

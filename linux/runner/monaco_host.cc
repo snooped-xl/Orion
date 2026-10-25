@@ -697,9 +697,8 @@ void method_called(FlMethodChannel*, FlMethodCall* call, gpointer user_data) {
     webkit_web_view_set_background_color(host->web_view, &background);
     webkit_web_view_set_zoom_level(host->web_view, host->ui_scale);
     WebKitSettings* settings = webkit_web_view_get_settings(host->web_view);
-    // This text surface also runs on Linux software-rendered display sessions.
     webkit_settings_set_hardware_acceleration_policy(
-        settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_NEVER);
+        settings, WEBKIT_HARDWARE_ACCELERATION_POLICY_ALWAYS);
     webkit_settings_set_enable_write_console_messages_to_stdout(settings, FALSE);
     webkit_settings_set_javascript_can_open_windows_automatically(settings, FALSE);
     webkit_settings_set_enable_developer_extras(settings, FALSE);

@@ -29,7 +29,6 @@
   }
   window.orionLayout = () => layoutEditor(true);
   addEventListener('pageshow', () => layoutEditor(true));
-  addEventListener('focus', () => layoutEditor(true));
   if (document.addEventListener) document.addEventListener('visibilitychange', () => {
     if (!document.hidden) layoutEditor(true);
   });
@@ -546,7 +545,7 @@
     editor.updateOptions({
       ...baseReset,
       fontFamily:x?"'OrionXMono', Consolas, 'Courier New', monospace":synapse?'"Droid Sans Mono", "monospace", monospace':"'JetBrains Mono', monospace",
-      fontLigatures:!synapse,
+      fontLigatures:false,
       fontSize:Math.min(24,Math.max(10,Number(options.fontSize)||14)),
       lineHeight:v3?16:x?0:synapse?18:23,padding:synapse?{top:0,bottom:2}:{top:16,bottom:16},
       glyphMargin:synapse,lineNumbersMinChars:v3?2:synapse?1:3,lineDecorationsWidth:v3?10:synapse?0:8,
@@ -658,8 +657,8 @@
         } finally {clearTimeout(fontTimeout);}
       }
       editor=monaco.editor.create(document.getElementById('editor'),{
-        model:null,theme:'vs-dark',automaticLayout:true,language:'luau',
-        fontFamily:"'JetBrains Mono', monospace",fontSize:14,fontLigatures:true,lineHeight:23,
+        model:null,theme:'vs-dark',language:'luau',
+        fontFamily:"'JetBrains Mono', monospace",fontSize:14,fontLigatures:false,lineHeight:23,
         minimap:{enabled:false},lineNumbers:'on',lineNumbersMinChars:3,lineDecorationsWidth:8,
         padding:{top:16,bottom:16},tabSize:4,insertSpaces:true,detectIndentation:true,
         scrollBeyondLastLine:false,scrollbar:{useShadows:false,verticalScrollbarSize:9,horizontalScrollbarSize:9},
