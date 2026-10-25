@@ -6,6 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:orion/models/orion_models.dart';
 import 'package:orion/state/orion_controller.dart';
 
+Future<List<String>> _launchArguments(File file) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 3));
+  while (!await file.exists() && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+  return const LineSplitter().convert(await file.readAsString());
+}
+
 void main() {
   late Directory temporaryDirectory;
 
@@ -61,13 +69,17 @@ void main() {
   test('persists the Linux-only Relapse support preference', () async {
     if (!Platform.isLinux) return;
     final launcher = File('${temporaryDirectory.path}/relapse-bin');
-    await launcher.writeAsString('#!/bin/sh\nexit 0\n');
+    final arguments = File('${temporaryDirectory.path}/relapse-args');
+    await launcher.writeAsString(
+      '#!/bin/sh\nprintf "%s\\n" "\$@" > "${arguments.path}"\n',
+    );
     await Process.run('chmod', ['+x', launcher.path]);
 
     final first = OrionController(storageDirectory: temporaryDirectory);
     await first.initialize();
     first.setRelapseSupportEnabled(true);
     await first.setRelapseLauncherPath(launcher.path);
+    first.setRelapseOutputRedirect(false);
     await first.flushPersistence();
     first.dispose();
     await first.flushPersistence();
@@ -77,10 +89,61 @@ void main() {
     expect(restored.relapseSupportAvailable, isTrue);
     expect(restored.relapseSupportEnabled, isTrue);
     expect(restored.relapseLauncherPath, launcher.path);
+    expect(restored.relapseOutputRedirect, isFalse);
     expect(await restored.launchRelapse(), isTrue);
     expect(restored.relapseLauncherError, isNull);
+    // RelapseGtk starts the launcher headlessly, without its own UI.
+    expect(await _launchArguments(arguments), ['--no-launch-ui']);
     restored.dispose();
     await restored.flushPersistence();
+  });
+
+  test('launches the selected Relapse profile and refuses a busy one', () async {
+    if (!Platform.isLinux) return;
+    final launcher = File('${temporaryDirectory.path}/relapse-bin');
+    final arguments = File('${temporaryDirectory.path}/profile-args');
+    await launcher.writeAsString(
+      '#!/bin/sh\nprintf "%s\\n" "\$@" > "${arguments.path}"\n',
+    );
+    await Process.run('chmod', ['+x', launcher.path]);
+    final suffix = DateTime.now().microsecondsSinceEpoch;
+    final profile = '/tmp/relapse-Orion$suffix.sock';
+    final controller = OrionController(storageDirectory: temporaryDirectory);
+    await controller.initialize();
+    addTearDown(() async {
+      controller.dispose();
+      await controller.flushPersistence();
+    });
+    controller.setRelapseSupportEnabled(true);
+    await controller.setRelapseLauncherPath(launcher.path);
+    controller.applyWindowState({
+      ...controller.exportWindowState(),
+      'relapseSocketPath': profile,
+    });
+
+    expect(await controller.launchRelapse(), isTrue);
+    expect(await _launchArguments(arguments), [
+      '--profile',
+      'Orion$suffix',
+      '--no-launch-ui',
+    ]);
+    await arguments.delete();
+
+    final busy = await ServerSocket.bind(
+      InternetAddress(profile, type: InternetAddressType.unix),
+      0,
+    );
+    busy.listen((peer) => peer.destroy());
+    addTearDown(() async {
+      await busy.close();
+      if (await File(profile).exists()) await File(profile).delete();
+    });
+    expect(await controller.launchRelapse(), isFalse);
+    expect(
+      controller.relapseLauncherError,
+      'Profile Orion$suffix is already running.',
+    );
+    expect(await arguments.exists(), isFalse);
   });
 
   test(

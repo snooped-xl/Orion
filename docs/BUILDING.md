@@ -145,12 +145,18 @@ execution. Folder and browser opening and file dialogs use desktop portals.
 The workspace remains `~/orion`, including when launched from Flatpak.
 
 On Linux, **Settings → Relapse support** switches execution from Orion Bridge
-to running Relapse GTK instances. Orion discovers `relapse.sock` and
-`relapse-<profile>.sock` in `/tmp`, opens one channel set per profile it owns,
-and prefers Relapse's session-v2 channel so scripts execute in the live game
-session with output captured exactly once. Execution targets every ready
-profile or only the selected ones. **Settings → Execution** stores the Relapse
-executable so Orion can launch it without a shell.
+to running Relapse GTK instances. Discovery follows RelapseGtk's profile rules:
+`relapse.sock` and `relapse-<profile>.sock` in `/tmp`, owned by the current user
+and still listening. Each profile gets one `@main` executor channel and one
+`relapsegtk.session.v2` UI channel; execution is offered only after the UI
+channel acknowledges
+`{"op":"configure","version":2,"redirect":…}`, and scripts are always submitted
+through `getgenv().__relapsegtk_session_v2.execute` so they run inside the live
+game session. Relapse serialises Lua numbers as doubles, so integral doubles are
+accepted for `version` and `dropped`. **Settings → Execution** also stores the
+Relapse executable and the *Redirect script output* switch; Orion launches the
+selected profile headlessly with `--profile <name> --no-launch-ui` and refuses a
+profile that is already listening.
 
 The Flatpak grants access to `/tmp/relapse.sock`, not all of `/tmp`, so only
 that profile is reachable from inside the sandbox. This option is hidden on

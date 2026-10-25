@@ -74,12 +74,14 @@ class OrionController extends ChangeNotifier {
   bool _relapseSupportEnabled = false;
   String? _relapseLauncherPath;
   String? _relapseLauncherError;
+  bool _relapseOutputRedirect = true;
   final Set<String> _selectedRelapseSocketPaths = {};
   int _connectionModeGeneration = 0;
   bool _mirroredRelapseActive = false;
   bool _mirroredRelapseConnected = false;
   bool _mirroredRelapseReady = false;
   bool _mirroredRelapseOutputCaptureActive = false;
+  String? _mirroredRelapseOutputDetail;
   int? _mirroredRelapseSession;
   String? _mirroredRelapseError;
   String _mirroredRelapseSocketPath = RelapseGtkService.defaultSocketPath;
@@ -88,6 +90,7 @@ class OrionController extends ChangeNotifier {
   ];
   final List<String> _mirroredRelapseConnectedSocketPaths = [];
   final List<String> _mirroredRelapseReadySocketPaths = [];
+  final List<String> _mirroredRelapseExecutableSocketPaths = [];
   final Map<String, int> _mirroredRelapseSessions = {};
   final List<BridgeClient> _bridgeClients = [];
   final Set<String> _selectedBridgeClients = {};
@@ -163,6 +166,12 @@ class OrionController extends ChangeNotifier {
       : (_mirroredRelapseReadySocketPaths.isNotEmpty
             ? List.unmodifiable(_mirroredRelapseReadySocketPaths)
             : (_mirroredRelapseReady ? [relapseSocketPath] : const []));
+
+  /// Profiles whose UI channel is configured, so Relapse will run a wrapped
+  /// script inside the live game session. RelapseGtk only allows Execute then.
+  List<String> get relapseExecutableSocketPaths => _bridgeInitialized
+      ? _relapse.executableSocketPaths
+      : List.unmodifiable(_mirroredRelapseExecutableSocketPaths);
   List<String> get relapseConnectedSocketPaths => _bridgeInitialized
       ? _relapse.connectedSocketPaths
       : (_mirroredRelapseConnectedSocketPaths.isNotEmpty
@@ -170,11 +179,23 @@ class OrionController extends ChangeNotifier {
             : (_mirroredRelapseConnected ? [relapseSocketPath] : const []));
   String? get relapseLauncherPath => _relapseLauncherPath;
   String? get relapseLauncherError => _relapseLauncherError;
+  bool get relapseOutputRedirect => _relapseOutputRedirect;
+  String? get relapseOutputDetail => _bridgeInitialized
+      ? _relapse.outputDetail
+      : _mirroredRelapseOutputDetail;
+  bool get relapseCanExecute {
+    if (!relapseSupportEnabled) return false;
+    return _bridgeInitialized
+        ? _relapse.canExecute
+        : _mirroredRelapseExecutableSocketPaths.contains(relapseSocketPath);
+  }
   Set<String> get selectedRelapseSocketPaths => Set.unmodifiable(_selectedRelapseSocketPaths);
   bool get relapseTargetAll => _bridgeTargetAll;
   int get relapseTargetCount => _bridgeTargetAll
-      ? relapseReadySocketPaths.length
-      : _selectedRelapseSocketPaths.intersection(relapseReadySocketPaths.toSet()).length;
+      ? relapseExecutableSocketPaths.length
+      : _selectedRelapseSocketPaths
+            .intersection(relapseExecutableSocketPaths.toSet())
+            .length;
   int get bridgePort => _bridgePort;
   Set<String> get selectedBridgeClients => relapseSupportEnabled
       ? Set.unmodifiable(
@@ -206,6 +227,7 @@ class OrionController extends ChangeNotifier {
       );
     }
     _bridgePort = port;
+    _relapse.setOutputEnabled(_relapseOutputRedirect);
     return _applyConnectionMode();
   }
 
@@ -259,6 +281,16 @@ class OrionController extends ChangeNotifier {
     }
   }
 
+  void setRelapseOutputRedirect(bool value) {
+    if (!Platform.isLinux || _relapseOutputRedirect == value) return;
+    _relapseOutputRedirect = value;
+    if (_bridgeInitialized) _relapse.setOutputEnabled(value);
+    _changed();
+  }
+
+  /// RelapseGtk launches the selected profile headlessly with
+  /// `--profile <name> --no-launch-ui`, and refuses when that profile is
+  /// already serving its socket.
   Future<bool> launchRelapse() async {
     if (!Platform.isLinux) return false;
     final launcher = _relapseLauncherPath;
@@ -272,8 +304,26 @@ class OrionController extends ChangeNotifier {
       _changed(persist: false);
       return false;
     }
+    final label = RelapseGtkService.profileLabelForSocket(relapseSocketPath);
+    final profile = label == 'Default instance' ? null : label;
+    if (profile != null && !RelapseGtkService.isValidProfileName(profile)) {
+      _relapseLauncherError = 'This Relapse profile name cannot be launched.';
+      _changed(persist: false);
+      return false;
+    }
+    if (await RelapseGtkService.isListening(relapseSocketPath)) {
+      _relapseLauncherError = profile == null
+          ? 'Relapse is already listening on $relapseSocketPath.'
+          : 'Profile $profile is already running.';
+      _changed(persist: false);
+      return false;
+    }
     try {
-      await Process.start(launcher, const [], mode: ProcessStartMode.detached);
+      await Process.start(
+        launcher,
+        [if (profile != null) ...['--profile', profile], '--no-launch-ui'],
+        mode: ProcessStartMode.detached,
+      );
       _relapseLauncherError = null;
       _changed(persist: false);
       return true;
@@ -1364,13 +1414,23 @@ class OrionController extends ChangeNotifier {
   }
 
   Future<void> _executeViaRelapse(String source, String scriptName) async {
+    // RelapseGtk never submits unwrapped code: the script has to enter the game
+    // session through the UI channel, which only exists once it is configured.
+    final executable = _bridgeInitialized
+        ? _relapse.executableSocketPaths
+        : _mirroredRelapseExecutableSocketPaths;
     final targets = _bridgeTargetAll
-        ? _relapse.readySocketPaths
-        : _selectedRelapseSocketPaths.intersection(_relapse.readySocketPaths.toSet()).toList();
+        ? executable
+        : _selectedRelapseSocketPaths.intersection(executable.toSet()).toList();
     if (targets.isEmpty) {
+      final ready = _bridgeInitialized
+          ? _relapse.readySocketPaths
+          : relapseReadySocketPaths;
       _addActivity(
-        'No Relapse instances ready',
-        'Wait for a ready Relapse profile or choose a connected profile in the client manager.',
+        ready.isEmpty ? 'No Relapse instances ready' : 'Relapse is still preparing',
+        ready.isEmpty
+            ? 'Start Relapse and wait for a ready game session.'
+            : 'The UI channel for this game session is still starting. Try again in a moment.',
         ActivityKind.execution,
         ActivitySeverity.warning,
       );
@@ -1951,6 +2011,7 @@ class OrionController extends ChangeNotifier {
     'showLineNumbers': _showLineNumbers,
     'autosave': _autosave,
     'relapseSupport': Platform.isLinux && _relapseSupportEnabled,
+    'relapseOutputRedirect': _relapseOutputRedirect,
     if (Platform.isLinux && _relapseLauncherPath != null) 'relapseLauncherPath': _relapseLauncherPath,
     if (Platform.isLinux && _selectedRelapseSocketPaths.isNotEmpty) 'selectedRelapseSocketPaths': _selectedRelapseSocketPaths.toList(),
     'introCompleted': _introCompleted,
@@ -1978,6 +2039,10 @@ class OrionController extends ChangeNotifier {
     'relapseOutputCaptureActive': _bridgeInitialized
         ? _relapse.outputCaptureActive
         : _mirroredRelapseOutputCaptureActive,
+    'relapseOutputDetail': _bridgeInitialized
+        ? _relapse.outputDetail
+        : _mirroredRelapseOutputDetail,
+    'relapseExecutableSocketPaths': relapseExecutableSocketPaths,
     'relapseSession': _bridgeInitialized
         ? _relapse.session
         : _mirroredRelapseSession,
@@ -2040,6 +2105,13 @@ class OrionController extends ChangeNotifier {
       _mirroredRelapseReady = json['relapseReady'] == true;
       _mirroredRelapseOutputCaptureActive =
           json['relapseOutputCaptureActive'] == true;
+      _mirroredRelapseOutputDetail = json['relapseOutputDetail'] as String?;
+      _mirroredRelapseExecutableSocketPaths
+        ..clear()
+        ..addAll(
+          (json['relapseExecutableSocketPaths'] as List? ?? const [])
+              .whereType<String>(),
+        );
       _mirroredRelapseSession = json['relapseSession'] as int?;
       _mirroredRelapseError = json['relapseError'] as String?;
       _mirroredRelapseSocketPath =
@@ -2251,6 +2323,7 @@ class OrionController extends ChangeNotifier {
     _showLineNumbers = _readBool(json, 'showLineNumbers', true);
     _autosave = _readBool(json, 'autosave', true);
     _relapseSupportEnabled = _readBool(json, 'relapseSupport', false);
+    _relapseOutputRedirect = _readBool(json, 'relapseOutputRedirect', true);
     _relapseLauncherPath = Platform.isLinux && json['relapseLauncherPath'] is String
         ? json['relapseLauncherPath'] as String
         : null;

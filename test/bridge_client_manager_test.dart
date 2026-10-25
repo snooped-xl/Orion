@@ -393,6 +393,10 @@ void main() {
           '/tmp/relapse.sock',
           '/tmp/relapse-alt.sock',
         ],
+        'relapseExecutableSocketPaths': [
+          '/tmp/relapse.sock',
+          '/tmp/relapse-alt.sock',
+        ],
         'relapseSessions': {
           '/tmp/relapse.sock': 10,
           '/tmp/relapse-alt.sock': 20,

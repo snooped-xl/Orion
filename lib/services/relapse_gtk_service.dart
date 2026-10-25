@@ -7,44 +7,68 @@ import 'package:flutter/services.dart';
 
 import '../models/bridge_models.dart';
 
-/// Client for RelapseGtk's local protocol. This is deliberately separate from
-/// OrionBridgeService: Relapse owns the Unix socket and Orion only connects to
-/// it when the Linux-only compatibility setting is enabled.
+/// Where the RelapseGtk UI bridge is, using the same states as its
+/// `OutputState` enum so Orion reports what RelapseGtk reports.
+enum RelapseOutputState { off, waiting, connecting, active, failed }
+
+/// Client for RelapseGtk's local protocol.
+///
+/// This mirrors RelapseGtk's own implementation (src/socket/client.c,
+/// bridge.c, transport.c) rather than inventing a parallel design:
+///
+///  * one `@main` executor channel per socket, which answers `hello`/`status`,
+///    `exec_result`, `log` and `error`;
+///  * one `relapsegtk.session.v2` UI channel per game session. RelapseGtk runs
+///    `session.luau` on `@main`, then connects the channel and configures it
+///    with `{"op":"configure","version":2,"redirect":<bool>}`;
+///  * scripts are only submitted once that UI channel has acknowledged the
+///    configuration, wrapped in `getgenv().__relapsegtk_session_v2.execute`
+///    so the script runs inside the live game session and its output comes
+///    back over the same channel.
+///
+/// Relapse serialises Lua numbers as JSON doubles, so every integer field it
+/// sends can arrive as `2.0` rather than `2`. RelapseGtk accepts integral
+/// doubles; so does this client.
 class RelapseGtkService extends ChangeNotifier {
   RelapseGtkService({
     this.socketPath = defaultSocketPath,
     this.reconnectInterval = const Duration(seconds: 1),
+    this.handshakeTimeout = const Duration(seconds: 10),
+    this.handshakeRetry = const Duration(milliseconds: 250),
     this.maximumScriptBytes = 2 * 1024 * 1024,
     bool? manageProfiles,
     this.profileDirectory = '/tmp',
     String profileIdentifier = 'Relapse',
-    Future<String> Function()? outputScriptLoader,
     Future<String> Function()? sessionScriptLoader,
+    bool outputEnabled = true,
   }) : _managesProfiles = manageProfiles ?? socketPath == defaultSocketPath,
        _profileIdentifier = profileIdentifier,
-       _outputScriptLoader = outputScriptLoader ??
-           (() => rootBundle.loadString('assets/relapsegtk/output_capture.luau')),
-       _sessionScriptLoader = sessionScriptLoader ??
+       _outputEnabled = outputEnabled,
+       _sessionScriptLoader =
+           sessionScriptLoader ??
            (() => rootBundle.loadString('assets/relapsegtk/session.luau'));
 
   static const defaultSocketPath = '/tmp/relapse.sock';
   static const mainChannel = '@main';
-  static const outputChannel = 'relapsegtk.output.v1';
   static const sessionChannel = 'relapsegtk.session.v2';
   static const protocolVersion = 1;
-  static const sessionProtocolVersion = 2;
-  static const maximumOutputBatchEntries = 32;
-  static const maximumOutputEntryBytes = 4096;
+  static const sessionVersion = 2;
+  static const sessionScriptName = 'relapsegtk-session.luau';
+  static const executeScriptName = 'relapsegtk-execute.luau';
+  static const maximumOutputEntries = 32;
+  static const maximumOutputTextBytes = 4096;
+  static const maximumProfileNameLength = 64;
   static const maximumSocketPaths = 128;
   static const maximumSocketPathBytes = 107;
 
   String socketPath;
   final Duration reconnectInterval;
+  final Duration handshakeTimeout;
+  final Duration handshakeRetry;
   final int maximumScriptBytes;
   final String profileDirectory;
   final bool _managesProfiles;
   final String _profileIdentifier;
-  final Future<String> Function() _outputScriptLoader;
   final Future<String> Function() _sessionScriptLoader;
   final Map<String, RelapseGtkService> _profileServices = {};
   final Map<String, StreamSubscription<BridgeLogEntry>> _profileLogs = {};
@@ -53,63 +77,93 @@ class RelapseGtkService extends ChangeNotifier {
   static Future<int>? _uidFuture;
 
   _RelapseChannel? _main;
-  _RelapseChannel? _output;
-  _RelapseChannel? _sessionChannel;
+  _RelapseChannel? _bridgeChannel;
   Timer? _reconnectTimer;
-  Timer? _outputRetryTimer;
-  Timer? _sessionRetryTimer;
+  Timer? _bridgeTimer;
   Timer? _discoveryTimer;
-  DateTime? _outputRetryDeadline;
+  DateTime? _bridgeDeadline;
   bool _enabled = false;
   bool _disposed = false;
   bool _connecting = false;
-  bool _outputConnecting = false;
-  bool _mainHelloReceived = false;
+  bool _bridgeConnecting = false;
+  bool _helloReceived = false;
   bool _connected = false;
   bool _ready = false;
-  bool _outputDesired = false;
-  bool _outputSubscribed = false;
-  bool _outputTimeoutReported = false;
-  bool _sessionConnecting = false;
-  bool _sessionBootstrapped = false;
-  bool _sessionConfigured = false;
-  DateTime? _sessionRetryDeadline;
-  int? _sessionBootstrapScriptId;
-  int? _outputBootstrapScriptId;
-  bool _legacyOutputFallbackStarted = false;
+  bool _bridgeConfigured = false;
+  bool _outputEnabled = false;
   bool _discovering = false;
+  RelapseOutputState _outputState = RelapseOutputState.off;
+  String? _outputDetail;
   String? _error;
   int? _session;
   int _nextScriptId = 1;
-  int? _captureScriptId;
-  int? _captureSession;
+  int _bridgeSession = 0;
+  final Set<int> _bridgeScriptIds = {};
   final Map<int, String> _scriptNames = {};
 
   Stream<BridgeLogEntry> get logReceived => _logs.stream;
   List<String> get socketPaths => List.unmodifiable(_socketPaths);
   List<String> get connectedSocketPaths => _managesProfiles
-      ? _profileServices.entries.where((entry) => entry.value.isConnected).map((entry) => entry.key).toList(growable: false)
+      ? _profileServices.entries
+            .where((entry) => entry.value.isConnected)
+            .map((entry) => entry.key)
+            .toList(growable: false)
       : (_connected ? [socketPath] : const []);
   List<String> get readySocketPaths => _managesProfiles
-      ? _profileServices.entries.where((entry) => entry.value.isReady).map((entry) => entry.key).toList(growable: false)
-      : (isReady ? [socketPath] : const []);
+      ? _profileServices.entries
+            .where((entry) => entry.value.isReady)
+            .map((entry) => entry.key)
+            .toList(growable: false)
+      : (_connected && _ready ? [socketPath] : const []);
+
+  /// Profiles whose UI channel has acknowledged its configuration. RelapseGtk
+  /// only offers Execute in this state (`sessions_can_execute`), and so does
+  /// Orion: submitting before the wrapper exists would run unwrapped code.
+  List<String> get executableSocketPaths => _managesProfiles
+      ? _profileServices.entries
+            .where((entry) => entry.value.canExecute)
+            .map((entry) => entry.key)
+            .toList(growable: false)
+      : (canExecute ? [socketPath] : const []);
+
   bool get enabled => _enabled;
-  bool get isConnected => _managesProfiles ? connectedSocketPaths.isNotEmpty : _connected;
-  bool get isReady => _managesProfiles ? readySocketPaths.isNotEmpty : _connected && _ready;
+  bool get isConnected =>
+      _managesProfiles ? connectedSocketPaths.isNotEmpty : _connected;
+  bool get isReady =>
+      _managesProfiles ? readySocketPaths.isNotEmpty : _connected && _ready;
   bool get isActive => _enabled;
-  bool get outputCaptureActive => _managesProfiles
+  bool get outputEnabled => _outputEnabled;
+  RelapseOutputState get outputState => _managesProfiles
+      ? _profileServices[socketPath]?.outputState ?? RelapseOutputState.waiting
+      : _outputState;
+  String? get outputDetail => _managesProfiles
+      ? _profileServices[socketPath]?.outputDetail
+      : _outputDetail;
+
+  /// RelapseGtk's `ui_bridge_is_ready`: the socket is ready, the UI channel is
+  /// open and it acknowledged our configuration.
+  bool get canExecute =>
+      _managesProfiles
+      ? executableSocketPaths.isNotEmpty
+      : _enabled && _connected && _ready && _bridgeConfigured && (_bridgeChannel?.isOpen ?? false);
+
+  bool get outputCaptureActive =>
+      _managesProfiles
       ? _profileServices.values.any((service) => service.outputCaptureActive)
-      : _outputSubscribed || _sessionConfigured;
-  int? get session => _managesProfiles ? _profileServices[socketPath]?.session : _session;
-  int? sessionForSocketPath(String path) =>
-      _managesProfiles ? _profileServices[path]?.session : (path == socketPath ? _session : null);
+      : _bridgeConfigured && _outputEnabled;
+  int? get session =>
+      _managesProfiles ? _profileServices[socketPath]?.session : _session;
+  int? sessionForSocketPath(String path) => _managesProfiles
+      ? _profileServices[path]?.session
+      : (path == socketPath ? _session : null);
 
   /// True once Relapse accepted the session-v2 UI channel, which wraps
   /// execution so scripts run inside the live game session.
   bool get sessionBridgeConfigured => _managesProfiles
       ? _profileServices.values.any((service) => service.sessionBridgeConfigured)
-      : _sessionConfigured;
-  String? get error => _managesProfiles ? _profileServices[socketPath]?.error : _error;
+      : _bridgeConfigured;
+  String? get error =>
+      _managesProfiles ? _profileServices[socketPath]?.error : _error;
 
   /// Relapse profiles are identified by their socket filename, so a profile
   /// keeps the same label whoever discovered it.
@@ -118,15 +172,35 @@ class RelapseGtkService extends ChangeNotifier {
     return label == 'Default instance' ? 'Relapse' : 'Relapse · $label';
   }
 
-  static String profileLabelForSocket(String path) {
-    final name = File(path).uri.pathSegments.last;
-    return name == 'relapse.sock'
-        ? 'Default instance'
-        : name.substring(8, name.length - 5);
+  static String profileLabelForSocket(String path) {    final name = File(path).uri.pathSegments.last;
+    if (name == 'relapse.sock') return 'Default instance';
+    if (!name.startsWith('relapse-') || !name.endsWith('.sock')) {
+      return 'Default instance';
+    }
+    return name.substring(8, name.length - 5);
+  }
+
+  /// RelapseGtk validates a profile name with the same rules as its profile
+  /// store: 1–64 letters, digits, dots, underscores or hyphens.
+  static bool isValidProfileName(String name) =>
+      name.isNotEmpty &&
+      name.length <= maximumProfileNameLength &&
+      name != '.' &&
+      name != '..' &&
+      RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(name);
+
+  static bool isSupportedSocketName(String name) {
+    if (name == 'relapse.sock') return true;
+    if (!name.startsWith('relapse-') || !name.endsWith('.sock')) return false;
+    return isValidProfileName(name.substring(8, name.length - 5));
   }
 
   Future<void> selectSocketPath(String path) async {
-    if (!_managesProfiles || !_profileServices.containsKey(path) || path == socketPath) return;
+    if (!_managesProfiles ||
+        !_profileServices.containsKey(path) ||
+        path == socketPath) {
+      return;
+    }
     socketPath = path;
     if (!_disposed) notifyListeners();
   }
@@ -136,15 +210,27 @@ class RelapseGtkService extends ChangeNotifier {
     _discovering = true;
     try {
       final root = directory ?? profileDirectory;
-      final paths = <String>[];
-      await for (final entity in Directory(root).list(followLinks: false).take(4096)) {
+      final candidates = <String>[];
+      await for (final entity in Directory(
+        root,
+      ).list(followLinks: false).take(4096)) {
         final path = entity.path;
         final name = File(path).uri.pathSegments.last;
-        if (!_isSupportedSocketName(name)) continue;
-        if (await FileSystemEntity.type(path, followLinks: false) != FileSystemEntityType.unixDomainSock) continue;
-        if (!await _isOwnedListeningSocket(path)) continue;
+        if (!isSupportedSocketName(name)) continue;
+        if (path.length > maximumSocketPathBytes) continue;
+        if (await FileSystemEntity.type(path, followLinks: false) !=
+            FileSystemEntityType.unixDomainSock) {
+          continue;
+        }
+        candidates.add(path);
+        if (candidates.length == maximumSocketPaths) break;
+      }
+      final owned = await _ownedPaths(candidates);
+      final paths = <String>[];
+      for (final path in candidates) {
+        if (!owned.contains(path)) continue;
+        if (!await isListening(path)) continue;
         paths.add(path);
-        if (paths.length == maximumSocketPaths) break;
       }
       paths.sort();
       await _syncProfileServices(paths);
@@ -154,9 +240,13 @@ class RelapseGtkService extends ChangeNotifier {
             : (paths.isEmpty ? defaultSocketPath : paths.first);
       }
       final visiblePaths = [...paths];
-      if (visiblePaths.isEmpty && socketPath == defaultSocketPath) visiblePaths.add(defaultSocketPath);
+      if (visiblePaths.isEmpty && socketPath == defaultSocketPath) {
+        visiblePaths.add(defaultSocketPath);
+      }
       if (!_samePaths(visiblePaths, _socketPaths)) {
-        _socketPaths..clear()..addAll(visiblePaths);
+        _socketPaths
+          ..clear()
+          ..addAll(visiblePaths);
         if (!_disposed) notifyListeners();
       }
     } on Object catch (error) {
@@ -166,27 +256,33 @@ class RelapseGtkService extends ChangeNotifier {
     }
   }
 
-  static bool _isSupportedSocketName(String name) => name == 'relapse.sock' ||
-      RegExp(r'^relapse-[A-Za-z0-9._-]{1,64}\.sock$').hasMatch(name);
-
   static bool _samePaths(List<String> a, List<String> b) =>
-      a.length == b.length && List.generate(a.length, (i) => a[i] == b[i]).every((same) => same);
+      a.length == b.length &&
+      List.generate(a.length, (i) => a[i] == b[i]).every((same) => same);
 
-  Future<bool> _isOwnedListeningSocket(String path) async {
+  /// RelapseGtk only trusts sockets owned by the current user. `stat` answers
+  /// for every candidate in one call, where a probe per socket would spawn a
+  /// process for each one on every discovery pass.
+  static Future<Set<String>> _ownedPaths(List<String> candidates) async {
+    if (candidates.isEmpty) return const {};
     try {
-      final type = await FileSystemEntity.type(path, followLinks: false);
-      if (type != FileSystemEntityType.unixDomainSock) return false;
       final uid = await (_uidFuture ??= _readUid());
-      final owner = await Process.run('stat', ['-c', '%u', '--', path]);
-      if (owner.exitCode != 0 || int.tryParse(owner.stdout.toString().trim()) != uid) return false;
-      final peer = await Socket.connect(
-        InternetAddress(path, type: InternetAddressType.unix), 0,
-        timeout: const Duration(milliseconds: 150),
-      );
-      peer.destroy();
-      return true;
+      final result = await Process.run('stat', [
+        '-c',
+        '%u\t%n',
+        '--',
+        ...candidates,
+      ]);
+      final owned = <String>{};
+      for (final line in const LineSplitter().convert('${result.stdout}')) {
+        final separator = line.indexOf('\t');
+        if (separator <= 0) continue;
+        if (int.tryParse(line.substring(0, separator)) != uid) continue;
+        owned.add(line.substring(separator + 1));
+      }
+      return owned;
     } on Object {
-      return false;
+      return const {};
     }
   }
 
@@ -196,18 +292,39 @@ class RelapseGtkService extends ChangeNotifier {
     return int.parse(result.stdout.toString().trim());
   }
 
+  /// A full Unix accept queue still counts as a live listener in RelapseGtk
+  /// (`EAGAIN`/`EINPROGRESS`), so discovery never stalls on one profile.
+  static Future<bool> isListening(String path) async {
+    try {
+      final socket = await Socket.connect(
+        InternetAddress(path, type: InternetAddressType.unix),
+        0,
+        timeout: const Duration(milliseconds: 150),
+      );
+      socket.destroy();
+      return true;
+    } on SocketException catch (error) {
+      final code = error.osError?.errorCode;
+      return code == 11 || code == 115;
+    } on Object {
+      return false;
+    }
+  }
+
   Future<void> _syncProfileServices(List<String> paths) async {
     for (final path in paths) {
       if (_profileServices.containsKey(path)) continue;
       final service = RelapseGtkService(
         socketPath: path,
         reconnectInterval: reconnectInterval,
+        handshakeTimeout: handshakeTimeout,
+        handshakeRetry: handshakeRetry,
         maximumScriptBytes: maximumScriptBytes,
         manageProfiles: false,
         profileDirectory: profileDirectory,
         profileIdentifier: clientIdentifierForSocket(path),
-        outputScriptLoader: _outputScriptLoader,
         sessionScriptLoader: _sessionScriptLoader,
+        outputEnabled: _outputEnabled,
       );
       _profileServices[path] = service;
       _profileLogs[path] = service.logReceived.listen((entry) {
@@ -216,7 +333,9 @@ class RelapseGtkService extends ChangeNotifier {
       service.addListener(_profileChanged);
       if (_enabled) await service.start();
     }
-    for (final path in _profileServices.keys.where((path) => !paths.contains(path)).toList()) {
+    for (final path in _profileServices.keys
+        .where((path) => !paths.contains(path))
+        .toList()) {
       final service = _profileServices.remove(path)!;
       await _profileLogs.remove(path)?.cancel();
       service.removeListener(_profileChanged);
@@ -234,35 +353,42 @@ class RelapseGtkService extends ChangeNotifier {
     _error = null;
     if (_managesProfiles) {
       await discoverSocketPaths();
-      _discoveryTimer = Timer.periodic(const Duration(seconds: 1), (_) => unawaited(discoverSocketPaths()));
+      _discoveryTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => unawaited(discoverSocketPaths()),
+      );
       notifyListeners();
       return;
     }
-    _reconnectTimer = Timer.periodic(reconnectInterval, (_) => unawaited(_connectMain()));
+    _reconnectTimer = Timer.periodic(
+      reconnectInterval,
+      (_) => unawaited(_connectMain()),
+    );
     notifyListeners();
     await _connectMain();
   }
 
   Future<void> stop() async {
-    if (!_enabled && _main == null && _output == null && _sessionChannel == null && _profileServices.isEmpty) return;
+    if (!_enabled &&
+        _main == null &&
+        _bridgeChannel == null &&
+        _profileServices.isEmpty) {
+      return;
+    }
     _enabled = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _discoveryTimer?.cancel();
     _discoveryTimer = null;
-    _stopOutputRetries();
-    _stopSessionRetries();
-    _outputDesired = false;
-    final output = _output;
-    final sessionChannel = _sessionChannel;
+    _bridgeTimer?.cancel();
+    _bridgeTimer = null;
+    _bridgeDeadline = null;
+    final bridgeChannel = _bridgeChannel;
     final main = _main;
-    _output = null;
-    _sessionChannel = null;
+    _bridgeChannel = null;
     _main = null;
-    _outputSubscribed = false;
-    _sessionConfigured = false;
-    await sessionChannel?.close();
-    await output?.close();
+    _bridgeConfigured = false;
+    await bridgeChannel?.close();
     await main?.close();
     for (final subscription in _profileLogs.values) {
       await subscription.cancel();
@@ -276,22 +402,55 @@ class RelapseGtkService extends ChangeNotifier {
     _connected = false;
     _ready = false;
     _session = null;
-    _mainHelloReceived = false;
+    _helloReceived = false;
+    _bridgeSession = 0;
+    _bridgeScriptIds.clear();
     _error = null;
-    _captureScriptId = null;
-    _captureSession = null;
+    _outputState = RelapseOutputState.off;
+    _outputDetail = null;
     _scriptNames.clear();
     if (!_disposed) notifyListeners();
   }
 
-  Future<int> execute(String source, {required String name, String? targetSocketPath}) async {
+  /// RelapseGtk's "Redirect script output" switch: `ui_bridge_set_output_enabled`.
+  /// It reconfigures an open UI channel and restarts a stopped bridge; the run
+  /// wrapper itself stays available either way.
+  void setOutputEnabled(bool value) {
+    if (_outputEnabled == value) return;
+    _outputEnabled = value;
+    if (_managesProfiles) {
+      for (final service in _profileServices.values) {
+        service.setOutputEnabled(value);
+      }
+      if (!_disposed) notifyListeners();
+      return;
+    }
+    final channel = _bridgeChannel;
+    if (channel != null && channel.isOpen) {
+      _configureBridge(channel);
+    } else if (_outputState != RelapseOutputState.connecting) {
+      _bridgeSession = _ready ? (_session ?? 0) : 0;
+      _startBridge();
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  Future<int> execute(
+    String source, {
+    required String name,
+    String? targetSocketPath,
+  }) async {
     if (_managesProfiles) {
       final service = _profileServices[targetSocketPath ?? socketPath];
-      if (service == null) throw StateError('Relapse instance is no longer available.');
+      if (service == null) {
+        throw StateError('Relapse instance is no longer available.');
+      }
       return service.execute(source, name: name);
     }
-    if (!isReady || _main == null) {
-      throw StateError('Relapse is not connected to a ready game session.');
+    if (!canExecute || _main == null) {
+      throw StateError(
+        'Relapse is still preparing the UI channel for this game session.',
+      );
     }
     if (utf8.encode(source).length > maximumScriptBytes) {
       throw ArgumentError('Script exceeds the $maximumScriptBytes byte limit.');
@@ -300,11 +459,13 @@ class RelapseGtkService extends ChangeNotifier {
     final scriptName = cleanName.isNotEmpty && cleanName.length <= 255
         ? cleanName
         : 'editor.luau';
-    final wrappedSource = _sessionConfigured
-        ? 'getgenv().__relapsegtk_session_v2.execute(${_luaString(source)},${_luaString(scriptName)})'
-        : source;
+    final wrappedSource =
+        'getgenv().__relapsegtk_session_v2.execute('
+        '${_luaString(source)},${_luaString(scriptName)})';
     if (utf8.encode(wrappedSource).length > maximumScriptBytes) {
-      throw ArgumentError('Wrapped script exceeds the $maximumScriptBytes byte limit.');
+      throw ArgumentError(
+        'Wrapped script exceeds the $maximumScriptBytes byte limit.',
+      );
     }
     final id = _nextScriptId++;
     _scriptNames[id] = scriptName;
@@ -313,7 +474,7 @@ class RelapseGtkService extends ChangeNotifier {
         'op': 'execute',
         'script_id': id,
         'session': _session,
-        'name': _sessionConfigured ? 'relapsegtk-execute.luau' : scriptName,
+        'name': executeScriptName,
         'source': wrappedSource,
       });
     } on Object {
@@ -324,13 +485,14 @@ class RelapseGtkService extends ChangeNotifier {
   }
 
   Future<void> _connectMain() async {
-    if (_managesProfiles || !_enabled || _disposed || _connecting || _main != null) return;
+    if (_managesProfiles || !_enabled || _disposed || _connecting || _main != null) {
+      return;
+    }
     _connecting = true;
-    _mainHelloReceived = false;
+    _helloReceived = false;
     final selectedPath = socketPath;
     try {
-      late final _RelapseChannel channel;
-      channel = await _RelapseChannel.connect(
+      final channel = await _RelapseChannel.connect(
         socketPath: selectedPath,
         channelName: mainChannel,
         onMessage: _onMainMessage,
@@ -365,19 +527,8 @@ class RelapseGtkService extends ChangeNotifier {
     _connected = false;
     _ready = false;
     _session = null;
-    _mainHelloReceived = false;
-    _outputDesired = false;
-    _captureSession = null;
-    _stopOutputRetries();
-    _stopSessionRetries();
-    final output = _output;
-    final sessionChannel = _sessionChannel;
-    _output = null;
-    _sessionChannel = null;
-    _outputSubscribed = false;
-    _sessionConfigured = false;
-    if (output != null) unawaited(output.close());
-    if (sessionChannel != null) unawaited(sessionChannel.close());
+    _helloReceived = false;
+    _syncBridge();
     if (error != null) _error = _safeDetail(error.toString());
     if (_enabled && !_disposed) notifyListeners();
   }
@@ -385,86 +536,59 @@ class RelapseGtkService extends ChangeNotifier {
   void _onMainMessage(_RelapseChannel channel, Map<String, dynamic> message) {
     if (_main != null && !identical(_main, channel)) return;
     final type = message['type'];
-    if (!_mainHelloReceived && type != 'hello') {
+    if (!_helloReceived && type != 'hello') {
       _protocolError('Relapse did not begin with a hello message.');
       return;
     }
-    if (_mainHelloReceived && type == 'hello') {
+    if (_helloReceived && type == 'hello') {
       _protocolError('Relapse sent more than one hello message.');
       return;
     }
     if (type == 'hello' || type == 'status') {
       final ready = message['ready'];
-      final session = message['session'];
-      if (ready is! bool ||
-          session is! int ||
-          session < 0 ||
-          (ready && session == 0)) {
+      final session = _integer(message['session']);
+      if (ready is! bool || session == null || (ready && session == 0)) {
         _protocolError('Relapse sent an invalid session status.');
         return;
       }
-      final previousSession = _session;
-      _mainHelloReceived = true;
+      _helloReceived = true;
       _connected = true;
       _ready = ready;
       _session = session;
       _error = null;
-      if (ready && (previousSession != session || _captureSession != session)) {
-        _beginSessionBridge(session);
-      } else if (!ready) {
-        _outputDesired = false;
-        _stopOutputRetries();
-        final output = _output;
-        final sessionChannel = _sessionChannel;
-        _output = null;
-        _sessionChannel = null;
-        _outputSubscribed = false;
-        _sessionConfigured = false;
-        if (output != null) unawaited(output.close());
-        if (sessionChannel != null) unawaited(sessionChannel.close());
-      }
+      _syncBridge();
       notifyListeners();
       return;
     }
     if (type == 'exec_result') {
-      final id = message['script_id'];
+      final id = _integer(message['script_id'], maximum: 1 << 53);
       final phase = message['phase'];
-      if (id is! int || (phase != 'submitted' && phase != 'error')) {
+      if (id == null || (phase != 'submitted' && phase != 'error')) {
         _protocolError('Relapse sent an invalid script result.');
         return;
       }
-      final name = _scriptNames.remove(id) ?? 'Relapse output capture';
-      if (id == _sessionBootstrapScriptId) {
-        _sessionBootstrapScriptId = null;
-        if (phase == 'error') _sessionProtocolError(_safeDetail(message['detail']?.toString() ?? 'UI bridge submission failed.'));
-        return;
-      }
-      if (id == _outputBootstrapScriptId) {
-        _outputBootstrapScriptId = null;
+      final detail = _safeDetail(
+        message['detail']?.toString() ?? 'request failed',
+      );
+      if (_bridgeScriptIds.remove(id)) {
         if (phase == 'error') {
-          _outputDesired = false;
-          _stopOutputRetries();
-          _emitLog('error', 'Could not enable output capture: ${_safeDetail(message['detail']?.toString() ?? 'request failed')}');
-        }
-        return;
-      }
-      if (id == _captureScriptId) {
-        _captureScriptId = null;
-        if (phase == 'error') {
-          _outputDesired = false;
-          _stopOutputRetries();
-          _emitLog(
-            'error',
-            'Could not enable output capture: ${_safeDetail(message['detail']?.toString() ?? 'request failed')}',
+          _failBridge(
+            _safeDetail(
+              message['detail']?.toString() ?? 'UI channel setup failed.',
+            ),
           );
         }
         return;
       }
+      // RelapseGtk only reports ids it is still waiting for. A result that
+      // arrives after a session change belongs to a discarded bridge request.
+      final name = _scriptNames.remove(id);
+      if (name == null) return;
       _emitLog(
         phase == 'submitted' ? 'success' : 'error',
         phase == 'submitted'
             ? '$name submitted to Relapse.'
-            : '$name failed: ${_safeDetail(message['detail']?.toString() ?? 'request failed')}',
+            : '$name failed: $detail',
         executionId: 'relapse_$id',
       );
       return;
@@ -487,371 +611,270 @@ class RelapseGtkService extends ChangeNotifier {
     }
   }
 
-  void _beginOutputCapture(int session) {
-    if (_captureSession == session && _outputDesired) return;
-    _captureSession = session;
-    _captureScriptId = null;
-    _outputDesired = false;
-    _outputSubscribed = false;
-    _stopOutputRetries();
-    unawaited(_sendOutputCaptureScript(session));
+  /// Runs the UI-channel script for a new game session and arms the retry that
+  /// waits for Relapse to publish the channel. This is `ui_bridge_sync` +
+  /// `start` in RelapseGtk's bridge.c.
+  void _syncBridge() {
+    final session = _ready ? (_session ?? 0) : 0;
+    if (session == _bridgeSession) return;
+    _bridgeSession = session;
+    _startBridge();
   }
 
-  Future<void> _sendOutputCaptureScript(int session) async {
-    try {
-      final source = await _outputScriptLoader();
-      if (!_enabled || !_ready || _session != session || _main == null) return;
-      final id = _nextScriptId++;
-      _captureScriptId = id;
-      _outputBootstrapScriptId = id;
-      _scriptNames[id] = 'Relapse output capture';
-      _main!.send({
-        'op': 'execute',
-        'script_id': id,
-        'session': session,
-        'name': 'relapsegtk-output.luau',
-        'source': source,
-      });
-      _outputDesired = true;
-      _startOutputRetries();
-    } on Object catch (error) {
-      _emitLog(
-        'error',
-        'Could not prepare Relapse output capture: ${_safeDetail(error.toString())}',
-      );
-    }
-  }
-
-  void _startOutputRetries() {
-    _outputRetryTimer?.cancel();
-    _outputRetryDeadline = DateTime.now().add(const Duration(seconds: 10));
-    _outputTimeoutReported = false;
-    _outputRetryTimer = Timer.periodic(const Duration(milliseconds: 350), (_) {
-      if (_outputSubscribed || !_outputDesired || !_ready || !_enabled) {
-        _stopOutputRetries();
-        return;
-      }
-      if (DateTime.now().isAfter(_outputRetryDeadline!)) {
-        _stopOutputRetries();
-        if (!_outputTimeoutReported) {
-          _outputTimeoutReported = true;
-          _emitLog(
-            'warn',
-            'Relapse is connected, but output capture did not start.',
-          );
-        }
-        return;
-      }
-      unawaited(_connectOutput());
-    });
-    unawaited(_connectOutput());
-  }
-
-  void _stopOutputRetries() {
-    _outputRetryTimer?.cancel();
-    _outputRetryTimer = null;
-    _outputRetryDeadline = null;
-  }
-
-  Future<void> _connectOutput() async {
-    if (!_enabled ||
-        !_ready ||
-        !_outputDesired ||
-        _output != null ||
-        _outputConnecting) {
+  void _startBridge() {
+    _stopBridge();
+    if (_bridgeSession <= 0) {
+      _outputState = RelapseOutputState.waiting;
+      _outputDetail = 'Waiting for a game';
+      if (!_disposed) notifyListeners();
       return;
     }
-    _outputConnecting = true;
-    final selectedPath = socketPath;
-    try {
-      late final _RelapseChannel channel;
-      channel = await _RelapseChannel.connect(
-        socketPath: selectedPath,
-        channelName: outputChannel,
-        onMessage: _onOutputMessage,
-        onClosed: _onOutputClosed,
-        timeout: const Duration(milliseconds: 250),
-      );
-      if (!_enabled || !_ready || !_outputDesired || socketPath != selectedPath) {
-        await channel.close();
-        return;
-      }
-      if (!channel.isOpen) {
-        throw const SocketException(
-          'Relapse output channel closed during setup.',
-        );
-      }
-      _output = channel;
-      channel.send({'op': 'subscribe', 'version': protocolVersion});
-    } on Object {
-      // The executor creates this channel only after the output helper has
-      // started. The short reconnect timer handles that startup race.
-    } finally {
-      _outputConnecting = false;
-    }
+    final id = _nextScriptId++;
+    _bridgeScriptIds.add(id);
+    _outputState = RelapseOutputState.connecting;
+    _outputDetail = 'Starting UI channel…';
+    _bridgeDeadline = DateTime.now().add(handshakeTimeout);
+    _startBridgeTimer();
+    if (!_disposed) notifyListeners();
+    unawaited(_runBridgeScript(id));
   }
 
-  void _onOutputClosed(_RelapseChannel channel, [Object? error]) {
-    if (!identical(_output, channel)) return;
-    _output = null;
-    _outputSubscribed = false;
-    if (_enabled && _ready && _outputDesired) _startOutputRetries();
-    notifyListeners();
-  }
-
-  void _onOutputMessage(_RelapseChannel channel, Map<String, dynamic> message) {
-    if (!identical(_output, channel)) return;
-    final type = message['type'];
-    if (type == 'subscribed') {
-      if (message['version'] != protocolVersion) {
-        _outputProtocolError(
-          'Relapse output channel version is not supported.',
-        );
-        return;
-      }
-      _outputSubscribed = true;
-      _outputTimeoutReported = false;
-      _stopOutputRetries();
-      notifyListeners();
-      return;
-    }
-    if (type == 'failed') {
-      _emitLog(
-        'error',
-        'Relapse output capture failed: ${_safeDetail(message['detail']?.toString() ?? 'request failed')}',
-      );
-      _outputDesired = false;
-      _stopOutputRetries();
-      unawaited(channel.close());
-      return;
-    }
-    if (type == 'dropped') {
-      final count = message['count'];
-      if (count is! int || count < 1) {
-        _outputProtocolError('Relapse sent an invalid dropped-message count.');
-      } else {
-        _emitLog('warn', '$count output messages were dropped by Relapse.');
-      }
-      return;
-    }
-    if (type == 'output') {
-      final entries = message['entries'];
-      final dropped = message['dropped'];
-      // Relapse registers the peer before it writes the subscription ack. A
-      // print from the game can therefore race that ack on the output socket.
-      // The request has already been sent on this channel, so a valid batch is
-      // sufficient proof that output capture is active.
-      if (!_outputDesired ||
-          entries is! List ||
-          entries.isEmpty ||
-          entries.length > maximumOutputBatchEntries ||
-          dropped is! int ||
-          dropped < 0) {
-        _outputProtocolError('Relapse sent an invalid output batch.');
-        return;
-      }
-      final validatedEntries = <MapEntry<String, String>>[];
-      for (final rawEntry in entries) {
-        if (rawEntry is! Map ||
-            rawEntry['text'] is! String ||
-            rawEntry['level'] is! String) {
-          _outputProtocolError('Relapse sent an invalid output entry.');
-          return;
-        }
-        final level = rawEntry['level'] as String;
-        final text = rawEntry['text'] as String;
-        if (!const {'print', 'warn', 'error', 'info'}.contains(level) ||
-            utf8.encode(text).length > maximumOutputEntryBytes) {
-          _outputProtocolError('Relapse sent an unsupported output entry.');
-          return;
-        }
-        validatedEntries.add(MapEntry(level, text));
-      }
-      if (!_outputSubscribed) {
-        _outputSubscribed = true;
-        _outputTimeoutReported = false;
-        _stopOutputRetries();
-        notifyListeners();
-      }
-      if (dropped > 0) {
-        _emitLog('warn', '$dropped output messages were dropped by Relapse.');
-      }
-      for (final entry in validatedEntries) {
-        _emitLog(entry.key, entry.value);
-      }
-    }
-  }
-
-  void _beginSessionBridge(int session) {
-    _captureSession = session;
-    _sessionBootstrapped = false;
-    _sessionConfigured = false;
-    _legacyOutputFallbackStarted = false;
-    _startSessionRetries(session);
-    unawaited(_sendSessionBootstrap(session));
-  }
-
-  Future<void> _sendSessionBootstrap(int session) async {
-    if (_sessionBootstrapped || !_enabled || !_ready || _disposed || _main == null) return;
+  Future<void> _runBridgeScript(int id) async {
     try {
       final source = await _sessionScriptLoader();
-      if (!_enabled || !_ready || _disposed || _session != session || _main == null) return;
-      final id = _nextScriptId++;
-      _sessionBootstrapScriptId = id;
-      _scriptNames[id] = 'Relapse session bridge';
+      if (!_enabled ||
+          _disposed ||
+          !_bridgeScriptIds.contains(id) ||
+          _bridgeSession <= 0 ||
+          _main == null) {
+        return;
+      }
       _main!.send({
         'op': 'execute',
         'script_id': id,
-        'session': session,
-        'name': 'relapsegtk-session.luau',
+        'session': _session,
+        'name': sessionScriptName,
         'source': source,
       });
-      _sessionBootstrapped = true;
-      unawaited(_connectSession(session));
     } on Object catch (error) {
-      _emitLog('warn', 'Relapse session bridge unavailable: ${_safeDetail(error.toString())}');
-      _fallbackToLegacyOutput();
+      _bridgeScriptIds.remove(id);
+      _failBridge(
+        'Could not start the UI channel: ${_safeDetail(error.toString())}',
+      );
+      return;
+    }
+    _tickBridge();
+  }
+
+  void _startBridgeTimer() {
+    _bridgeTimer?.cancel();
+    _bridgeTimer = Timer.periodic(handshakeRetry, (_) => _tickBridge());
+  }
+
+  void _tickBridge() {
+    if (!_enabled || _disposed) return;
+    if (_bridgeConfigured) return;
+    final deadline = _bridgeDeadline;
+    if (deadline == null) return;
+    if (DateTime.now().isAfter(deadline)) {
+      _failBridge(
+        'UI channel setup timed out. Toggle output redirection to retry.',
+      );
+      return;
+    }
+    if (_bridgeChannel == null && !_bridgeConnecting && _ready) {
+      unawaited(_connectBridge());
     }
   }
 
-  void _startSessionRetries(int session) {
-    _stopSessionRetries();
-    _sessionRetryDeadline = DateTime.now().add(const Duration(seconds: 10));
-    _sessionRetryTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
-      if (!_enabled || !_ready || _disposed || _session != session) {
-        _stopSessionRetries();
-      } else if (_sessionConfigured) {
-        _stopSessionRetries();
-      } else if (DateTime.now().isAfter(_sessionRetryDeadline!)) {
-        _sessionProtocolError('Relapse UI channel setup timed out.');
-      } else if (!_sessionBootstrapped) {
-        unawaited(_sendSessionBootstrap(session));
-      } else {
-        unawaited(_connectSession(session));
-      }
-    });
-  }
-
-  Future<void> _connectSession(int session) async {
-    if (!_enabled || !_ready || _disposed || _sessionChannel != null || _sessionConnecting || _session != session) return;
-    _sessionConnecting = true;
+  Future<void> _connectBridge() async {
+    if (!_enabled ||
+        _disposed ||
+        !_ready ||
+        _bridgeChannel != null ||
+        _bridgeConnecting) {
+      return;
+    }
+    _bridgeConnecting = true;
     final selectedPath = socketPath;
     try {
       final channel = await _RelapseChannel.connect(
         socketPath: selectedPath,
         channelName: sessionChannel,
-        onMessage: _onSessionMessage,
-        onClosed: _onSessionClosed,
+        onMessage: _onBridgeMessage,
+        onClosed: _onBridgeClosed,
         timeout: const Duration(milliseconds: 250),
       );
-      if (!_enabled || !_ready || _disposed || _session != session || socketPath != selectedPath) {
+      if (!_enabled ||
+          _disposed ||
+          !_ready ||
+          socketPath != selectedPath ||
+          _bridgeSession <= 0) {
         await channel.close();
         return;
       }
-      if (!channel.isOpen) throw const SocketException('Relapse session channel closed during setup.');
-      _sessionChannel = channel;
-      channel.send({'op': 'configure', 'version': sessionProtocolVersion, 'redirect': true});
+      if (!channel.isOpen) {
+        throw const SocketException('Relapse UI channel closed during setup.');
+      }
+      _bridgeChannel = channel;
+      _configureBridge(channel);
     } on Object {
-      // Session script publication is asynchronous; retry until the GTK timeout.
+      // Relapse publishes this channel only after session.luau has run, and it
+      // answers `unknown_channel` until then. The retry timer owns the wait, as
+      // in RelapseGtk; the deadline above decides when it is hopeless.
     } finally {
-      _sessionConnecting = false;
+      _bridgeConnecting = false;
     }
   }
 
-  void _onSessionClosed(_RelapseChannel channel, [Object? error]) {
-    if (!identical(_sessionChannel, channel)) return;
-    _sessionChannel = null;
-    _sessionConfigured = false;
-    if (_enabled && _ready && !_disposed && _session != null) _startSessionRetries(_session!);
+  void _configureBridge(_RelapseChannel channel) {
+    try {
+      channel.send({
+        'op': 'configure',
+        'version': sessionVersion,
+        'redirect': _outputEnabled,
+      });
+    } on Object catch (error) {
+      _failBridge(
+        'Could not configure the UI channel: ${_safeDetail(error.toString())}',
+      );
+      return;
+    }
+    _bridgeConfigured = false;
+    _bridgeDeadline = DateTime.now().add(handshakeTimeout);
+    _outputState = RelapseOutputState.connecting;
+    _outputDetail = 'Connecting…';
+    _startBridgeTimer();
     if (!_disposed) notifyListeners();
   }
 
-  void _onSessionMessage(_RelapseChannel channel, Map<String, dynamic> message) {
-    if (!identical(_sessionChannel, channel)) return;
+  void _onBridgeClosed(_RelapseChannel channel, [Object? error]) {
+    if (!identical(_bridgeChannel, channel)) return;
+    _bridgeChannel = null;
+    _bridgeConfigured = false;
+    if (_enabled && _ready && !_disposed) {
+      _outputState = RelapseOutputState.connecting;
+      _outputDetail = 'Reconnecting…';
+      _bridgeDeadline = DateTime.now().add(handshakeTimeout);
+      _startBridgeTimer();
+      _tickBridge();
+    }
+    if (!_disposed) notifyListeners();
+  }
+
+  void _onBridgeMessage(_RelapseChannel channel, Map<String, dynamic> message) {
+    if (!identical(_bridgeChannel, channel)) return;
     final type = message['type'];
     if (type == 'configured') {
-      if (message['version'] != sessionProtocolVersion || message['redirect'] != true) {
-        _sessionProtocolError('Relapse sent an invalid session configuration.');
+      final version = _integer(message['version'], maximum: 1 << 31);
+      final redirect = message['redirect'];
+      if (version != sessionVersion || redirect is! bool) {
+        _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
         return;
       }
-      _sessionConfigured = true;
-      _stopSessionRetries();
+      // A toggle racing the ack produces a stale answer; the fresh configure is
+      // already on the wire, so RelapseGtk ignores it rather than failing.
+      if (redirect != _outputEnabled) return;
+      _bridgeConfigured = true;
+      _bridgeTimer?.cancel();
+      _bridgeTimer = null;
+      _bridgeDeadline = null;
+      _outputState = _outputEnabled
+          ? RelapseOutputState.active
+          : RelapseOutputState.off;
+      _outputDetail = _outputEnabled ? 'Capturing' : 'Output off';
       notifyListeners();
       return;
     }
+    if (!_bridgeConfigured) {
+      // Output can race the configuration ack; RelapseGtk drops it as well.
+      if (type == 'output' || type == 'dropped') return;
+      _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
+      return;
+    }
     if (type == 'failed') {
-      _sessionProtocolError(_safeDetail(message['detail']?.toString() ?? 'Relapse session setup failed.'));
+      final detail = message['detail'];
+      if (detail is! String || utf8.encode(detail).length > 4096) {
+        _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
+        return;
+      }
+      _failBridge(_safeDetail(detail));
       return;
     }
     if (type == 'output') {
       final entries = message['entries'];
-      final dropped = message['dropped'];
-      if (!_ready || entries is! List || entries.isEmpty || entries.length > maximumOutputBatchEntries || dropped is! int || dropped < 0) {
-        _sessionProtocolError('Relapse sent an invalid output batch.');
+      final dropped = _integer(message['dropped']);
+      if (entries is! List ||
+          entries.isEmpty ||
+          entries.length > maximumOutputEntries ||
+          dropped == null) {
+        _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
         return;
       }
       final validated = _validatedOutputEntries(entries);
       if (validated == null) {
-        _sessionProtocolError('Relapse sent an invalid output entry.');
+        _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
         return;
       }
-      _sessionConfigured = true;
-      _stopSessionRetries();
-      if (dropped > 0) {
-        _emitLog('warn', '$dropped messages dropped: output arrived too quickly.');
-      }
+      if (!_outputEnabled) return;
       for (final entry in validated) {
         _emitLog(entry.key, entry.value);
       }
-      notifyListeners();
+      if (dropped > 0) _emitDropped(dropped);
       return;
     }
     if (type == 'dropped') {
-      final count = message['count'];
-      if (count is! int || count < 1) {
-        _sessionProtocolError('Relapse sent an invalid dropped-message count.');
-      } else {
-        _emitLog('warn', '$count messages dropped: output arrived too quickly.');
+      final count = _integer(message['count'], minimum: 1);
+      if (count == null) {
+        _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
+        return;
       }
+      if (_outputEnabled) _emitDropped(count);
       return;
     }
-    _sessionProtocolError('Relapse sent an invalid session-channel message.');
+    _failBridge('Invalid UI channel message. Toggle output redirection to retry.');
   }
 
   List<MapEntry<String, String>>? _validatedOutputEntries(List entries) {
     final validated = <MapEntry<String, String>>[];
     for (final entry in entries) {
-      if (entry is! Map || entry['level'] is! String || entry['text'] is! String) return null;
+      if (entry is! Map || entry['level'] is! String || entry['text'] is! String) {
+        return null;
+      }
       final level = entry['level'] as String;
       final text = entry['text'] as String;
-      if (!const {'print', 'warn', 'error', 'info'}.contains(level) || utf8.encode(text).length > maximumOutputEntryBytes) return null;
+      if (!const {'print', 'warn', 'error', 'info'}.contains(level) ||
+          utf8.encode(text).length > maximumOutputTextBytes) {
+        return null;
+      }
       validated.add(MapEntry(level, text));
     }
     return validated;
   }
 
-  void _sessionProtocolError(String detail) {
-    _emitLog('error', detail);
-    _stopSessionRetries();
-    final channel = _sessionChannel;
-    _sessionChannel = null;
-    _sessionConfigured = false;
+  void _emitDropped(int count) => _emitLog(
+    'warn',
+    '$count messages dropped: output arrived too quickly.',
+  );
+
+  void _stopBridge() {
+    _bridgeTimer?.cancel();
+    _bridgeTimer = null;
+    _bridgeDeadline = null;
+    _bridgeConfigured = false;
+    _bridgeScriptIds.clear();
+    final channel = _bridgeChannel;
+    _bridgeChannel = null;
     if (channel != null) unawaited(channel.close());
-    _fallbackToLegacyOutput();
+  }
+
+  void _failBridge(String detail) {
+    _stopBridge();
+    _bridgeDeadline = null;
+    _outputState = RelapseOutputState.failed;
+    _outputDetail = detail;
+    _emitLog('error', detail);
     if (!_disposed) notifyListeners();
-  }
-
-  void _fallbackToLegacyOutput() {
-    if (_legacyOutputFallbackStarted || !_enabled || !_ready || _disposed || _session == null) return;
-    _legacyOutputFallbackStarted = true;
-    _stopSessionRetries();
-    _beginOutputCapture(_session!);
-  }
-
-  void _stopSessionRetries() {
-    _sessionRetryTimer?.cancel();
-    _sessionRetryTimer = null;
-    _sessionRetryDeadline = null;
   }
 
   void _protocolError(String detail) {
@@ -859,22 +882,26 @@ class RelapseGtkService extends ChangeNotifier {
     _emitLog('error', detail);
     final main = _main;
     if (main != null) unawaited(main.close());
-    final output = _output;
-    if (output != null) unawaited(output.close());
   }
 
-  /// An output-capture protocol issue must not tear down the execution
-  /// channel. Keep the Relapse session usable and stop retrying this capture
-  /// stream until the next session starts.
-  void _outputProtocolError(String detail) {
-    _outputDesired = false;
-    _outputSubscribed = false;
-    _stopOutputRetries();
-    final output = _output;
-    _output = null;
-    if (output != null) unawaited(output.close());
-    _emitLog('error', detail);
-    if (!_disposed) notifyListeners();
+  /// RelapseGtk treats every numeric field as an integer that may arrive as an
+  /// integral double, because Lua serialises its numbers that way.
+  static int? _integer(
+    Object? value, {
+    int minimum = 0,
+    int maximum = 0x7fffffff,
+  }) {
+    final int number;
+    if (value is int) {
+      number = value;
+    } else if (value is double) {
+      if (!value.isFinite || value < minimum || value > maximum) return null;
+      number = value.toInt();
+      if (number != value) return null;
+    } else {
+      return null;
+    }
+    return number < minimum || number > maximum ? null : number;
   }
 
   static String _luaString(String value) {
@@ -1027,20 +1054,18 @@ class _RelapseChannel {
         }
         final message = Map<String, dynamic>.from(decoded);
         if (!_isOpen) {
+          final limit = message['max_message_bytes'];
           if (message['ok'] != true ||
               message['version'] != RelapseGtkService.protocolVersion ||
-              message['max_message_bytes'] is! int ||
-              (message['max_message_bytes'] as int) < 1) {
+              limit is! int ||
+              limit < 1) {
             throw FormatException(
               message['error'] is String
                   ? message['error'] as String
                   : 'Invalid Relapse channel handshake.',
             );
           }
-          _maximumMessageBytes = (message['max_message_bytes'] as int).clamp(
-            1,
-            8 * 1024 * 1024,
-          );
+          _maximumMessageBytes = limit.clamp(1, 8 * 1024 * 1024);
           _isOpen = true;
           if (!_opened.isCompleted) _opened.complete();
         } else {

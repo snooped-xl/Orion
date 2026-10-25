@@ -139,6 +139,14 @@ void main() {
         findsNothing,
       );
 
+      // RelapseGtk's "Redirect script output" switch, mirrored here.
+      final redirect = preference('relapse-output-redirect');
+      expect(redirect, findsOneWidget);
+      expect(controller.relapseOutputRedirect, isTrue);
+      await tapVisible(tester, redirect);
+      expect(controller.relapseOutputRedirect, isFalse);
+      expect(tester.widget<Switch>(redirect).value, isFalse);
+
       // A chosen launcher swaps the picker for Launch/Change controls.
       controller.applyWindowState({
         ...controller.exportWindowState(),

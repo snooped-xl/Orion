@@ -636,6 +636,13 @@ class CompanionController extends OrionController {
   );
 
   @override
+  void setRelapseOutputRedirect(bool value) => _preference(
+    'relapseOutputRedirect',
+    value,
+    () => super.setRelapseOutputRedirect(value),
+  );
+
+  @override
   Future<void> setRelapseLauncherPath(String? path) async {
     await _enqueue('setRelapseLauncherPath', {'path': path});
   }

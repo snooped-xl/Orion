@@ -209,8 +209,10 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
           : 'Bridge';
       final status = c.bridgeError != null
           ? '$backend unavailable'
-          : c.usesRelapseSupport && c.relapseReady
+          : c.usesRelapseSupport && c.relapseCanExecute
           ? 'Connected · ready'
+          : c.usesRelapseSupport && c.relapseReady
+          ? 'Connected · preparing'
           : c.usesRelapseSupport && c.bridgeConnected
           ? 'Connected · waiting for game'
           : clients.isNotEmpty
@@ -463,16 +465,20 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      c.relapseReady
+                      c.relapseCanExecute
                           ? 'Relapse is ready for scripts.'
+                          : c.relapseReady
+                          ? 'Relapse is starting the UI channel for this game session.'
                           : 'Relapse is connected and waiting for a game session.',
                       style: theme.textTheme.titleSmall,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      c.relapseOutputCaptureActive
+                      !c.relapseOutputRedirect
+                          ? 'Output redirection is off. Turn it on in Settings to see script output here.'
+                          : c.relapseOutputCaptureActive
                           ? 'Luau output is being forwarded to the Orion console.'
-                          : 'Output capture is starting. Socket: ${c.relapseSocketPath}',
+                          : '${c.relapseOutputDetail ?? 'Starting the UI channel'} · ${c.relapseSocketPath}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),

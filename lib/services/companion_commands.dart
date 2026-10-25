@@ -81,6 +81,8 @@ class CompanionCommands {
         return c.initializeBridge();
       case 'setRelapseLauncherPath':
         await c.setRelapseLauncherPath(p['path'] as String?);
+      case 'relapseOutputRedirect':
+        c.setRelapseOutputRedirect(p['value'] as bool);
       case 'launchRelapse':
         return c.launchRelapse();
       case 'selectRelapseSocketPath':
@@ -153,6 +155,8 @@ class CompanionCommands {
             c.setAutosave(value as bool);
           case 'relapseSupport':
             c.setRelapseSupportEnabled(value as bool);
+          case 'relapseOutputRedirect':
+            c.setRelapseOutputRedirect(value as bool);
           case 'reducedMotion':
             c.setReducedMotion(value as bool);
           case 'themeMode':

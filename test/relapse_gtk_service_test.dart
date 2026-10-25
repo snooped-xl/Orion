@@ -8,108 +8,52 @@ import 'package:orion/models/bridge_models.dart';
 import 'package:orion/services/relapse_gtk_service.dart';
 
 /// Relapse support is Linux-only: it speaks over Unix sockets in `/tmp` and
-/// checks socket ownership with Linux tools, matching the shipped feature.
+/// checks socket ownership the way RelapseGtk does.
 final _linuxOnly = Platform.isLinux ? null : 'Relapse support is Linux-only.';
 
+/// A stand-in for Relapse itself, reproducing what the real executor does:
+///
+///  * `@main` answers `hello` with a ready session and accepts scripts;
+///  * `relapsegtk.session.v2` stays unknown until `session.luau` has run, so
+///    early connection attempts are rejected exactly like the real server;
+///  * Lua numbers arrive as JSON doubles (`{"version": 2.0, "dropped": 0.0}`).
 void main() {
-  test('executes in a ready session and forwards Relapse output', () async {
-    final server = await _FakeRelapseServer.start();
-    final service = RelapseGtkService(
-      socketPath: server.path,
-      reconnectInterval: const Duration(milliseconds: 50),
-      outputScriptLoader: () async => '-- output capture fixture',
-    );
-    final output = service.logReceived.firstWhere(
-      (entry) => entry.message == 'hello from Relapse',
-    );
-    addTearDown(service.dispose);
-    addTearDown(server.close);
-
-    await service.start();
-    await server.mainReady.future.timeout(const Duration(seconds: 2));
-    await _waitFor(() => service.isReady);
-    await server.outputSubscribed.future.timeout(const Duration(seconds: 2));
-    await _waitFor(() => service.outputCaptureActive);
-    expect(service.outputCaptureActive, isTrue);
-
-    final id = await service.execute('print("hello")', name: 'hello.lua');
-    final request = await server.userScript.future.timeout(
-      const Duration(seconds: 2),
-    );
-    expect(request['script_id'], id);
-    expect(request['session'], 42);
-    expect(request['name'], 'hello.lua');
-    expect(request['source'], 'print("hello")');
-
-    server.sendOutput('hello from Relapse');
-    expect((await output.timeout(const Duration(seconds: 2))).level, 'print');
-  }, skip: _linuxOnly);
-
   test(
-    'output before the subscription acknowledgement keeps the session up',
+    'waits for the UI channel, then executes through the session wrapper',
     () async {
       final server = await _FakeRelapseServer.start(
-        outputBeforeSubscribed: true,
+        publishOnSessionScript: false,
       );
       final service = RelapseGtkService(
         socketPath: server.path,
         reconnectInterval: const Duration(milliseconds: 50),
-        outputScriptLoader: () async => '-- output capture fixture',
-      );
-      final output = service.logReceived.firstWhere(
-        (entry) => entry.message == 'early Relapse output',
-      );
-      addTearDown(service.dispose);
-      addTearDown(server.close);
-
-      await service.start();
-      await server.mainReady.future.timeout(const Duration(seconds: 2));
-      await server.outputSubscribed.future.timeout(const Duration(seconds: 2));
-      expect((await output.timeout(const Duration(seconds: 2))).level, 'print');
-      expect(service.outputCaptureActive, isTrue);
-      expect(service.isReady, isTrue);
-
-      final captureError = service.logReceived.firstWhere(
-        (entry) => entry.message == 'Relapse sent an invalid output batch.',
-      );
-      server.sendInvalidOutput();
-      await captureError.timeout(const Duration(seconds: 2));
-      expect(service.outputCaptureActive, isFalse);
-      expect(service.isReady, isTrue);
-
-      final id = await service.execute(
-        'print("still connected")',
-        name: 'test.lua',
-      );
-      final request = await server.userScript.future.timeout(
-        const Duration(seconds: 2),
-      );
-      expect(request['script_id'], id);
-      expect(service.isReady, isTrue);
-    },
-    skip: _linuxOnly,
-  );
-
-  test(
-    'session.v2 channel configures execution wrapper and deduplicates output',
-    () async {
-      final server = await _FakeRelapseServer.start(enableSessionChannel: true);
-      final service = RelapseGtkService(
-        socketPath: server.path,
-        reconnectInterval: const Duration(milliseconds: 50),
-        outputScriptLoader: () async => '-- output capture fixture',
+        handshakeRetry: const Duration(milliseconds: 20),
         sessionScriptLoader: () async => '-- session bridge fixture',
       );
       final logs = <String>[];
-      final sub = service.logReceived.listen((entry) => logs.add(entry.message));
-      addTearDown(sub.cancel);
+      final subscription = service.logReceived.listen(
+        (entry) => logs.add(entry.message),
+      );
+      addTearDown(subscription.cancel);
       addTearDown(service.dispose);
       addTearDown(server.close);
 
       await service.start();
-      await server.mainReady.future.timeout(const Duration(seconds: 2));
-      await server.sessionConfigured.future.timeout(const Duration(seconds: 2));
-      await _waitFor(() => service.sessionBridgeConfigured);
+      await _waitFor(() => service.isReady);
+      await _waitFor(() => server.sessionReady);
+
+      // RelapseGtk refuses to submit before the wrapper exists; so does Orion,
+      // because unwrapped code would skip the live game session entirely.
+      expect(service.canExecute, isFalse);
+      expect(service.outputState, RelapseOutputState.connecting);
+      await expectLater(
+        service.execute('print("too early")', name: 'early.lua'),
+        throwsStateError,
+      );
+      expect(server.userScript.isCompleted, isFalse);
+
+      server.channelPublished = true;
+      await _waitFor(() => service.canExecute);
       expect(service.outputCaptureActive, isTrue);
 
       final id = await service.execute('print("v2")', name: 'my script.lua');
@@ -117,21 +61,215 @@ void main() {
         const Duration(seconds: 2),
       );
       expect(request['script_id'], id);
+      expect(request['session'], 42);
       expect(request['name'], 'relapsegtk-execute.luau');
       expect(
         request['source'],
         'getgenv().__relapsegtk_session_v2.execute("print(\\"v2\\")","my script.lua")',
       );
 
-      // The negotiated session channel replaces the legacy output capture, so
-      // Orion must not open the v1 channel or publish its entries twice.
       server.sendSessionOutput('from session v2');
-      server.sendOutput('duplicate from output v1');
       await _waitFor(() => logs.contains('from session v2'));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(logs.where((message) => message == 'from session v2'), hasLength(1));
-      expect(server.outputSubscribed.isCompleted, isFalse);
-      expect(logs, isNot(contains('duplicate from output v1')));
+    },
+    skip: _linuxOnly,
+  );
+
+  test(
+    'retries a rejected UI channel until Relapse publishes it',
+    () async {
+      final server = await _FakeRelapseServer.start(channelRejections: 3);
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        handshakeRetry: const Duration(milliseconds: 20),
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await _waitFor(() => service.canExecute);
+      expect(server.channelAttempts, greaterThan(3));
+      expect(service.error, isNull);
+    },
+    skip: _linuxOnly,
+  );
+
+  test(
+    'redirect toggle reconfigures the channel and hides output while off',
+    () async {
+      final server = await _FakeRelapseServer.start();
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      final logs = <String>[];
+      final subscription = service.logReceived.listen(
+        (entry) => logs.add(entry.message),
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await _waitFor(() => service.canExecute);
+      expect(server.configures.single['redirect'], true);
+
+      service.setOutputEnabled(false);
+      await _waitFor(() => server.configures.length == 2);
+      expect(server.configures.last['redirect'], false);
+      await _waitFor(() => service.outputState == RelapseOutputState.off);
+      expect(service.canExecute, isTrue);
+      expect(service.outputCaptureActive, isFalse);
+
+      server.sendSessionOutput('while redirection is off');
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(logs, isNot(contains('while redirection is off')));
+
+      service.setOutputEnabled(true);
+      await _waitFor(() => server.configures.length == 3);
+      await _waitFor(() => service.outputCaptureActive);
+      server.sendSessionOutput('back on');
+      await _waitFor(() => logs.contains('back on'));
+    },
+    skip: _linuxOnly,
+  );
+
+  test(
+    'a stale configuration ack keeps the bridge waiting instead of failing',
+    () async {
+      final server = await _FakeRelapseServer.start(deferAcks: true);
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        handshakeRetry: const Duration(milliseconds: 20),
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await _waitFor(() => server.configures.isNotEmpty);
+      expect(service.canExecute, isFalse);
+
+      // The ack echoes the opposite redirect, so it belongs to an earlier
+      // toggle. RelapseGtk ignores it; failing here would break the session.
+      server.sendConfigured(stale: true);
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      expect(service.canExecute, isFalse);
+      expect(service.outputState, RelapseOutputState.connecting);
+
+      server.sendConfigured();
+      await _waitFor(() => service.canExecute);
+      expect(service.outputState, RelapseOutputState.active);
+    },
+    skip: _linuxOnly,
+  );
+
+  test(
+    'rejects an invalid output batch and stops offering execution',
+    () async {
+      final server = await _FakeRelapseServer.start();
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      final errors = <String>[];
+      final subscription = service.logReceived.listen(
+        (entry) => errors.add(entry.message),
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await _waitFor(() => service.canExecute);
+
+      server.sendRawSession({
+        'type': 'output',
+        'entries': [
+          {'level': 'print', 'text': 'fine'},
+        ],
+        'dropped': -1,
+      });
+      await _waitFor(() => !service.canExecute);
+      expect(service.outputState, RelapseOutputState.failed);
+      expect(
+        errors.last,
+        'Invalid UI channel message. Toggle output redirection to retry.',
+      );
+      await expectLater(
+        service.execute('print("blocked")', name: 'blocked.lua'),
+        throwsStateError,
+      );
+    },
+    skip: _linuxOnly,
+  );
+
+  test(
+    'reports a UI channel that never answers within the deadline',
+    () async {
+      final server = await _FakeRelapseServer.start(
+        publishOnSessionScript: false,
+      );
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        handshakeRetry: const Duration(milliseconds: 20),
+        handshakeTimeout: const Duration(milliseconds: 250),
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      final errors = <String>[];
+      final subscription = service.logReceived.listen(
+        (entry) => errors.add(entry.message),
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await _waitFor(() => service.outputState == RelapseOutputState.failed);
+      expect(
+        errors,
+        contains(
+          'UI channel setup timed out. Toggle output redirection to retry.',
+        ),
+      );
+      expect(service.canExecute, isFalse);
+    },
+    skip: _linuxOnly,
+  );
+
+  test(
+    'reports dropped output in RelapseGtk order with its exact wording',
+    () async {
+      final server = await _FakeRelapseServer.start();
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      final logs = <BridgeLogEntry>[];
+      final subscription = service.logReceived.listen(logs.add);
+      addTearDown(subscription.cancel);
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await _waitFor(() => service.canExecute);
+
+      server.sendSessionOutput('after a drop', dropped: 3.0);
+      await _waitFor(() => logs.any((entry) => entry.level == 'warn'));
+      expect(
+        logs.map((entry) => entry.message),
+        containsAllInOrder([
+          'after a drop',
+          '3 messages dropped: output arrived too quickly.',
+        ]),
+      );
     },
     skip: _linuxOnly,
   );
@@ -146,38 +284,39 @@ void main() {
         directory,
         socketName: 'relapse.sock',
         session: 101,
-        enableSessionChannel: true,
       );
       final altServer = await _FakeRelapseServer.startInDirectory(
         directory,
         socketName: 'relapse-alt-1.sock',
         session: 202,
-        enableSessionChannel: true,
+      );
+      final ignored = await _FakeRelapseServer.startInDirectory(
+        directory,
+        socketName: 'relapse-bad name.sock',
+        session: 303,
       );
       final service = RelapseGtkService(
         socketPath: defaultServer.path,
         reconnectInterval: const Duration(milliseconds: 50),
         manageProfiles: true,
         profileDirectory: directory.path,
-        outputScriptLoader: () async => '-- output capture fixture',
         sessionScriptLoader: () async => '-- session bridge fixture',
       );
       final logs = <BridgeLogEntry>[];
-      final sub = service.logReceived.listen(logs.add);
-      addTearDown(sub.cancel);
+      final subscription = service.logReceived.listen(logs.add);
+      addTearDown(subscription.cancel);
       addTearDown(service.dispose);
       addTearDown(defaultServer.close);
       addTearDown(altServer.close);
+      addTearDown(ignored.close);
 
       await service.start();
-      await defaultServer.mainReady.future.timeout(const Duration(seconds: 2));
-      await altServer.mainReady.future.timeout(const Duration(seconds: 2));
-      await _waitFor(() => service.readySocketPaths.length == 2);
-
+      await _waitFor(() => service.executableSocketPaths.length == 2);
       expect(
         service.socketPaths,
         containsAll([defaultServer.path, altServer.path]),
       );
+      expect(service.socketPaths, isNot(contains(ignored.path)));
       expect(service.sessionForSocketPath(defaultServer.path), 101);
       expect(service.sessionForSocketPath(altServer.path), 202);
       expect(
@@ -188,8 +327,6 @@ void main() {
         RelapseGtkService.clientIdentifierForSocket(altServer.path),
         'Relapse · alt-1',
       );
-
-      await _waitFor(() => service.sessionBridgeConfigured);
 
       final altId = await service.execute(
         'print("alt target")',
@@ -211,17 +348,19 @@ void main() {
       await _waitFor(
         () => logs.any((entry) => entry.message == 'hello from alt'),
       );
-      final altLog = logs.firstWhere(
-        (entry) => entry.message == 'hello from alt',
+      expect(
+        logs
+            .firstWhere((entry) => entry.message == 'hello from alt')
+            .identifier,
+        'Relapse · alt-1',
       );
-      expect(altLog.identifier, 'Relapse · alt-1');
     },
     skip: _linuxOnly,
   );
 }
 
 Future<void> _waitFor(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  final deadline = DateTime.now().add(const Duration(seconds: 3));
   while (!condition() && DateTime.now().isBefore(deadline)) {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
@@ -234,8 +373,10 @@ class _FakeRelapseServer {
     this.server, {
     required this.socketName,
     required this.session,
-    required this.outputBeforeSubscribed,
-    required this.enableSessionChannel,
+    required this.channelRejections,
+    required this.publishOnSessionScript,
+    required this.deferAcks,
+    required this.channelPublished,
   }) {
     server.listen(_accept);
   }
@@ -244,30 +385,34 @@ class _FakeRelapseServer {
   final ServerSocket server;
   final String socketName;
   final int session;
-  final bool outputBeforeSubscribed;
-  final bool enableSessionChannel;
+  final int channelRejections;
+  final bool publishOnSessionScript;
+  final bool deferAcks;
   final Completer<void> mainReady = Completer<void>();
-  final Completer<void> outputSubscribed = Completer<void>();
-  final Completer<void> sessionConfigured = Completer<void>();
   final Completer<Map<String, dynamic>> userScript =
       Completer<Map<String, dynamic>>();
+  final List<Map<String, dynamic>> configures = [];
   final Set<_Peer> _peers = {};
-  _Peer? _outputPeer;
   _Peer? _sessionPeer;
+  bool channelPublished;
+  bool sessionReady = false;
+  int channelAttempts = 0;
 
   String get path => '${directory.path}/$socketName';
 
   static Future<_FakeRelapseServer> start({
-    bool outputBeforeSubscribed = false,
-    bool enableSessionChannel = false,
+    int channelRejections = 0,
+    bool publishOnSessionScript = true,
+    bool deferAcks = false,
   }) async {
     final directory = await Directory.systemTemp.createTemp(
       'orion-relapse-test-',
     );
     return startInDirectory(
       directory,
-      outputBeforeSubscribed: outputBeforeSubscribed,
-      enableSessionChannel: enableSessionChannel,
+      channelRejections: channelRejections,
+      publishOnSessionScript: publishOnSessionScript,
+      deferAcks: deferAcks,
     );
   }
 
@@ -275,8 +420,9 @@ class _FakeRelapseServer {
     Directory directory, {
     String socketName = 'relapse.sock',
     int session = 42,
-    bool outputBeforeSubscribed = false,
-    bool enableSessionChannel = false,
+    int channelRejections = 0,
+    bool publishOnSessionScript = true,
+    bool deferAcks = false,
   }) async {
     final path = '${directory.path}/$socketName';
     final socket = await ServerSocket.bind(
@@ -288,8 +434,10 @@ class _FakeRelapseServer {
       socket,
       socketName: socketName,
       session: session,
-      outputBeforeSubscribed: outputBeforeSubscribed,
-      enableSessionChannel: enableSessionChannel,
+      channelRejections: channelRejections,
+      publishOnSessionScript: publishOnSessionScript,
+      deferAcks: deferAcks,
+      channelPublished: false,
     );
   }
 
@@ -302,29 +450,39 @@ class _FakeRelapseServer {
   void _receive(_Peer peer, Map<String, dynamic> message) {
     if (peer.channel == null) {
       peer.channel = message['channel'] as String?;
-      if (peer.channel == 'relapsegtk.session.v2' && !enableSessionChannel) {
-        peer.close();
-        return;
+      if (peer.channel == RelapseGtkService.sessionChannel) {
+        channelAttempts++;
+        if (!channelPublished || channelAttempts <= channelRejections) {
+          // The real server answers unknown_channel until session.luau has
+          // published the channel.
+          peer.send({'ok': false, 'error': 'unknown_channel'});
+          unawaited(peer.close());
+          return;
+        }
+        _sessionPeer = peer;
       }
       peer.send({
         'ok': true,
         'version': 1,
         'max_message_bytes': 8 * 1024 * 1024,
       });
-      if (peer.channel == '@main') {
-        peer.send({'type': 'hello', 'ready': true, 'session': session});
+      if (peer.channel == RelapseGtkService.mainChannel) {
+        peer.send({
+          'type': 'hello',
+          'ready': true,
+          'session': session,
+          'profile': 'default',
+          'pid': 11,
+        });
         if (!mainReady.isCompleted) mainReady.complete();
-      } else if (peer.channel == 'relapsegtk.output.v1') {
-        _outputPeer = peer;
-      } else if (peer.channel == 'relapsegtk.session.v2') {
-        _sessionPeer = peer;
       }
       return;
     }
-    if (peer.channel == '@main' && message['op'] == 'execute') {
-      final source = message['source'];
-      if (source == '-- output capture fixture' ||
-          source == '-- session bridge fixture') {
+    if (peer.channel == RelapseGtkService.mainChannel &&
+        message['op'] == 'execute') {
+      if (message['source'] == '-- session bridge fixture') {
+        sessionReady = true;
+        if (publishOnSessionScript) channelPublished = true;
         peer.send({
           'type': 'exec_result',
           'script_id': message['script_id'],
@@ -335,30 +493,39 @@ class _FakeRelapseServer {
       }
       return;
     }
-    if (peer.channel == 'relapsegtk.output.v1' &&
-        message['op'] == 'subscribe') {
-      if (outputBeforeSubscribed) peer.sendOutput('early Relapse output');
-      peer.send({'type': 'subscribed', 'version': 1});
-      if (!outputSubscribed.isCompleted) outputSubscribed.complete();
-      return;
-    }
-    if (peer.channel == 'relapsegtk.session.v2' &&
+    if (peer.channel == RelapseGtkService.sessionChannel &&
         message['op'] == 'configure') {
-      peer.send({'type': 'configured', 'version': 2, 'redirect': true});
-      if (!sessionConfigured.isCompleted) sessionConfigured.complete();
+      configures.add(message);
+      if (!deferAcks) sendConfigured();
     }
   }
 
-  void sendOutput(String text) {
-    _outputPeer?.sendOutput(text);
+  /// Answers the most recent configure. `stale` echoes the opposite redirect,
+  /// which is what a toggle that raced the ack produces.
+  void sendConfigured({bool stale = false}) {
+    final redirect = configures.isEmpty
+        ? false
+        : configures.last['redirect'] as bool;
+    // Lua numbers travel as doubles; keep the fake server honest about it.
+    _sessionPeer?.send({
+      'type': 'configured',
+      'version': 2.0,
+      'redirect': stale ? !redirect : redirect,
+    });
   }
 
-  void sendSessionOutput(String text) {
-    _sessionPeer?.sendOutput(text);
+  void sendSessionOutput(String text, {double dropped = 0.0}) {
+    _sessionPeer?.send({
+      'type': 'output',
+      'entries': [
+        {'level': 'print', 'text': text},
+      ],
+      'dropped': dropped,
+    });
   }
 
-  void sendInvalidOutput() {
-    _outputPeer?.send({'type': 'output', 'entries': <Object?>[], 'dropped': 0});
+  void sendRawSession(Map<String, Object?> message) {
+    _sessionPeer?.send(message);
   }
 
   Future<void> close() async {
@@ -399,16 +566,6 @@ class _Peer {
         Map<String, dynamic>.from(jsonDecode(utf8.decode(payload)) as Map),
       );
     }
-  }
-
-  void sendOutput(String text) {
-    send({
-      'type': 'output',
-      'entries': [
-        {'level': 'print', 'text': text},
-      ],
-      'dropped': 0,
-    });
   }
 
   void send(Map<String, Object?> message) {

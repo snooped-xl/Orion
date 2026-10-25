@@ -165,6 +165,7 @@ void main() {
         '/tmp/relapse-alt.sock',
       ],
       'relapseReadySocketPaths': ['/tmp/relapse.sock'],
+      'relapseExecutableSocketPaths': ['/tmp/relapse.sock'],
       'relapseSessions': {
         '/tmp/relapse.sock': 42,
         '/tmp/relapse-alt.sock': 99,

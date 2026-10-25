@@ -29,6 +29,7 @@ class SettingsScreen extends StatelessWidget {
       controller.relapseSupportEnabled,
       controller.relapseLauncherPath,
       controller.relapseLauncherError,
+      controller.relapseOutputRedirect,
       controller.autosave,
       controller.persistenceError,
       controller.editorFontSize,
@@ -87,6 +88,15 @@ class SettingsScreen extends StatelessWidget {
                       value: controller.relapseSupportEnabled,
                       onChanged: controller.setRelapseSupportEnabled,
                     ),
+                    if (controller.relapseSupportEnabled)
+                      _PreferenceSwitch(
+                        preferenceKey: 'relapse-output-redirect',
+                        title: 'Redirect script output',
+                        description:
+                            'Show your scripts’ output in the Orion console. Relapse runs them inside the live game session either way.',
+                        value: controller.relapseOutputRedirect,
+                        onChanged: controller.setRelapseOutputRedirect,
+                      ),
                     if (controller.relapseSupportEnabled)
                       _RelapseLauncherRow(controller: controller),
                   ],

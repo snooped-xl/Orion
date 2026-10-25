@@ -119,28 +119,39 @@ turn it off to return to Orion Bridge. Orion uses Relapse's socket capabilities
 without bundling or opening Relapse's GTK interface.
 
 **Multiple profiles.** Relapse publishes one socket per running profile. Orion
-watches `/tmp` for `relapse.sock` and `relapse-<profile>.sock`, connects to each
-one it owns, and lists them in **Clients → client manager** as separate
-profiles. Execute either targets every ready profile or only the ones you tick.
-The first profile keeps the socket it was started with.
+watches `/tmp` for `relapse.sock` and `relapse-<profile>.sock` using RelapseGtk's
+own rules: the socket must be a Unix socket owned by you and still listening,
+and the profile name must be 1–64 letters, digits, dots, underscores or
+hyphens. Each profile is listed in **Clients → client manager** separately.
+Execute either targets every ready profile or only the ones you tick.
 
-**Session bridge.** When Relapse offers its session channel, Orion configures
-it and submits scripts through the live game session, so output is captured
-once instead of being duplicated by the legacy output channel. If that channel
-cannot be configured, Orion falls back to the original output capture without
-losing the session.
+**Session bridge.** Orion follows RelapseGtk's client exactly. For each game
+session it runs Relapse's `session.luau`, opens the `relapsegtk.session.v2`
+channel, and configures it with `{"op":"configure","version":2,"redirect":…}`.
+Only after that acknowledgement does Execute become available, and scripts are
+always submitted as
+`getgenv().__relapsegtk_session_v2.execute(<script>, <name>)` so they run inside
+the live game session. A channel that is still starting is reported instead of
+being bypassed: Orion never submits unwrapped code. Relapse sends its numbers as
+Lua doubles, so `version` and `dropped` are read as integral integers.
+
+**Output.** **Settings → Execution → Redirect script output** is the same switch
+as RelapseGtk's *Redirect script output*: it reconfigures the live channel, and
+turns output forwarding on or off without stopping execution. Dropped messages
+are reported exactly as RelapseGtk reports them.
 
 **Launching Relapse.** **Settings → Execution** remembers the Relapse
 executable, so **Launch Relapse** starts it directly and **Change launcher**
-picks a different binary. Paths are validated as executable files and never
-run through a shell.
+picks a different binary. Like RelapseGtk, Orion runs it headlessly
+(`--no-launch-ui`, plus `--profile <name>` for the selected profile) and refuses
+to launch a profile that is already listening. Paths are validated as
+executable files and never run through a shell.
 
 The Flatpak grants access to `/tmp/relapse.sock` so Relapse can run on the
 desktop host. Orion does not request general host `/tmp` access, so profiles
 whose sockets live only in the host `/tmp` are not visible inside the Flatpak
-build; the non-Flatpak build discovers every profile. The bundled
-output-capture helper is attributed and licensed in
-[`assets/relapsegtk/`](assets/relapsegtk/).
+build; the non-Flatpak build discovers every profile. The bundled session
+helper is attributed and licensed in [`assets/relapsegtk/`](assets/relapsegtk/).
 
 ## Editor, scripts, and search
 
