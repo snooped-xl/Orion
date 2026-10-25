@@ -147,11 +147,12 @@ picks a different binary. Like RelapseGtk, Orion runs it headlessly
 to launch a profile that is already listening. Paths are validated as
 executable files and never run through a shell.
 
-The Flatpak grants access to `/tmp/relapse.sock` so Relapse can run on the
-desktop host. Orion does not request general host `/tmp` access, so profiles
-whose sockets live only in the host `/tmp` are not visible inside the Flatpak
-build; the non-Flatpak build discovers every profile. The bundled session
-helper is attributed and licensed in [`assets/relapsegtk/`](assets/relapsegtk/).
+The Flatpak grants the desktop host's `/tmp` directory so Relapse's sockets
+are reachable from inside the sandbox. Relapse names each profile socket after
+the profile (`relapse-<profile>.sock`) and only creates it once that client is
+running, so the earlier single-path grant on `/tmp/relapse.sock` left profiles
+invisible; every discovered profile now connects. The bundled session helper is
+attributed and licensed in [`assets/relapsegtk/`](assets/relapsegtk/).
 
 ## Editor, scripts, and search
 
@@ -242,7 +243,7 @@ notes](windows/runner/NATIVE_WINDOWS.md) for implementation and validation detai
 
 Flatpak permits network access for the bridge and script search, home and mounted
 folders for your files, the session bus for authenticated GNOME integration, and
-the single `/tmp/relapse.sock` path for optional Relapse support. It does not
+the host `/tmp` directory for optional Relapse profile sockets. It does not
 request host command execution. File dialogs and external opening use desktop
 portals. See [build and platform details](docs/BUILDING.md).
 

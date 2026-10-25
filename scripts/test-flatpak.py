@@ -36,20 +36,30 @@ with tempfile.TemporaryDirectory(prefix="private-", dir=smoke_directory) as temp
         "-c", "ldd /app/orion/orion"], env=env, text=True, stderr=subprocess.STDOUT)
     if "not found" in libraries:
         raise RuntimeError(f"Unresolved native dependencies in Flatpak runtime:\n{libraries}")
-    relapse_path = Path("/tmp/relapse.sock")
-    if relapse_path.exists() or relapse_path.is_symlink():
-        raise RuntimeError("Refusing to replace an existing /tmp/relapse.sock")
-    relapse_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    # Relapse publishes one socket per profile alongside the default one, and
+    # the launcher socket only appears once a client is running. Both must be
+    # reachable inside the sandbox, so check the default and a profile socket.
+    relapse_paths = [Path("/tmp/relapse.sock"), Path("/tmp/relapse-Smoke.sock")]
+    for path in relapse_paths:
+        if path.exists() or path.is_symlink():
+            raise RuntimeError(f"Refusing to replace an existing {path}")
+    relapse_sockets = []
     try:
-        relapse_socket.bind(str(relapse_path))
-        relapse_socket.listen(1)
+        for path in relapse_paths:
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            listener.bind(str(path))
+            listener.listen(1)
+            relapse_sockets.append(listener)
         visible = subprocess.run(["flatpak", "run", "--command=sh", APP_ID,
-            "-c", "test -S /tmp/relapse.sock"], env=env, check=False)
+            "-c", " ".join(f"test -S {path} &&" for path in relapse_paths) + " true"],
+            env=env, check=False)
         if visible.returncode != 0:
-            raise RuntimeError("Flatpak cannot see the granted Relapse Unix socket")
+            raise RuntimeError("Flatpak cannot see the Relapse profile Unix sockets")
     finally:
-        relapse_socket.close()
-        relapse_path.unlink(missing_ok=True)
+        for listener in relapse_sockets:
+            listener.close()
+        for path in relapse_paths:
+            path.unlink(missing_ok=True)
     workspace = directory / "workspace"
     workspace.mkdir()
     (workspace / "orion-workspace.json").write_text(json.dumps({
@@ -110,7 +120,7 @@ with tempfile.TemporaryDirectory(prefix="private-", dir=smoke_directory) as temp
                 raise RuntimeError(f"Flatpak did not start its genuine WebKit editor process:\n{log.read()}")
             result = {"success": True, "flatpakInstalled": True, "flatpakLaunched": True,
                 "workspaceProvisioned": True, "runtimeDependenciesResolved": True,
-                "relapseSocketVisible": True,
+                "relapseProfileSocketsVisible": True,
                 "genuineWebKitEditorRunning": True}
             output = ROOT / "build/package-smoke/flatpak/report.json"
             output.parent.mkdir(parents=True, exist_ok=True)

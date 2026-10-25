@@ -73,7 +73,11 @@ def main() -> None:
     run("flatpak", "build-finish", "--command=orion", "--require-version=1.12.0",
         "--share=network", "--share=ipc", "--socket=wayland", "--socket=x11",
         "--socket=pulseaudio", "--socket=session-bus", "--device=dri",
-        "--filesystem=home", "--filesystem=/tmp/relapse.sock",
+        # Relapse exposes one socket per profile (/tmp/relapse-<Profile>.sock)
+        # next to the default /tmp/relapse.sock, so grant the whole directory.
+        # A narrower path grant also hides a socket created after the sandbox
+        # mounts, which left every profile invisible inside the Flatpak.
+        "--filesystem=home", "--filesystem=/tmp",
         "--filesystem=/media", "--filesystem=/mnt",
         "--filesystem=/run/media", "--env=GTK_USE_PORTAL=1", str(build))
     run("flatpak", "build-export", "--arch=x86_64", "--subject=Orion desktop test build",

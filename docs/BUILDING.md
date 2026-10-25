@@ -136,8 +136,8 @@ the runtime is installed, Orion's editor, local scripts, and Bridge work
 offline; remote script search still requires a network connection.
 
 The package allows network access for script sources and Orion Bridge's
-host loopback connection, the exact `/tmp/relapse.sock` path for optional
-Relapse support, GPU rendering, Wayland and X11 windows, and access
+host loopback connection, the host `/tmp` directory that holds Relapse's
+profile sockets, GPU rendering, Wayland and X11 windows, and access
 to the user's home and mounted drives for scripts and files. It uses the
 session bus directly so Orion's own GNOME compositor companion can verify the
 real process that owns each window. It does not request Flatpak host-process
@@ -158,9 +158,13 @@ Relapse executable and the *Redirect script output* switch; Orion launches the
 selected profile headlessly with `--profile <name> --no-launch-ui` and refuses a
 profile that is already listening.
 
-The Flatpak grants access to `/tmp/relapse.sock`, not all of `/tmp`, so only
-that profile is reachable from inside the sandbox. This option is hidden on
-other platforms, and Orion does not bundle Relapse's GTK UI.
+The Flatpak grants the host `/tmp` directory, because Relapse names every
+profile socket after the profile and creates it when that client starts; a
+single-path grant can only match a socket that already exists when the sandbox
+mounts, so profile sockets stayed invisible. Granting the directory makes every
+profile reachable, and the packaged smoke test binds `relapse.sock` and
+`relapse-Smoke.sock` and checks both from inside the sandbox. This option is
+hidden on other platforms, and Orion does not bundle Relapse's GTK UI.
 
 The optional GNOME companion supplies live behind-window refraction,
 monitor-based launch placement, and Wayland topmost support on supported
