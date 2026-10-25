@@ -158,6 +158,17 @@ void main() {
       'relapseReady': true,
       'relapseOutputCaptureActive': true,
       'relapseSession': 42,
+      'relapseSocketPath': '/tmp/relapse.sock',
+      'relapseSocketPaths': ['/tmp/relapse.sock', '/tmp/relapse-alt.sock'],
+      'relapseConnectedSocketPaths': [
+        '/tmp/relapse.sock',
+        '/tmp/relapse-alt.sock',
+      ],
+      'relapseReadySocketPaths': ['/tmp/relapse.sock'],
+      'relapseSessions': {
+        '/tmp/relapse.sock': 42,
+        '/tmp/relapse-alt.sock': 99,
+      },
     };
     final child = CompanionController(
       initialState: state,
@@ -172,7 +183,11 @@ void main() {
     expect(child.bridgeConnected, isTrue);
     expect(child.relapseReady, isTrue);
     expect(child.relapseOutputCaptureActive, isTrue);
-    expect(child.bridgeClients.single.identifier, 'Relapse');
+    expect(
+      child.bridgeClients.map((c) => c.identifier),
+      ['Relapse', 'Relapse · alt'],
+    );
+    expect(child.relapseTargetCount, 1);
   });
 
   test(

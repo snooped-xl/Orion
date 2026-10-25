@@ -60,9 +60,14 @@ void main() {
 
   test('persists the Linux-only Relapse support preference', () async {
     if (!Platform.isLinux) return;
+    final launcher = File('${temporaryDirectory.path}/relapse-bin');
+    await launcher.writeAsString('#!/bin/sh\nexit 0\n');
+    await Process.run('chmod', ['+x', launcher.path]);
+
     final first = OrionController(storageDirectory: temporaryDirectory);
     await first.initialize();
     first.setRelapseSupportEnabled(true);
+    await first.setRelapseLauncherPath(launcher.path);
     await first.flushPersistence();
     first.dispose();
     await first.flushPersistence();
@@ -71,6 +76,9 @@ void main() {
     await restored.initialize();
     expect(restored.relapseSupportAvailable, isTrue);
     expect(restored.relapseSupportEnabled, isTrue);
+    expect(restored.relapseLauncherPath, launcher.path);
+    expect(await restored.launchRelapse(), isTrue);
+    expect(restored.relapseLauncherError, isNull);
     restored.dispose();
     await restored.flushPersistence();
   });

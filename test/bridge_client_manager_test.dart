@@ -368,6 +368,61 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Relapse client manager lists multiple connected profiles and selects targets',
+    (tester) async {
+      final c = _Controller();
+      if (!c.relapseSupportAvailable) {
+        c.dispose();
+        return;
+      }
+      c.setRelapseSupportEnabled(true);
+      c.applyWindowState({
+        ...c.exportWindowState(),
+        'relapseActive': true,
+        'relapseConnected': true,
+        'relapseReady': true,
+        'relapseOutputCaptureActive': true,
+        'relapseSocketPath': '/tmp/relapse.sock',
+        'relapseSocketPaths': ['/tmp/relapse.sock', '/tmp/relapse-alt.sock'],
+        'relapseConnectedSocketPaths': [
+          '/tmp/relapse.sock',
+          '/tmp/relapse-alt.sock',
+        ],
+        'relapseReadySocketPaths': [
+          '/tmp/relapse.sock',
+          '/tmp/relapse-alt.sock',
+        ],
+        'relapseSessions': {
+          '/tmp/relapse.sock': 10,
+          '/tmp/relapse-alt.sock': 20,
+        },
+      });
+      await _mount(tester, c);
+      expect(find.text('Relapse is ready for scripts.'), findsOneWidget);
+      expect(find.byKey(const ValueKey('bridge-target-mode')), findsOneWidget);
+      expect(find.text('Default instance'), findsOneWidget);
+      expect(find.text('alt'), findsOneWidget);
+      expect(find.text('Unix socket · Relapse'), findsOneWidget);
+      expect(find.text('Unix socket · Relapse · alt'), findsOneWidget);
+
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      expect(c.bridgeTargetAll, isFalse);
+      expect(c.selectedRelapseSocketPaths, {'/tmp/relapse-alt.sock'});
+      expect(c.selectedBridgeClients, {'Relapse · alt'});
+      expect(find.text('1 of 2 selected for Execute.'), findsOneWidget);
+
+      await tester.tap(find.text('All clients'));
+      await tester.pumpAndSettle();
+      expect(c.bridgeTargetAll, isTrue);
+      expect(c.selectedRelapseSocketPaths, isEmpty);
+
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+    },
+  );
+
   for (final layout in [
     (const Size(822, 523), 1.0),
     (const Size(740, 470), 1.25),

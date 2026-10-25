@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart';
+import 'package:file_selector/file_selector.dart' as files;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -72,6 +72,9 @@ class OrionController extends ChangeNotifier {
   StreamSubscription<BridgeLogEntry>? _relapseLogSubscription;
   bool _bridgeInitialized = false;
   bool _relapseSupportEnabled = false;
+  String? _relapseLauncherPath;
+  String? _relapseLauncherError;
+  final Set<String> _selectedRelapseSocketPaths = {};
   int _connectionModeGeneration = 0;
   bool _mirroredRelapseActive = false;
   bool _mirroredRelapseConnected = false;
@@ -79,6 +82,13 @@ class OrionController extends ChangeNotifier {
   bool _mirroredRelapseOutputCaptureActive = false;
   int? _mirroredRelapseSession;
   String? _mirroredRelapseError;
+  String _mirroredRelapseSocketPath = RelapseGtkService.defaultSocketPath;
+  final List<String> _mirroredRelapseSocketPaths = [
+    RelapseGtkService.defaultSocketPath,
+  ];
+  final List<String> _mirroredRelapseConnectedSocketPaths = [];
+  final List<String> _mirroredRelapseReadySocketPaths = [];
+  final Map<String, int> _mirroredRelapseSessions = {};
   final List<BridgeClient> _bridgeClients = [];
   final Set<String> _selectedBridgeClients = {};
   bool _bridgeTargetAll = true;
@@ -118,19 +128,19 @@ class OrionController extends ChangeNotifier {
       : _mirroredRelapseOutputCaptureActive;
 
   List<BridgeClient> get bridgeClients => relapseSupportEnabled
-      ? _relapseIsConnected
-            ? [
-                BridgeClient(
-                  identifier: 'Relapse',
-                  username: 'Relapse',
-                  transport: 'Unix socket',
-                  clientLabel: 'RelapseGtk',
-                  executorName: 'Relapse',
-                  sessionId: 'relapse-${_relapseSession ?? 0}',
-                ),
-              ]
-            : const []
+      ? relapseConnectedSocketPaths.map((path) => BridgeClient(
+          identifier: RelapseGtkService.clientIdentifierForSocket(path),
+          username: RelapseGtkService.profileLabelForSocket(path),
+          transport: 'Unix socket',
+          clientLabel: 'RelapseGtk',
+          executorName: 'Relapse',
+          sessionId: 'relapse-$path-${_relapseServiceSessionForPath(path) ?? (_relapseSession ?? 0)}',
+        )).toList(growable: false)
       : List.unmodifiable(_bridgeClients);
+
+  int? _relapseServiceSessionForPath(String path) => _bridgeInitialized
+      ? _relapse.sessionForSocketPath(path)
+      : _mirroredRelapseSessions[path];
   bool get bridgeListening =>
       relapseSupportEnabled ? _relapseIsActive : _bridgeListening;
   bool get bridgeConnected =>
@@ -143,13 +153,39 @@ class OrionController extends ChangeNotifier {
   bool get usesRelapseSupport => relapseSupportEnabled;
   bool get relapseOutputCaptureActive =>
       relapseSupportEnabled && _relapseOutputActive;
-  String get relapseSocketPath => _relapse.socketPath;
+  String get relapseSocketPath =>
+      _bridgeInitialized ? _relapse.socketPath : _mirroredRelapseSocketPath;
+  List<String> get relapseSocketPaths => _bridgeInitialized
+      ? _relapse.socketPaths
+      : List.unmodifiable(_mirroredRelapseSocketPaths);
+  List<String> get relapseReadySocketPaths => _bridgeInitialized
+      ? _relapse.readySocketPaths
+      : (_mirroredRelapseReadySocketPaths.isNotEmpty
+            ? List.unmodifiable(_mirroredRelapseReadySocketPaths)
+            : (_mirroredRelapseReady ? [relapseSocketPath] : const []));
+  List<String> get relapseConnectedSocketPaths => _bridgeInitialized
+      ? _relapse.connectedSocketPaths
+      : (_mirroredRelapseConnectedSocketPaths.isNotEmpty
+            ? List.unmodifiable(_mirroredRelapseConnectedSocketPaths)
+            : (_mirroredRelapseConnected ? [relapseSocketPath] : const []));
+  String? get relapseLauncherPath => _relapseLauncherPath;
+  String? get relapseLauncherError => _relapseLauncherError;
+  Set<String> get selectedRelapseSocketPaths => Set.unmodifiable(_selectedRelapseSocketPaths);
+  bool get relapseTargetAll => _bridgeTargetAll;
+  int get relapseTargetCount => _bridgeTargetAll
+      ? relapseReadySocketPaths.length
+      : _selectedRelapseSocketPaths.intersection(relapseReadySocketPaths.toSet()).length;
   int get bridgePort => _bridgePort;
-  Set<String> get selectedBridgeClients =>
-      Set.unmodifiable(_selectedBridgeClients);
+  Set<String> get selectedBridgeClients => relapseSupportEnabled
+      ? Set.unmodifiable(
+          _selectedRelapseSocketPaths.map(
+            RelapseGtkService.clientIdentifierForSocket,
+          ),
+        )
+      : Set.unmodifiable(_selectedBridgeClients);
   bool get bridgeTargetAll => _bridgeTargetAll;
   int get bridgeTargetCount => relapseSupportEnabled
-      ? (_relapseIsReady ? 1 : 0)
+      ? relapseTargetCount
       : _bridgeTargetAll
       ? _bridgeClients.length
       : _bridgeClients
@@ -179,6 +215,115 @@ class OrionController extends ChangeNotifier {
     _changed();
     if (_bridgeInitialized && !_disposed) {
       unawaited(_applyConnectionMode());
+    }
+  }
+
+  Future<void> setRelapseLauncherPath(String? path) async {
+    if (!Platform.isLinux) return;
+    if (path != null) {
+      final executable = File(path);
+      final type = await FileSystemEntity.type(path, followLinks: false);
+      final isRegularOrLinkToRegular =
+          type == FileSystemEntityType.file ||
+          (type == FileSystemEntityType.link &&
+              await FileSystemEntity.type(path, followLinks: true) ==
+                  FileSystemEntityType.file);
+      if (!path.startsWith('/') ||
+          !isRegularOrLinkToRegular ||
+          !await _isExecutable(path)) {
+        _relapseLauncherError = 'Choose a Linux executable file.';
+        _changed(persist: false);
+        throw const FormatException('Choose a Linux executable file.');
+      }
+      if (!await executable.exists()) {
+        _relapseLauncherError = 'The selected launcher no longer exists.';
+        _changed(persist: false);
+        throw const FormatException('The selected launcher no longer exists.');
+      }
+    }
+    _relapseLauncherPath = path;
+    _relapseLauncherError = null;
+    _changed();
+  }
+
+  Future<void> selectRelapseLauncher() async {
+    final selected = await files.openFile(
+      initialDirectory: _relapseLauncherPath == null ? null : File(_relapseLauncherPath!).parent.path,
+      acceptedTypeGroups: const [files.XTypeGroup(label: 'Executable files', extensions: ['*'])],
+    );
+    if (selected == null) return;
+    try {
+      await setRelapseLauncherPath(selected.path);
+    } on FormatException {
+      // _relapseLauncherError is already set and notified.
+    }
+  }
+
+  Future<bool> launchRelapse() async {
+    if (!Platform.isLinux) return false;
+    final launcher = _relapseLauncherPath;
+    if (launcher == null) {
+      _relapseLauncherError = 'Select your Linux executable first.';
+      _changed(persist: false);
+      return false;
+    }
+    if (!await _isExecutable(launcher)) {
+      _relapseLauncherError = 'The selected launcher is no longer executable. Choose it again.';
+      _changed(persist: false);
+      return false;
+    }
+    try {
+      await Process.start(launcher, const [], mode: ProcessStartMode.detached);
+      _relapseLauncherError = null;
+      _changed(persist: false);
+      return true;
+    } on Object catch (error) {
+      _relapseLauncherError = 'Could not launch Relapse: $error';
+      _changed(persist: false);
+      return false;
+    }
+  }
+
+  Future<void> selectRelapseSocketPath(String path) async {
+    await _relapse.selectSocketPath(path);
+    _changed(persist: false);
+  }
+
+  void setRelapseTargetAll(bool value) {
+    if (_bridgeTargetAll == value) return;
+    _bridgeTargetAll = value;
+    if (value) _selectedRelapseSocketPaths.clear();
+    _changed(persist: false);
+  }
+
+
+  void setRelapseSocketSelected(String path, bool value) {
+    final knownPaths = relapseSocketPaths.toSet()
+      ..addAll(relapseConnectedSocketPaths);
+    if (!knownPaths.contains(path)) return;
+    if (_bridgeTargetAll) {
+      _selectedRelapseSocketPaths
+        ..clear()
+        ..addAll(relapseConnectedSocketPaths);
+    }
+    _bridgeTargetAll = false;
+    if (value) {
+      _selectedRelapseSocketPaths.add(path);
+    } else {
+      _selectedRelapseSocketPaths.remove(path);
+    }
+    _changed(persist: false);
+  }
+
+  static Future<bool> _isExecutable(String path) async {
+    if (!Platform.isLinux) return false;
+    try {
+      // Read the mode bits directly: no shell, no subprocess, and the answer
+      // matches what the kernel will allow when the launcher is started.
+      final stat = await File(path).stat();
+      return stat.type == FileSystemEntityType.file && (stat.mode & 0x49) != 0;
+    } on Object {
+      return false;
     }
   }
 
@@ -265,17 +410,40 @@ class OrionController extends ChangeNotifier {
       'success' => ActivitySeverity.success,
       _ => ActivitySeverity.info,
     };
-    _addActivity('Relapse', entry.message, ActivityKind.execution, severity);
+    final label = entry.identifier?.trim();
+    _addActivity(
+      label == null || label.isEmpty ? 'Relapse' : label,
+      entry.message,
+      ActivityKind.execution,
+      severity,
+    );
     _changed(persist: false);
   }
 
   void setBridgeTargetAll(bool value) {
     if (_bridgeTargetAll == value) return;
     _bridgeTargetAll = value;
+    if (value && relapseSupportEnabled) {
+      _selectedRelapseSocketPaths.clear();
+    }
     _changed(persist: false);
   }
 
   void setBridgeClientSelected(String identifier, bool value) {
+    if (relapseSupportEnabled) {
+      final path = relapseSocketPaths
+          .followedBy(relapseConnectedSocketPaths)
+          .where(
+            (socket) =>
+                RelapseGtkService.clientIdentifierForSocket(socket) ==
+                identifier,
+          )
+          .firstOrNull;
+      if (path != null) {
+        setRelapseSocketSelected(path, value);
+      }
+      return;
+    }
     if (!_bridgeClients.any((c) => c.identifier == identifier)) return;
     if (_bridgeTargetAll) {
       _selectedBridgeClients.addAll(_bridgeClients.map((c) => c.identifier));
@@ -308,10 +476,10 @@ class OrionController extends ChangeNotifier {
   Future<bool> saveBridgeScript({bool rethrowErrors = false}) async {
     try {
       final source = await loadBridgeScript();
-      final location = await getSaveLocation(
+      final location = await files.getSaveLocation(
         suggestedName: 'Orion Bridge.lua',
         acceptedTypeGroups: const [
-          XTypeGroup(label: 'Lua script', extensions: ['lua']),
+          files.XTypeGroup(label: 'Lua script', extensions: ['lua']),
         ],
       );
       if (location == null || _disposed) return false;
@@ -851,11 +1019,11 @@ class OrionController extends ChangeNotifier {
     final document = _documentById(id ?? _activeDocumentId);
     if (document == null) return false;
     try {
-      final location = await getSaveLocation(
+      final location = await files.getSaveLocation(
         suggestedName: document.name,
         initialDirectory: scriptsDirectory.path,
         acceptedTypeGroups: const [
-          XTypeGroup(
+          files.XTypeGroup(
             label: 'Luau, Lua and text files',
             extensions: ['luau', 'lua', 'txt'],
           ),
@@ -1196,11 +1364,28 @@ class OrionController extends ChangeNotifier {
   }
 
   Future<void> _executeViaRelapse(String source, String scriptName) async {
+    final targets = _bridgeTargetAll
+        ? _relapse.readySocketPaths
+        : _selectedRelapseSocketPaths.intersection(_relapse.readySocketPaths.toSet()).toList();
+    if (targets.isEmpty) {
+      _addActivity(
+        'No Relapse instances ready',
+        'Wait for a ready Relapse profile or choose a connected profile in the client manager.',
+        ActivityKind.execution,
+        ActivitySeverity.warning,
+      );
+      if (!_disposed) _changed();
+      return;
+    }
     try {
-      final id = await _relapse.execute(source, name: scriptName);
+      final results = await Future.wait(targets.map((path) => _relapse.execute(
+        source,
+        name: scriptName,
+        targetSocketPath: path,
+      )));
       _addActivity(
         'Script queued',
-        '$scriptName → Relapse · request $id',
+        '$scriptName → ${targets.length} ${targets.length == 1 ? 'Relapse instance' : 'Relapse instances'} · requests ${results.join(', ')}',
         ActivityKind.execution,
         ActivitySeverity.info,
       );
@@ -1766,6 +1951,8 @@ class OrionController extends ChangeNotifier {
     'showLineNumbers': _showLineNumbers,
     'autosave': _autosave,
     'relapseSupport': Platform.isLinux && _relapseSupportEnabled,
+    if (Platform.isLinux && _relapseLauncherPath != null) 'relapseLauncherPath': _relapseLauncherPath,
+    if (Platform.isLinux && _selectedRelapseSocketPaths.isNotEmpty) 'selectedRelapseSocketPaths': _selectedRelapseSocketPaths.toList(),
     'introCompleted': _introCompleted,
   };
 
@@ -1795,6 +1982,17 @@ class OrionController extends ChangeNotifier {
         ? _relapse.session
         : _mirroredRelapseSession,
     'relapseError': _bridgeInitialized ? _relapse.error : _mirroredRelapseError,
+    'relapseSocketPath': relapseSocketPath,
+    'relapseSocketPaths': relapseSocketPaths,
+    'relapseConnectedSocketPaths': relapseConnectedSocketPaths,
+    'relapseReadySocketPaths': relapseReadySocketPaths,
+    'relapseSessions': {
+      for (final path in relapseSocketPaths.followedBy(relapseConnectedSocketPaths))
+        if (_relapseServiceSessionForPath(path) case final int session)
+          path: session,
+    },
+    if (_relapseLauncherError != null)
+      'relapseLauncherError': _relapseLauncherError,
     'detachedDocumentIds': _detachedDocumentIds.toList(),
     'searchQuery': _searchQuery,
     'remoteQuery': _remoteQuery,
@@ -1844,7 +2042,39 @@ class OrionController extends ChangeNotifier {
           json['relapseOutputCaptureActive'] == true;
       _mirroredRelapseSession = json['relapseSession'] as int?;
       _mirroredRelapseError = json['relapseError'] as String?;
+      _mirroredRelapseSocketPath =
+          json['relapseSocketPath'] as String? ??
+          RelapseGtkService.defaultSocketPath;
+      _mirroredRelapseSocketPaths
+        ..clear()
+        ..addAll(
+          (json['relapseSocketPaths'] as List? ?? const [])
+              .whereType<String>(),
+        );
+      if (_mirroredRelapseSocketPaths.isEmpty) {
+        _mirroredRelapseSocketPaths.add(_mirroredRelapseSocketPath);
+      }
+      _mirroredRelapseConnectedSocketPaths
+        ..clear()
+        ..addAll(
+          (json['relapseConnectedSocketPaths'] as List? ?? const [])
+              .whereType<String>(),
+        );
+      _mirroredRelapseReadySocketPaths
+        ..clear()
+        ..addAll(
+          (json['relapseReadySocketPaths'] as List? ?? const [])
+              .whereType<String>(),
+        );
+      _mirroredRelapseSessions
+        ..clear()
+        ..addEntries(
+          (json['relapseSessions'] as Map? ?? const {}).entries
+              .where((e) => e.key is String && e.value is int)
+              .map((e) => MapEntry(e.key as String, e.value as int)),
+        );
     }
+    _relapseLauncherError = json['relapseLauncherError'] as String?;
     _bridgeTargetAll = json['bridgeTargetAll'] != false;
     _selectedBridgeClients
       ..clear()
@@ -2021,6 +2251,14 @@ class OrionController extends ChangeNotifier {
     _showLineNumbers = _readBool(json, 'showLineNumbers', true);
     _autosave = _readBool(json, 'autosave', true);
     _relapseSupportEnabled = _readBool(json, 'relapseSupport', false);
+    _relapseLauncherPath = Platform.isLinux && json['relapseLauncherPath'] is String
+        ? json['relapseLauncherPath'] as String
+        : null;
+    _selectedRelapseSocketPaths
+      ..clear()
+      ..addAll(Platform.isLinux
+          ? (json['selectedRelapseSocketPaths'] as List? ?? const []).whereType<String>()
+          : const <String>[]);
     _introCompleted = _readBool(json, 'introCompleted', false);
     final uiScale = json['uiScale'];
     _uiScale = uiScale is num ? _normalizeUiScale(uiScale.toDouble()) : 1.0;
@@ -2056,12 +2294,12 @@ class OrionController extends ChangeNotifier {
 }
 
 // The alias avoids shadowing file_selector's openFile with the controller API.
-Future<XFile?> openFileDialog() => openFile(
+Future<files.XFile?> openFileDialog() => files.openFile(
   acceptedTypeGroups: const [
-    XTypeGroup(
+    files.XTypeGroup(
       label: 'Luau, Lua and text files',
       extensions: ['luau', 'lua', 'txt'],
     ),
-    XTypeGroup(label: 'All files'),
+    files.XTypeGroup(label: 'All files'),
   ],
 );

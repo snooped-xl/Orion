@@ -79,6 +79,16 @@ class CompanionCommands {
         c.attach();
       case 'initializeBridge':
         return c.initializeBridge();
+      case 'setRelapseLauncherPath':
+        await c.setRelapseLauncherPath(p['path'] as String?);
+      case 'launchRelapse':
+        return c.launchRelapse();
+      case 'selectRelapseSocketPath':
+        await c.selectRelapseSocketPath(p['path'] as String);
+      case 'setRelapseTargetAll':
+        c.setRelapseTargetAll(p['value'] as bool);
+      case 'setRelapseSocketSelected':
+        c.setRelapseSocketSelected(p['path'] as String, p['value'] as bool);
       case 'setBridgeTargetAll':
         c.setBridgeTargetAll(p['value'] as bool);
       case 'setBridgeClientSelected':

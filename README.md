@@ -118,8 +118,27 @@ This setting is Linux-only. While enabled, Orion's own HTTP bridge is stopped;
 turn it off to return to Orion Bridge. Orion uses Relapse's socket capabilities
 without bundling or opening Relapse's GTK interface.
 
-The Flatpak grants access to this one socket path so Relapse can run on the
-desktop host. Orion does not request general host `/tmp` access. The bundled
+**Multiple profiles.** Relapse publishes one socket per running profile. Orion
+watches `/tmp` for `relapse.sock` and `relapse-<profile>.sock`, connects to each
+one it owns, and lists them in **Clients → client manager** as separate
+profiles. Execute either targets every ready profile or only the ones you tick.
+The first profile keeps the socket it was started with.
+
+**Session bridge.** When Relapse offers its session channel, Orion configures
+it and submits scripts through the live game session, so output is captured
+once instead of being duplicated by the legacy output channel. If that channel
+cannot be configured, Orion falls back to the original output capture without
+losing the session.
+
+**Launching Relapse.** **Settings → Execution** remembers the Relapse
+executable, so **Launch Relapse** starts it directly and **Change launcher**
+picks a different binary. Paths are validated as executable files and never
+run through a shell.
+
+The Flatpak grants access to `/tmp/relapse.sock` so Relapse can run on the
+desktop host. Orion does not request general host `/tmp` access, so profiles
+whose sockets live only in the host `/tmp` are not visible inside the Flatpak
+build; the non-Flatpak build discovers every profile. The bundled
 output-capture helper is attributed and licensed in
 [`assets/relapsegtk/`](assets/relapsegtk/).
 

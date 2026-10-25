@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../services/file_paths.dart';
 import '../state/orion_controller.dart';
 import '../theme/orion_theme.dart';
 import '../widgets/common.dart';
@@ -24,6 +27,8 @@ class SettingsScreen extends StatelessWidget {
       controller.orionEnlargedMode,
       controller.alwaysOnTop,
       controller.relapseSupportEnabled,
+      controller.relapseLauncherPath,
+      controller.relapseLauncherError,
       controller.autosave,
       controller.persistenceError,
       controller.editorFontSize,
@@ -82,6 +87,8 @@ class SettingsScreen extends StatelessWidget {
                       value: controller.relapseSupportEnabled,
                       onChanged: controller.setRelapseSupportEnabled,
                     ),
+                    if (controller.relapseSupportEnabled)
+                      _RelapseLauncherRow(controller: controller),
                   ],
                 ),
               ],
@@ -169,6 +176,107 @@ class SettingsScreen extends StatelessWidget {
       );
     },
   );
+}
+
+class _RelapseLauncherRow extends StatelessWidget {
+  final OrionController controller;
+  const _RelapseLauncherRow({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = OrionColors.of(context);
+    final launcherPath = controller.relapseLauncherPath;
+    final launcherError = controller.relapseLauncherError;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Relapse executable', style: OrionType.body),
+                  const SizedBox(height: 2),
+                  Text(
+                    launcherPath == null
+                        ? 'Choose your Relapse Linux executable to launch it from Orion.'
+                        : '${FilePaths.basename(launcherPath)} · $launcherPath',
+                    key: const ValueKey('settings-relapse-launcher-path'),
+                    style: OrionType.metadata.copyWith(color: colors.muted),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('settings-relapse-launch'),
+                    onPressed: () => unawaited(
+                      launcherPath == null
+                          ? controller.selectRelapseLauncher()
+                          : controller.launchRelapse(),
+                    ),
+                    icon: Icon(
+                      launcherPath == null
+                          ? Icons.folder_open_rounded
+                          : Icons.play_arrow_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      launcherPath == null
+                          ? 'Select executable'
+                          : 'Launch Relapse',
+                    ),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(48, 34),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+                  if (launcherPath != null)
+                    OutlinedButton.icon(
+                      key: const ValueKey('settings-relapse-change-launcher'),
+                      onPressed: () =>
+                          unawaited(controller.selectRelapseLauncher()),
+                      icon: const Icon(Icons.folder_open_rounded, size: 15),
+                      label: const Text('Change launcher'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(48, 34),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          if (launcherError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                launcherError,
+                key: const ValueKey('settings-relapse-launcher-error'),
+                style: OrionType.metadata.copyWith(
+                  color: colors.readablePeach,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Editor extends StatelessWidget {

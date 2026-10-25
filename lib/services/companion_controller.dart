@@ -636,6 +636,42 @@ class CompanionController extends OrionController {
   );
 
   @override
+  Future<void> setRelapseLauncherPath(String? path) async {
+    await _enqueue('setRelapseLauncherPath', {'path': path});
+  }
+
+  @override
+  Future<void> selectRelapseLauncher() async {
+    final selected = await files.openFile(
+      acceptedTypeGroups: const [files.XTypeGroup(label: 'Executable files', extensions: ['*'])],
+    );
+    if (selected == null) return;
+    try {
+      await setRelapseLauncherPath(selected.path);
+    } on FormatException {
+      // Primary records and mirrors the launcher error.
+    }
+  }
+
+  @override
+  Future<bool> launchRelapse() async => await _enqueue('launchRelapse', {}) == true;
+
+  @override
+  Future<void> selectRelapseSocketPath(String path) async {
+    await _enqueue('selectRelapseSocketPath', {'path': path});
+  }
+
+  @override
+  void setRelapseTargetAll(bool value) => unawaited(
+    _enqueue('setRelapseTargetAll', {'value': value}),
+  );
+
+  @override
+  void setRelapseSocketSelected(String path, bool value) => unawaited(
+    _enqueue('setRelapseSocketSelected', {'path': path, 'value': value}),
+  );
+
+  @override
   void setRemoteSearchQuery(String query) {
     unawaited(
       _enqueue('setRemoteSearchQuery', {

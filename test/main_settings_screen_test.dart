@@ -108,7 +108,7 @@ void main() {
     }
   });
 
-  testWidgets('Linux settings expose the Relapse compatibility switch', (
+  testWidgets('Linux settings expose the Relapse switch and launcher controls', (
     tester,
   ) async {
     final controller = OrionController(persistChanges: false);
@@ -121,9 +121,56 @@ void main() {
       final toggle = preference('relapse-support');
       expect(toggle, findsOneWidget);
       expect(controller.relapseSupportEnabled, isFalse);
+      // The launcher row only appears while Relapse support is enabled.
+      expect(
+        find.byKey(const ValueKey('settings-relapse-launch')),
+        findsNothing,
+      );
       await tapVisible(tester, toggle);
       expect(controller.relapseSupportEnabled, isTrue);
       expect(tester.widget<Switch>(toggle).value, isTrue);
+      expect(
+        find.byKey(const ValueKey('settings-relapse-launch')),
+        findsOneWidget,
+      );
+      expect(find.text('Select executable'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('settings-relapse-change-launcher')),
+        findsNothing,
+      );
+
+      // A chosen launcher swaps the picker for Launch/Change controls.
+      controller.applyWindowState({
+        ...controller.exportWindowState(),
+        'relapseLauncherPath': '/opt/relapse/relapse-gtk',
+      });
+      await tester.pumpAndSettle();
+      expect(find.text('Launch Relapse'), findsOneWidget);
+      expect(find.text('Select executable'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('settings-relapse-change-launcher')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('relapse-gtk · /opt/relapse/relapse-gtk'),
+        findsOneWidget,
+      );
+
+      // Launcher problems surface inline instead of failing silently.
+      controller.applyWindowState({
+        ...controller.exportWindowState(),
+        'relapseLauncherError': 'The selected launcher no longer exists.',
+      });
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('settings-relapse-launcher-error')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('The selected launcher no longer exists.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
       controller.dispose();

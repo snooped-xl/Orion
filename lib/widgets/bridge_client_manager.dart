@@ -352,7 +352,8 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   ),
                 ),
               ),
-            if (!c.usesNativeExecutor && !c.usesRelapseSupport) ...[
+            if (!c.usesNativeExecutor &&
+                (!c.usesRelapseSupport || c.bridgeClients.length > 1)) ...[
               const SizedBox(height: 14),
               SegmentedButton<bool>(
                 key: const ValueKey('bridge-target-mode'),
@@ -448,7 +449,7 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   ),
                 ),
               )
-            else if (c.usesRelapseSupport)
+            else if (c.usesRelapseSupport) ...[
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
@@ -478,8 +479,70 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                     ),
                   ],
                 ),
-              )
-            else ...[
+              ),
+              if (clients.length > 1) ...[
+                const SizedBox(height: 10),
+                for (final client in clients)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color:
+                          (c.bridgeTargetAll ||
+                              c.selectedBridgeClients.contains(
+                                client.identifier,
+                              ))
+                          ? colors.stateFill(.09, base: colors.elevated)
+                          : colors.chrome(colors.elevated, role: 'elevated'),
+                      border: colors.transparentSurfaces
+                          ? Border.all(color: colors.outline(.35), width: .67)
+                          : null,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value:
+                              c.bridgeTargetAll ||
+                              c.selectedBridgeClients.contains(
+                                client.identifier,
+                              ),
+                          onChanged: (value) => c.setBridgeClientSelected(
+                            client.identifier,
+                            value ?? false,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 9),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  client.username,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${client.transport} · ${client.identifier}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                    ),
+                  ),
+              ],
+            ] else ...[
               for (final client in clients) ...[
                 Container(
                   margin: const EdgeInsets.only(bottom: 4),

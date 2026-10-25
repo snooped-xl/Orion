@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:orion/models/bridge_models.dart';
 import 'package:orion/services/relapse_gtk_service.dart';
 
 void main() {
@@ -83,6 +84,133 @@ void main() {
       expect(service.isReady, isTrue);
     },
   );
+
+  test(
+    'session.v2 channel configures execution wrapper and deduplicates output',
+    () async {
+      final server = await _FakeRelapseServer.start(enableSessionChannel: true);
+      final service = RelapseGtkService(
+        socketPath: server.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        outputScriptLoader: () async => '-- output capture fixture',
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      final logs = <String>[];
+      final sub = service.logReceived.listen((entry) => logs.add(entry.message));
+      addTearDown(sub.cancel);
+      addTearDown(service.dispose);
+      addTearDown(server.close);
+
+      await service.start();
+      await server.mainReady.future.timeout(const Duration(seconds: 2));
+      await server.sessionConfigured.future.timeout(const Duration(seconds: 2));
+      await _waitFor(() => service.sessionBridgeConfigured);
+      expect(service.outputCaptureActive, isTrue);
+
+      final id = await service.execute('print("v2")', name: 'my script.lua');
+      final request = await server.userScript.future.timeout(
+        const Duration(seconds: 2),
+      );
+      expect(request['script_id'], id);
+      expect(request['name'], 'relapsegtk-execute.luau');
+      expect(
+        request['source'],
+        'getgenv().__relapsegtk_session_v2.execute("print(\\"v2\\")","my script.lua")',
+      );
+
+      // The negotiated session channel replaces the legacy output capture, so
+      // Orion must not open the v1 channel or publish its entries twice.
+      server.sendSessionOutput('from session v2');
+      server.sendOutput('duplicate from output v1');
+      await _waitFor(() => logs.contains('from session v2'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(logs.where((message) => message == 'from session v2'), hasLength(1));
+      expect(server.outputSubscribed.isCompleted, isFalse);
+      expect(logs, isNot(contains('duplicate from output v1')));
+    },
+  );
+
+  test(
+    'discovers multiple Relapse profile sockets and executes on selected profiles',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'orion-relapse-multi-',
+      );
+      final defaultServer = await _FakeRelapseServer.startInDirectory(
+        directory,
+        socketName: 'relapse.sock',
+        session: 101,
+        enableSessionChannel: true,
+      );
+      final altServer = await _FakeRelapseServer.startInDirectory(
+        directory,
+        socketName: 'relapse-alt-1.sock',
+        session: 202,
+        enableSessionChannel: true,
+      );
+      final service = RelapseGtkService(
+        socketPath: defaultServer.path,
+        reconnectInterval: const Duration(milliseconds: 50),
+        manageProfiles: true,
+        profileDirectory: directory.path,
+        outputScriptLoader: () async => '-- output capture fixture',
+        sessionScriptLoader: () async => '-- session bridge fixture',
+      );
+      final logs = <BridgeLogEntry>[];
+      final sub = service.logReceived.listen(logs.add);
+      addTearDown(sub.cancel);
+      addTearDown(service.dispose);
+      addTearDown(defaultServer.close);
+      addTearDown(altServer.close);
+
+      await service.start();
+      await defaultServer.mainReady.future.timeout(const Duration(seconds: 2));
+      await altServer.mainReady.future.timeout(const Duration(seconds: 2));
+      await _waitFor(() => service.readySocketPaths.length == 2);
+
+      expect(
+        service.socketPaths,
+        containsAll([defaultServer.path, altServer.path]),
+      );
+      expect(service.sessionForSocketPath(defaultServer.path), 101);
+      expect(service.sessionForSocketPath(altServer.path), 202);
+      expect(
+        RelapseGtkService.clientIdentifierForSocket(defaultServer.path),
+        'Relapse',
+      );
+      expect(
+        RelapseGtkService.clientIdentifierForSocket(altServer.path),
+        'Relapse · alt-1',
+      );
+
+      await _waitFor(() => service.sessionBridgeConfigured);
+
+      final altId = await service.execute(
+        'print("alt target")',
+        name: 'alt.lua',
+        targetSocketPath: altServer.path,
+      );
+      final altRequest = await altServer.userScript.future.timeout(
+        const Duration(seconds: 2),
+      );
+      expect(altRequest['script_id'], altId);
+      expect(altRequest['name'], 'relapsegtk-execute.luau');
+      expect(
+        altRequest['source'],
+        'getgenv().__relapsegtk_session_v2.execute("print(\\"alt target\\")","alt.lua")',
+      );
+      expect(defaultServer.userScript.isCompleted, isFalse);
+
+      altServer.sendSessionOutput('hello from alt');
+      await _waitFor(
+        () => logs.any((entry) => entry.message == 'hello from alt'),
+      );
+      final altLog = logs.firstWhere(
+        (entry) => entry.message == 'hello from alt',
+      );
+      expect(altLog.identifier, 'Relapse · alt-1');
+    },
+  );
 }
 
 Future<void> _waitFor(bool Function() condition) async {
@@ -97,30 +225,53 @@ class _FakeRelapseServer {
   _FakeRelapseServer(
     this.directory,
     this.server, {
+    required this.socketName,
+    required this.session,
     required this.outputBeforeSubscribed,
+    required this.enableSessionChannel,
   }) {
     server.listen(_accept);
   }
 
   final Directory directory;
   final ServerSocket server;
+  final String socketName;
+  final int session;
   final bool outputBeforeSubscribed;
+  final bool enableSessionChannel;
   final Completer<void> mainReady = Completer<void>();
   final Completer<void> outputSubscribed = Completer<void>();
+  final Completer<void> sessionConfigured = Completer<void>();
   final Completer<Map<String, dynamic>> userScript =
       Completer<Map<String, dynamic>>();
   final Set<_Peer> _peers = {};
   _Peer? _outputPeer;
+  _Peer? _sessionPeer;
 
-  String get path => '${directory.path}/relapse.sock';
+  String get path => '${directory.path}/$socketName';
 
   static Future<_FakeRelapseServer> start({
     bool outputBeforeSubscribed = false,
+    bool enableSessionChannel = false,
   }) async {
     final directory = await Directory.systemTemp.createTemp(
       'orion-relapse-test-',
     );
-    final path = '${directory.path}/relapse.sock';
+    return startInDirectory(
+      directory,
+      outputBeforeSubscribed: outputBeforeSubscribed,
+      enableSessionChannel: enableSessionChannel,
+    );
+  }
+
+  static Future<_FakeRelapseServer> startInDirectory(
+    Directory directory, {
+    String socketName = 'relapse.sock',
+    int session = 42,
+    bool outputBeforeSubscribed = false,
+    bool enableSessionChannel = false,
+  }) async {
+    final path = '${directory.path}/$socketName';
     final socket = await ServerSocket.bind(
       InternetAddress(path, type: InternetAddressType.unix),
       0,
@@ -128,7 +279,10 @@ class _FakeRelapseServer {
     return _FakeRelapseServer(
       directory,
       socket,
+      socketName: socketName,
+      session: session,
       outputBeforeSubscribed: outputBeforeSubscribed,
+      enableSessionChannel: enableSessionChannel,
     );
   }
 
@@ -141,22 +295,29 @@ class _FakeRelapseServer {
   void _receive(_Peer peer, Map<String, dynamic> message) {
     if (peer.channel == null) {
       peer.channel = message['channel'] as String?;
+      if (peer.channel == 'relapsegtk.session.v2' && !enableSessionChannel) {
+        peer.close();
+        return;
+      }
       peer.send({
         'ok': true,
         'version': 1,
         'max_message_bytes': 8 * 1024 * 1024,
       });
       if (peer.channel == '@main') {
-        peer.send({'type': 'hello', 'ready': true, 'session': 42});
+        peer.send({'type': 'hello', 'ready': true, 'session': session});
         if (!mainReady.isCompleted) mainReady.complete();
-      } else {
+      } else if (peer.channel == 'relapsegtk.output.v1') {
         _outputPeer = peer;
+      } else if (peer.channel == 'relapsegtk.session.v2') {
+        _sessionPeer = peer;
       }
       return;
     }
     if (peer.channel == '@main' && message['op'] == 'execute') {
       final source = message['source'];
-      if (source == '-- output capture fixture') {
+      if (source == '-- output capture fixture' ||
+          source == '-- session bridge fixture') {
         peer.send({
           'type': 'exec_result',
           'script_id': message['script_id'],
@@ -172,11 +333,21 @@ class _FakeRelapseServer {
       if (outputBeforeSubscribed) peer.sendOutput('early Relapse output');
       peer.send({'type': 'subscribed', 'version': 1});
       if (!outputSubscribed.isCompleted) outputSubscribed.complete();
+      return;
+    }
+    if (peer.channel == 'relapsegtk.session.v2' &&
+        message['op'] == 'configure') {
+      peer.send({'type': 'configured', 'version': 2, 'redirect': true});
+      if (!sessionConfigured.isCompleted) sessionConfigured.complete();
     }
   }
 
   void sendOutput(String text) {
     _outputPeer?.sendOutput(text);
+  }
+
+  void sendSessionOutput(String text) {
+    _sessionPeer?.sendOutput(text);
   }
 
   void sendInvalidOutput() {
