@@ -75,7 +75,7 @@ jobs:
           Verify a downloaded file with `shasum -a 256 -c <artifact>.sha256`
           (macOS/Linux), or `Get-FileHash <artifact> -Algorithm SHA256` (PowerShell).
           EOF
-          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \\
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
             -f tag_name="$TAG" > generated-notes.json
           python3 - <<'PY'
           import json
@@ -293,3 +293,13 @@ jobs:
             dist/Orion-x86_64.flatpak.sha256
           if-no-files-found: error
           retention-days: 30
+      - name: Upload Linux release package
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: Orion-Release-Linux-x86_64
+          path: |
+            dist/Orion-x86_64.flatpak
+            dist/Orion-x86_64.flatpak.sha256
+          if-no-files-found: error
+          retention-days: 7
