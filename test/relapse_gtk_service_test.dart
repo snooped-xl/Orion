@@ -7,6 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:orion/models/bridge_models.dart';
 import 'package:orion/services/relapse_gtk_service.dart';
 
+/// Relapse support is Linux-only: it speaks over Unix sockets in `/tmp` and
+/// checks socket ownership with Linux tools, matching the shipped feature.
+final _linuxOnly = Platform.isLinux ? null : 'Relapse support is Linux-only.';
+
 void main() {
   test('executes in a ready session and forwards Relapse output', () async {
     final server = await _FakeRelapseServer.start();
@@ -39,7 +43,7 @@ void main() {
 
     server.sendOutput('hello from Relapse');
     expect((await output.timeout(const Duration(seconds: 2))).level, 'print');
-  });
+  }, skip: _linuxOnly);
 
   test(
     'output before the subscription acknowledgement keeps the session up',
@@ -83,6 +87,7 @@ void main() {
       expect(request['script_id'], id);
       expect(service.isReady, isTrue);
     },
+    skip: _linuxOnly,
   );
 
   test(
@@ -128,6 +133,7 @@ void main() {
       expect(server.outputSubscribed.isCompleted, isFalse);
       expect(logs, isNot(contains('duplicate from output v1')));
     },
+    skip: _linuxOnly,
   );
 
   test(
@@ -210,6 +216,7 @@ void main() {
       );
       expect(altLog.identifier, 'Relapse · alt-1');
     },
+    skip: _linuxOnly,
   );
 }
 
