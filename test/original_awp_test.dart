@@ -25,7 +25,9 @@ class OriginalPortController extends OrionController {
   @override
   Future<EditorDocument?> openFile() async {
     opened++;
-    return newDocument(name: 'disk.lua', content: 'print("disk")');
+    final document = newDocument(name: 'disk.lua', content: 'print("disk")');
+    selectDocument(document.id);
+    return document;
   }
 
   @override

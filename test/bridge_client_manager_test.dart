@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -187,8 +188,25 @@ void main() {
     await tester.tap(find.text('8395').last);
     await tester.pumpAndSettle();
     expect(c.nativePortPreference, 8395);
+    if (Platform.isMacOS) {
+      await tester.tap(find.byKey(const ValueKey('native-executor-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Helios').last);
+      await tester.pumpAndSettle();
+      expect(c.nativeExecutorPreference, 'helios');
+      expect(
+        c.availableNativePorts,
+        List.generate(10, (index) => 5553 + index),
+      );
+      await tester.tap(find.byKey(const ValueKey('native-port-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('5558').last);
+      await tester.pumpAndSettle();
+      expect(c.nativePortPreference, 5558);
+    }
+    final expectedPort = Platform.isMacOS ? 5558 : 8395;
     final pinnedDescription = find.byKey(
-      const ValueKey('native-port-description-8395'),
+      ValueKey('native-port-description-${c.nativePortPreference ?? 'auto'}'),
     );
     expect(pinnedDescription, findsOneWidget);
     expect(
@@ -197,7 +215,7 @@ void main() {
             find.descendant(of: pinnedDescription, matching: find.byType(Text)),
           )
           .data,
-      'Pinned to localhost:8395',
+      'Pinned to localhost:$expectedPort',
     );
     await tester.pumpWidget(const SizedBox());
     c.dispose();

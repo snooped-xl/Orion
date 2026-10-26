@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -275,16 +276,24 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   labelText: 'Executor',
                   isDense: true,
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'auto', child: Text('Auto-detect')),
+                items: [
+                  const DropdownMenuItem(
+                    value: 'auto',
+                    child: Text('Auto-detect'),
+                  ),
                   DropdownMenuItem(
                     value: 'macsploit',
                     child: Text('MacSploit'),
                   ),
-                  DropdownMenuItem(
+                  const DropdownMenuItem(
                     value: 'opiumware',
                     child: Text('Opiumware'),
                   ),
+                  if (Platform.isMacOS)
+                    const DropdownMenuItem(
+                      value: 'helios',
+                      child: Text('Helios'),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value != null) c.setNativeExecutorPreference(value);
@@ -419,7 +428,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                       c.usesRelapseSupport
                           ? 'Start Relapse on Linux. Orion watches ${c.relapseSocketPath} and connects automatically.'
                           : c.usesNativeExecutor
-                          ? 'Choose Auto-detect or select MacSploit or Opiumware above. Auto-detect prefers MacSploit; port can be selected explicitly or left on Auto port.'
+                          ? c.usesHelios
+                                ? 'Helios provides execution over its local WebSocket bridge. Choose a specific listening port or leave the port on Auto.'
+                                : 'Choose Auto-detect or select MacSploit or Opiumware above. Auto-detect prefers MacSploit; port can be selected explicitly or left on Auto port.'
                           : 'Run Orion Bridge in your executor to connect.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -441,7 +452,11 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                 ),
                 child: Text(
                   c.detectedNativeExecutor == null
-                      ? 'Waiting for MacSploit (5553–5563) or Opiumware (8392–8397).'
+                      ? c.usesHelios
+                            ? 'Waiting for Helios on localhost ports 5553–5562.'
+                            : c.nativeExecutorPreference == 'opiumware'
+                            ? 'Waiting for Opiumware on localhost ports 8392–8397.'
+                            : 'Waiting for MacSploit (5553–5563) or Opiumware (8392–8397).'
                       : 'Detected ${c.detectedNativeExecutor}. Execution uses its first responsive port unless you choose a specific port above.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,

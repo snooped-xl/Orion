@@ -299,8 +299,10 @@ local function create_session_id()
 end
 
 local function resolve_executor_name()
-    if type(identifyexecutor) ~= "function" then return "Unknown" end
-    local ok, name = pcall(identifyexecutor)
+    local ok, name = pcall(function()
+        return identifyexecutor and identifyexecutor()
+            or getexecutorname and getexecutorname()
+    end)
     if not ok or type(name) ~= "string" then return "Unknown" end
     local clean = name:gsub("[%z\1-\31\127]", "")
         :gsub("^%s+", ""):gsub("%s+$", ""):sub(1, 64)
