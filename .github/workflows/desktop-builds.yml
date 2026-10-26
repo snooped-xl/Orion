@@ -116,7 +116,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version="${TAG#v}"
-          sed -i '' "s/^version: .*/version: ${version}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
+          sed -i '' "s/^version: .*/version: ${version}.0+${GITHUB_RUN_NUMBER}/" pubspec.yaml
       - name: Enable macOS desktop and restore dependencies
         run: |
           flutter config --enable-macos-desktop
@@ -172,7 +172,7 @@ jobs:
           TAG: ${{ github.ref_name }}
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
-          $version = $env:TAG.Substring(1)
+          $version = $env:TAG.Substring(1) + '.0'
           (Get-Content pubspec.yaml -Raw) -replace '(?m)^version: .*$', "version: $version+$env:BUILD_NUMBER" | Set-Content pubspec.yaml -NoNewline
       - name: Enable desktop and restore dependencies
         run: |
@@ -253,7 +253,7 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           version="${TAG#v}"
-          sed -i "s/^version: .*/version: ${version}+${BUILD_NUMBER}/" pubspec.yaml
+          sed -i "s/^version: .*/version: ${version}.0+${BUILD_NUMBER}/" pubspec.yaml
       - name: Install native and packaging dependencies
         run: |
           sudo apt-get update
