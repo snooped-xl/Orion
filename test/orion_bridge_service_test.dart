@@ -215,13 +215,13 @@ void main() {
         final socket = await WebSocketTransformer.upgrade(request);
         sockets.add(socket);
         socket.add(jsonEncode({'op': 'status', 'name': 'Helios Mac'}));
-        // Permit the scanner to consume the status frame before cleanup.
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-        await socket.close();
+        socket.listen((_) {});
       });
       final service = OrionBridgeService(
         macSploitMode: true,
+        nativeExecutorPreference: 'helios',
         macSploitPorts: [server.port],
+        nativePortPreference: server.port,
         heliosPorts: [server.port],
       );
       addTearDown(subscription.cancel);

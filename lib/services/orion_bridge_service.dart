@@ -569,10 +569,8 @@ class OrionBridgeService extends ChangeNotifier {
         } on Object {
           // Fall through to the legacy TCP protocol when this port is shared.
         }
-        if (_nativeExecutorPreference == 'helios') continue;
-        if (!_macSploitPorts.contains(port)) continue;
-        // Failed WebSocket identification on a shared Helios/MacSploit port
-        // is not affirmative evidence for either executor. Continue checking.
+        // Do not classify this TCP port unless it is positively confirmed as
+        // Helios. The next MacSploit candidate may legitimately share it.
         continue;
       }
       Socket? socket;
