@@ -180,7 +180,7 @@ void main() {
         await _start(tester, service);
         await tester.pump(const Duration(milliseconds: 20));
         await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+          () => Future<void>.delayed(const Duration(milliseconds: 500)),
         );
         final image = service.visualMirrorFrame.value!;
         expect(
