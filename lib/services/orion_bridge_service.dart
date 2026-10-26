@@ -571,6 +571,9 @@ class OrionBridgeService extends ChangeNotifier {
         }
         if (_nativeExecutorPreference == 'helios') continue;
         if (!_macSploitPorts.contains(port)) continue;
+        // Failed WebSocket identification on a shared Helios/MacSploit port
+        // is not affirmative evidence for either executor. Continue checking.
+        continue;
       }
       Socket? socket;
       try {
