@@ -75,7 +75,7 @@ jobs:
           Verify a downloaded file with `shasum -a 256 -c <artifact>.sha256`
           (macOS/Linux), or `Get-FileHash <artifact> -Algorithm SHA256` (PowerShell).
           EOF
-          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \\
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \\
             -f tag_name="$TAG" > generated-notes.json
           python3 - <<'PY'
           import json
