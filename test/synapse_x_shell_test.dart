@@ -298,15 +298,14 @@ void main() {
         ).writeAsString('print("file")\n-- exact\r\n'),
       ))!;
       const selector = MethodChannel('plugins.flutter.io/file_selector');
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(
         selector,
         (call) async => call.method == 'openFile' ? <String>[file.path] : null,
       );
       addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          selector,
-          null,
-        ),
+        () => messenger.setMockMethodCallHandler(selector, null),
       );
       addTearDown(() => tester.runAsync(file.delete));
       final c = _Controller();
