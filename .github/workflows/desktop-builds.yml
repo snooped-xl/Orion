@@ -75,7 +75,7 @@ jobs:
           Verify a downloaded file with `shasum -a 256 -c <artifact>.sha256`
           (macOS/Linux), or `Get-FileHash <artifact> -Algorithm SHA256` (PowerShell).
           EOF
-          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \\
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
             -f tag_name="$TAG" > generated-notes.json
           python3 - <<'PY'
           import json
@@ -86,9 +86,9 @@ jobs:
           Path('release-notes.md').write_text(notes)
           PY
           sed -i "s/^# Orion release$/# Orion $TAG/" release-notes.md
-          gh release create "$TAG" release-assets/* \\
-            --repo "$GITHUB_REPOSITORY" \\
-            --title "Orion $TAG" \\
+          gh release create "$TAG" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Orion $TAG" \
             --notes-file release-notes.md
 
   macos:
