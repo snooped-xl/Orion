@@ -35,7 +35,7 @@ class AutoUpdateService extends ChangeNotifier {
         _processStarter = processStarter ?? Process.start;
 
   /// Pinned application version reported by the desktop runtime.
-  static const String defaultCurrentVersion = '1.13.1';
+  static const String defaultCurrentVersion = '1.13.2';
 
   final HttpClient? _client;
   final String currentVersion;
