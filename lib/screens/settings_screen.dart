@@ -506,37 +506,15 @@ class _Updates extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Version ${controller.autoUpdate.currentVersion}',
-                      style: OrionType.body,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _statusMessage(status),
-                      style: OrionType.metadata.copyWith(
-                        color: status.phase == AutoUpdatePhase.error
-                            ? colors.readablePeach
-                            : (status.phase == AutoUpdatePhase.updateAvailable
-                                ? colors.readableAccent
-                                : colors.muted),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final checkButton = OutlinedButton.icon(
                 key: const ValueKey('settings-check-for-updates'),
                 onPressed: isChecking
                     ? null
                     : () async {
-                        final release = await controller.checkForUpdates(manual: true);
+                        final release =
+                            await controller.checkForUpdates(manual: true);
                         if (release != null && context.mounted) {
                           await UpdateDialog.show(
                             context,
@@ -554,13 +532,13 @@ class _Updates extends StatelessWidget {
                           color: colors.readableAccent,
                         ),
                       )
-                    : const Icon(Icons.refresh_rounded, size: 15),
+                    : const Icon(Icons.refresh_rounded, size: 14),
                 label: Text(isChecking ? 'Checking...' : 'Check now'),
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(48, 36),
+                  minimumSize: const Size(44, 34),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
+                    horizontal: 10,
+                    vertical: 7,
                   ),
                   textStyle: OrionType.label.copyWith(
                     fontFamily: Theme.of(
@@ -568,8 +546,49 @@ class _Updates extends StatelessWidget {
                     ).textTheme.labelLarge?.fontFamily,
                   ),
                 ),
-              ),
-            ],
+              );
+
+              final infoColumn = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Version ${controller.autoUpdate.currentVersion}',
+                    style: OrionType.body,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _statusMessage(status),
+                    style: OrionType.metadata.copyWith(
+                      color: status.phase == AutoUpdatePhase.error
+                          ? colors.readablePeach
+                          : (status.phase == AutoUpdatePhase.updateAvailable
+                              ? colors.readableAccent
+                              : colors.muted),
+                    ),
+                  ),
+                ],
+              );
+
+              if (constraints.maxWidth < 320) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    infoColumn,
+                    const SizedBox(height: 8),
+                    checkButton,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: infoColumn),
+                  const SizedBox(width: 12),
+                  checkButton,
+                ],
+              );
+            },
           ),
         ),
       ],
@@ -605,21 +624,24 @@ class _About extends StatelessWidget {
         Row(
           children: [
             const OrionLogo(size: 26),
-            const SizedBox(width: 10),
-            Text(
-              version,
-              style: OrionType.metadata.copyWith(color: colors.muted),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                version,
+                overflow: TextOverflow.ellipsis,
+                style: OrionType.metadata.copyWith(color: colors.muted),
+              ),
             ),
             const Spacer(),
             OutlinedButton.icon(
               onPressed: onReplayIntro,
-              icon: const Icon(Icons.replay_rounded, size: 15),
+              icon: const Icon(Icons.replay_rounded, size: 14),
               label: const Text('Replay intro'),
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size(48, 36),
+                minimumSize: const Size(44, 34),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
+                  horizontal: 8,
+                  vertical: 6,
                 ),
                 textStyle: OrionType.label.copyWith(
                   fontFamily: Theme.of(
