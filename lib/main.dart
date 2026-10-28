@@ -1,21 +1,109 @@
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:desktop_multi_window/desktop_multi_window.dart';
-import 'package:window_manager/window_manager.dart';
-import 'state/orion_controller.dart';
-import 'models/interface_window_profile.dart';
-import 'models/interface_preset.dart';
-import 'services/native_window_service.dart';
-import 'services/companion_window_service.dart';
 import 'dart:convert';
-import 'companion_app.dart';
-import 'bridge_notification_app.dart';
-import 'services/bridge_notification_service.dart';
+import 'dart:io';
+
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
+
 import 'app.dart';
+import 'bridge_notification_app.dart';
+import 'companion_app.dart';
+import 'models/interface_preset.dart';
+import 'models/interface_window_profile.dart';
+import 'services/bridge_notification_service.dart';
+import 'services/companion_window_service.dart';
+import 'services/crash_reporter.dart';
+import 'services/native_window_service.dart';
+import 'state/orion_controller.dart';
+
+final _crashReporter = CrashReporter();
 
 Future<void> main(List<String> arguments) async {
-  await runOrion(arguments);
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
+      if (_crashReporter.supported) {
+        FlutterError.onError = (details) {
+          FlutterError.presentError(details);
+          unawaited(
+            _crashReporter.capture(
+              details.exception,
+              details.stack ?? StackTrace.current,
+            ),
+          );
+        };
+        PlatformDispatcher.instance.onError = (error, stack) {
+          unawaited(_crashReporter.capture(error, stack));
+          return false;
+        };
+      }
+      await runOrion(arguments);
+    },
+    (error, stack) {
+      unawaited(_crashReporter.capture(error, stack));
+      debugPrint('Uncaught Orion startup/runtime error: $error\n$stack');
+    },
+  );
+}
+
+Future<bool> _initializeWithRecovery(OrionController controller) async {
+  try {
+    await controller.initialize();
+    return true;
+  } on Object catch (error, stack) {
+    unawaited(_crashReporter.capture(error, stack));
+    final retry = await _showStartupRecovery(error);
+    if (!retry) return false;
+    try {
+      await controller.initialize();
+      return true;
+    } on Object catch (retryError, retryStack) {
+      unawaited(_crashReporter.capture(retryError, retryStack));
+      await _showStartupRecovery(retryError);
+      return false;
+    }
+  }
+}
+
+Future<bool> _showStartupRecovery(Object error) async {
+  final result = Completer<bool>();
+  final navigatorKey = GlobalKey<NavigatorState>();
+  runApp(
+    MaterialApp(
+      navigatorKey: navigatorKey,
+      home: const Scaffold(body: SizedBox.expand()),
+    ),
+  );
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final context = navigatorKey.currentContext;
+    if (context == null) {
+      result.complete(false);
+      return;
+    }
+    final choice = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Orion didn’t set up correctly'),
+        content: Text(
+          'Startup failed: $error\n\nContinue will exit Orion. Fix retries initialization once.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Continue'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Fix'),
+          ),
+        ],
+      ),
+    );
+    if (!result.isCompleted) result.complete(choice ?? false);
+  });
+  return result.future;
 }
 
 /// Launch the normal application, or bootstrap its companion engine.
@@ -44,7 +132,8 @@ Future<OrionController?> runOrion(List<String> arguments) async {
     await NativeWindowService.prepareStartupPlacement();
   }
   final controller = OrionController();
-  await controller.initialize();
+  final initialized = await _initializeWithRecovery(controller);
+  if (!initialized) return null;
   // macOS desktop widgets query window state as soon as OrionApp mounts. The
   // native window_manager plugin needs its NSWindow before those first queries.
   if (Platform.isMacOS) await windowManager.ensureInitialized();
