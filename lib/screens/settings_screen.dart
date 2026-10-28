@@ -7,7 +7,9 @@ import '../state/orion_controller.dart';
 import '../theme/orion_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/orion_logo.dart';
+import '../models/auto_update_models.dart';
 import '../widgets/selected_builder.dart';
+import '../widgets/update_dialog.dart';
 
 class SettingsScreen extends StatelessWidget {
   final OrionController controller;
@@ -39,6 +41,8 @@ class SettingsScreen extends StatelessWidget {
       controller.autocomplete,
       controller.bracketPairColorization,
       controller.renderWhitespace,
+      controller.autoUpdateEnabled,
+      controller.updateStatus,
     ),
     builder: (context, _) {
       final colors = OrionColors.of(context);
@@ -118,6 +122,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              _Updates(controller: controller),
             ],
           );
           final shortcuts = Column(
@@ -125,7 +131,10 @@ class SettingsScreen extends StatelessWidget {
             children: [
               const _Shortcuts(),
               const SizedBox(height: 16),
-              _About(onReplayIntro: onReplayIntro),
+              _About(
+                version: controller.autoUpdate.currentVersion,
+                onReplayIntro: onReplayIntro,
+              ),
             ],
           );
           return SingleChildScrollView(
@@ -474,9 +483,117 @@ class _Shortcuts extends StatelessWidget {
   );
 }
 
+class _Updates extends StatelessWidget {
+  final OrionController controller;
+  const _Updates({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = OrionColors.of(context);
+    final status = controller.updateStatus;
+    final isChecking = status.phase == AutoUpdatePhase.checking;
+
+    return _SettingsSection(
+      title: 'Updates',
+      icon: Icons.system_update_alt_rounded,
+      children: [
+        _PreferenceSwitch(
+          preferenceKey: 'auto-update',
+          title: 'Automatic updates',
+          description: 'Check for updates in the background.',
+          value: controller.autoUpdateEnabled,
+          onChanged: controller.setAutoUpdateEnabled,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Version ${controller.autoUpdate.currentVersion}',
+                      style: OrionType.body,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _statusMessage(status),
+                      style: OrionType.metadata.copyWith(
+                        color: status.phase == AutoUpdatePhase.error
+                            ? colors.readablePeach
+                            : (status.phase == AutoUpdatePhase.updateAvailable
+                                ? colors.readableAccent
+                                : colors.muted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('settings-check-for-updates'),
+                onPressed: isChecking
+                    ? null
+                    : () async {
+                        final release = await controller.checkForUpdates(manual: true);
+                        if (release != null && context.mounted) {
+                          await UpdateDialog.show(
+                            context,
+                            controller: controller,
+                            release: release,
+                          );
+                        }
+                      },
+                icon: isChecking
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.readableAccent,
+                        ),
+                      )
+                    : const Icon(Icons.refresh_rounded, size: 15),
+                label: Text(isChecking ? 'Checking...' : 'Check now'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(48, 36),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  textStyle: OrionType.label.copyWith(
+                    fontFamily: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.fontFamily,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _statusMessage(AutoUpdateStatus status) => switch (status.phase) {
+    AutoUpdatePhase.idle => 'Checks every 4 hours while running.',
+    AutoUpdatePhase.checking => 'Checking GitHub for updates...',
+    AutoUpdatePhase.upToDate => 'Orion is up to date.',
+    AutoUpdatePhase.updateAvailable =>
+      'New version ${status.availableRelease?.versionTag ?? ""} available!',
+    AutoUpdatePhase.downloading =>
+      'Downloading update: ${(status.downloadProgress * 100).toStringAsFixed(0)}%',
+    AutoUpdatePhase.verifying => 'Verifying checksum...',
+    AutoUpdatePhase.readyToRestart => 'Update ready. Restart to apply.',
+    AutoUpdatePhase.error => 'Update check failed: ${status.errorMessage ?? "network error"}',
+  };
+}
+
 class _About extends StatelessWidget {
+  final String version;
   final VoidCallback onReplayIntro;
-  const _About({required this.onReplayIntro});
+  const _About({required this.version, required this.onReplayIntro});
 
   @override
   Widget build(BuildContext context) {
@@ -490,7 +607,7 @@ class _About extends StatelessWidget {
             const OrionLogo(size: 26),
             const SizedBox(width: 10),
             Text(
-              '1.0.0',
+              version,
               style: OrionType.metadata.copyWith(color: colors.muted),
             ),
             const Spacer(),

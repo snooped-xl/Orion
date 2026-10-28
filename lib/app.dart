@@ -19,6 +19,7 @@ import 'widgets/ui_scale_viewport.dart';
 import 'widgets/orion_studio_layer.dart';
 import 'widgets/orion_glass.dart';
 import 'widgets/synapse_theme_surface.dart';
+import 'widgets/update_dialog.dart';
 import 'models/interface_preset.dart';
 import 'models/interface_window_profile.dart';
 import 'services/monaco_editor_service.dart';
@@ -55,11 +56,13 @@ class OrionApp extends StatefulWidget {
   final OrionController controller;
   final bool nativeWindow;
   final bool showcase;
+  final bool allowStartupUpdateCheck;
   const OrionApp({
     super.key,
     required this.controller,
     this.nativeWindow = true,
     this.showcase = false,
+    this.allowStartupUpdateCheck = true,
   });
   @override
   State<OrionApp> createState() => _OrionAppState();
@@ -105,6 +108,7 @@ class _OrionAppState extends State<OrionApp> {
     _orionStartupCompleted =
         controller.selectedInterface != InterfacePreset.orion;
     _studioSizeKey = _studioSizeSignature();
+    _scheduleStartupUpdateCheck();
     controller.addListener(_studioSizeChanged);
     final windows = controller.companionWindows;
     if (windows is CompanionWindowService) {
@@ -158,6 +162,7 @@ class _OrionAppState extends State<OrionApp> {
 
   @override
   void dispose() {
+    _updateCheckTimer?.cancel();
     controller.removeListener(_studioSizeChanged);
     _studioResizeGeneration++;
     _editorService?.dispose();
@@ -173,6 +178,21 @@ class _OrionAppState extends State<OrionApp> {
     InterfacePreset.synapseX,
     InterfacePreset.synapse2017,
   }.contains(controller.selectedInterface);
+
+  Timer? _updateCheckTimer;
+
+  void _scheduleStartupUpdateCheck() {
+    if (!widget.allowStartupUpdateCheck || !nativeWindow || !controller.autoUpdateEnabled) return;
+    _updateCheckTimer?.cancel();
+    _updateCheckTimer = Timer(const Duration(seconds: 3), () async {
+      if (!mounted || !controller.autoUpdateEnabled) return;
+      final release = await controller.checkForUpdates(manual: false);
+      final navContext = _navigatorKey.currentContext;
+      if (release != null && navContext != null && navContext.mounted) {
+        await UpdateDialog.show(navContext, controller: controller, release: release);
+      }
+    });
+  }
 
   void _openStudio() {
     if (controller.selectedInterface == InterfacePreset.orion &&

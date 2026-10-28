@@ -71,6 +71,7 @@ Section
   System::Call 'kernel32::CloseHandle(p $Lock)'
   SetOutPath "$INSTDIR"
   ClearErrors
+  System::Call 'kernel32::SetEnvironmentVariableW(w "ORION_PORTABLE_EXE", w "$EXEPATH\$EXEFILE")'
   ExecWait '"$INSTDIR\orion.exe" $Arguments' $Result
   ${If} ${Errors}
     MessageBox MB_ICONSTOP "Orion could not start. The portable runtime may be blocked by Windows security or missing files."
