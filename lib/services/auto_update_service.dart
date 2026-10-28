@@ -272,9 +272,9 @@ class AutoUpdateService extends ChangeNotifier {
   }) {
     return '''@echo off
 setlocal
-set "ORION_PID=${pid}"
-set "NEW_EXE=${newExePath}"
-set "TARGET_EXE=${targetExePath}"
+set "ORION_PID=$pid"
+set "NEW_EXE=$newExePath"
+set "TARGET_EXE=$targetExePath"
 
 :WAIT_LOOP
 powershell -NoProfile -NonInteractive -Command "if (Get-Process -Id %ORION_PID% -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
