@@ -64,6 +64,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
   final _find = TextEditingController();
   final _vertical = ScrollController();
   final _horizontal = ScrollController();
+  final _consoleScroll = ScrollController();
+  double _consoleHeight = 100;
+  bool _resizingConsole = false;
   MonacoEditorService? _monaco;
   bool _ownsMonaco = false;
   Object? _nativePresentation;
@@ -196,6 +199,12 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
   void initState() {
     super.initState();
     _editor = LuaEditingController();
+    final savedHeight = c.getInterfacePreferences(
+      InterfacePreset.orion,
+    )['consoleHeight'];
+    if (savedHeight is num && savedHeight.isFinite) {
+      _consoleHeight = savedHeight.toDouble().clamp(48, 2000);
+    }
     if (widget.editorService != null) {
       _monaco = widget.editorService!..addListener(_nativeChanged);
     } else if (widget.nativeEditor) {
@@ -223,12 +232,25 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
     _find.dispose();
     _vertical.dispose();
     _horizontal.dispose();
+    _consoleScroll.dispose();
     super.dispose();
   }
 
   void _sync() {
     final latest = c.latestExecutionId;
-    if (latest != null && latest != _lastExecution) _showConsole = true;
+    if (latest != null && latest != _lastExecution) {
+      final followOutput =
+          !_consoleScroll.hasClients ||
+          _consoleScroll.position.extentAfter < 24;
+      _showConsole = true;
+      if (followOutput) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _consoleScroll.hasClients) {
+            _consoleScroll.jumpTo(_consoleScroll.position.maxScrollExtent);
+          }
+        });
+      }
+    }
     _lastExecution = latest;
     final doc = c.activeDocument;
     _lineCountByDocument[doc.id] = doc.lineCount;
@@ -1545,34 +1567,61 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
           ),
         ),
       Expanded(
-        key: const ValueKey('editor-body'),
-        child: _studioLayer(
-          'editor',
-          (colors) => FadeTransition(
-            opacity: _tabOpacity,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: _glassEnabled(colors, 'editor')
-                    ? Colors.transparent
-                    : colors.chrome(colors.editorColor, role: 'editor'),
-                gradient:
-                    _glassEnabled(colors, 'editor') ||
-                        c.orionTheme.overrides.containsKey('editor')
-                    ? null
-                    : orionSurfaceGradient(
-                        colors,
-                        base: colors.editorColor,
-                        blend: .75,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // These bounds exclude the actual toolbar, Find row and status
+            // bar. Keep code visible even when the console is dragged fully up.
+            final maxConsoleHeight = math.max(
+              0.0,
+              constraints.maxHeight -
+                  80 -
+                  _space(40, 34) -
+                  (_layout.actionsBottom ? _space(64, 56) : 0),
+            );
+            return Column(
+              children: [
+                Expanded(
+                  key: const ValueKey('editor-body'),
+                  child: _studioLayer(
+                    'editor',
+                    (colors) => FadeTransition(
+                      opacity: _tabOpacity,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: _glassEnabled(colors, 'editor')
+                              ? Colors.transparent
+                              : colors.chrome(
+                                  colors.editorColor,
+                                  role: 'editor',
+                                ),
+                          gradient:
+                              _glassEnabled(colors, 'editor') ||
+                                  c.orionTheme.overrides.containsKey('editor')
+                              ? null
+                              : orionSurfaceGradient(
+                                  colors,
+                                  base: colors.editorColor,
+                                  blend: .75,
+                                ),
+                        ),
+                        child: _codeArea(colors),
                       ),
-              ),
-              child: _codeArea(colors),
-            ),
-          ),
+                    ),
+                  ),
+                ),
+                if (_layout.actionsBottom)
+                  _glassSurface(
+                    'bottomActions',
+                    colors,
+                    _actions(colors),
+                    radius: 14,
+                  ),
+                _console(colors, maxHeight: maxConsoleHeight),
+              ],
+            );
+          },
         ),
       ),
-      if (_layout.actionsBottom)
-        _glassSurface('bottomActions', colors, _actions(colors), radius: 14),
-      _console(colors),
       if (_monaco case final service?)
         AnimatedBuilder(
           animation: service,
@@ -1895,133 +1944,190 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
     return heights;
   }
 
-  Widget _console(OrionColors _) => _studioLayer('consoleOutput', _consoleBody);
+  Widget _console(OrionColors _, {required double maxHeight}) => _studioLayer(
+    'consoleOutput',
+    (colors) => _consoleBody(colors, maxHeight),
+  );
 
-  Widget _consoleBody(OrionColors colors) {
+  Widget _consoleBody(OrionColors colors, double maxHeight) {
+    final minHeight = math.min(48.0, maxHeight);
+    final height = _consoleHeight.clamp(minHeight, maxHeight);
     final entries = _showConsole
         ? c.activities.where((a) => a.kind == ActivityKind.execution).toList()
         : const <ActivityEntry>[];
-    return Container(
-      decoration: BoxDecoration(
-        border: _glassEnabled(colors, 'consoleOutput')
-            ? null
-            : Border(top: BorderSide(color: colors.outline(.22))),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => setState(() => _showConsole = !_showConsole),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: _space(12, 8),
-                vertical: _space(7, 5),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.terminal_rounded,
-                    size: _space(18, 16),
-                    color: colors.muted,
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            border: _glassEnabled(colors, 'consoleOutput')
+                ? null
+                : Border(top: BorderSide(color: colors.outline(.22))),
+          ),
+          child: Column(
+            children: [
+              InkWell(
+                onTap: () => setState(() => _showConsole = !_showConsole),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: _space(12, 8),
+                    vertical: _space(7, 5),
                   ),
-                  SizedBox(width: _space(8, 6)),
-                  Text(
-                    'Console',
-                    style: OrionType.label.copyWith(color: colors.muted),
-                  ),
-                  const Spacer(),
-                  if (_showConsole && entries.isNotEmpty)
-                    IconButton(
-                      tooltip: 'Clear console',
-                      style: IconButton.styleFrom(
-                        minimumSize: const Size(22, 18),
-                        maximumSize: const Size(22, 18),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      onPressed: c.clearActivities,
-                      constraints: const BoxConstraints.tightFor(
-                        width: 22,
-                        height: 18,
-                      ),
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 15,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.terminal_rounded,
+                        size: _space(18, 16),
                         color: colors.muted,
                       ),
-                    ),
-                  Icon(
-                    _showConsole
-                        ? Icons.keyboard_arrow_down_rounded
-                        : Icons.keyboard_arrow_up_rounded,
-                    size: 18,
-                    color: colors.muted,
+                      SizedBox(width: _space(8, 6)),
+                      Text(
+                        'Console',
+                        style: OrionType.label.copyWith(color: colors.muted),
+                      ),
+                      const Spacer(),
+                      if (_showConsole && entries.isNotEmpty)
+                        IconButton(
+                          tooltip: 'Clear console',
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(22, 18),
+                            maximumSize: const Size(22, 18),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: c.clearActivities,
+                          constraints: const BoxConstraints.tightFor(
+                            width: 22,
+                            height: 18,
+                          ),
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 15,
+                            color: colors.muted,
+                          ),
+                        ),
+                      Icon(
+                        _showConsole
+                            ? Icons.keyboard_arrow_down_rounded
+                            : Icons.keyboard_arrow_up_rounded,
+                        size: 18,
+                        color: colors.muted,
+                      ),
+                    ],
                   ),
-                ],
+                ),
+              ),
+              _ConsoleExpansion(
+                reducedMotion: c.reducedMotion || _resizingConsole,
+                child: _showConsole
+                    ? SizedBox(
+                        key: const ValueKey('orion-console-output'),
+                        height: height,
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            _space(12, 8),
+                            0,
+                            _space(12, 8),
+                            _space(8, 6),
+                          ),
+                          child: entries.isEmpty
+                              ? Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Client output appears here.',
+                                    style: OrionType.metadata.copyWith(
+                                      color: colors.muted,
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  controller: _consoleScroll,
+                                  itemCount: entries.length,
+                                  itemBuilder: (context, index) {
+                                    final entry =
+                                        entries[entries.length - 1 - index];
+                                    return Padding(
+                                      key: ValueKey(
+                                        'console-entry-${entry.id}',
+                                      ),
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Tooltip(
+                                        message: entry.title,
+                                        child: SelectableText(
+                                          entry.detail,
+                                          style: OrionType.metadata.copyWith(
+                                            fontFamily: 'JetBrainsMono',
+                                            fontSize: 11,
+                                            color: switch (entry.severity) {
+                                              ActivitySeverity.error =>
+                                                colors.readablePeach,
+                                              ActivitySeverity.warning =>
+                                                colors.readableForeground(
+                                                  Colors.amber.shade300,
+                                                ),
+                                              _ => colors.ink,
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+            ],
+          ),
+        ),
+        if (_showConsole)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 7,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.resizeUpDown,
+              child: Tooltip(
+                message: 'Drag to resize console',
+                child: GestureDetector(
+                  key: const ValueKey('orion-console-resize'),
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragStart: (_) => setState(() {
+                    _resizingConsole = true;
+                    _consoleHeight = height;
+                  }),
+                  onVerticalDragUpdate: (details) => setState(() {
+                    _consoleHeight = (_consoleHeight - details.delta.dy).clamp(
+                      minHeight,
+                      maxHeight,
+                    );
+                  }),
+                  onVerticalDragEnd: (_) {
+                    setState(() => _resizingConsole = false);
+                    c.setInterfacePreference(
+                      InterfacePreset.orion,
+                      'consoleHeight',
+                      _consoleHeight,
+                    );
+                  },
+                  onVerticalDragCancel: () =>
+                      setState(() => _resizingConsole = false),
+                  child: Center(
+                    child: Container(
+                      width: 36,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: colors.muted.withValues(alpha: .5),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-          _ConsoleExpansion(
-            reducedMotion: c.reducedMotion,
-            child: _showConsole
-                ? SizedBox(
-                    height: _space(80, 68),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        _space(12, 8),
-                        0,
-                        _space(12, 8),
-                        _space(8, 6),
-                      ),
-                      child: entries.isEmpty
-                          ? Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Client output appears here.',
-                                style: OrionType.metadata.copyWith(
-                                  color: colors.muted,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: entries.length,
-                              itemBuilder: (context, index) {
-                                final entry = entries[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        entry.title,
-                                        style: OrionType.metadata.copyWith(
-                                          color:
-                                              entry.severity ==
-                                                  ActivitySeverity.error
-                                              ? colors.readablePeach
-                                              : colors.muted,
-                                        ),
-                                      ),
-                                      SelectableText(
-                                        entry.detail,
-                                        style: OrionType.metadata.copyWith(
-                                          fontFamily: 'JetBrainsMono',
-                                          fontSize: 11,
-                                          color: colors.ink,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  )
-                : const SizedBox(width: double.infinity),
-          ),
-        ],
-      ),
+      ],
     );
   }
 

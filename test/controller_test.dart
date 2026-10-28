@@ -351,6 +351,80 @@ void main() {
   );
 
   test(
+    'retiring submission history preserves real client prints and errors',
+    () async {
+      ActivityEntry entry(
+        String id,
+        String title,
+        String detail,
+        ActivitySeverity severity,
+      ) => ActivityEntry(
+        id: id,
+        title: title,
+        detail: detail,
+        kind: ActivityKind.execution,
+        severity: severity,
+        timestamp: DateTime.utc(2026),
+      );
+      final stateFile = File('${temporaryDirectory.path}/orion-workspace.json');
+      await stateFile.writeAsString(
+        jsonEncode({
+          'bridgeConsoleVersion': 1,
+          'activities': [
+            entry(
+              'queue',
+              'Script queued',
+              'message.lua → 1 client',
+              ActivitySeverity.info,
+            ).toJson(),
+            entry(
+              'submitted',
+              'Relapse · Default',
+              'message.lua submitted to Relapse.',
+              ActivitySeverity.success,
+            ).toJson(),
+            entry(
+              'sent',
+              'Script sent',
+              'message.lua → MacSploit',
+              ActivitySeverity.success,
+            ).toJson(),
+            entry(
+              'print',
+              'Relapse · Default',
+              'message.lua submitted to Relapse.',
+              ActivitySeverity.info,
+            ).toJson(),
+            entry(
+              'error',
+              'Client',
+              'real error',
+              ActivitySeverity.error,
+            ).toJson(),
+          ],
+        }),
+      );
+      final c = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
+      await c.initialize();
+      expect(c.activities.map((entry) => entry.id), ['print', 'error']);
+      await c.flushPersistence();
+      c.dispose();
+      await c.flushPersistence();
+      final restored = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
+      await restored.initialize();
+      expect(restored.activities.map((entry) => entry.id), ['print', 'error']);
+      restored.dispose();
+      await restored.flushPersistence();
+    },
+  );
+
+  test(
     'legacy bridge completion cleanup preserves all other history and persists its version',
     () async {
       const hex = 'Execution exec_a40bf9e87ef249f5b041d7d1e3d5d2cb completed.';
@@ -406,7 +480,7 @@ void main() {
       ]);
       await controller.flushPersistence();
       final saved = jsonDecode(await stateFile.readAsString()) as Map;
-      expect(saved['bridgeConsoleVersion'], 1);
+      expect(saved['bridgeConsoleVersion'], 2);
       expect(
         (saved['activities'] as List).map((entry) => (entry as Map)['id']),
         controller.activities.map((entry) => entry.id),
@@ -448,7 +522,7 @@ void main() {
       companion.applyWindowState(controller.exportWindowState());
       expect(companion.activities.single.id, 'genuine-print');
       expect(companion.activities.single.detail, printedText);
-      expect(companion.exportWindowState()['bridgeConsoleVersion'], 1);
+      expect(companion.exportWindowState()['bridgeConsoleVersion'], 2);
       companion.dispose();
       controller.dispose();
       await controller.flushPersistence();

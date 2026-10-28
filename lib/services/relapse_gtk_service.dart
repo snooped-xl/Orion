@@ -584,13 +584,10 @@ class RelapseGtkService extends ChangeNotifier {
       // arrives after a session change belongs to a discarded bridge request.
       final name = _scriptNames.remove(id);
       if (name == null) return;
-      _emitLog(
-        phase == 'submitted' ? 'success' : 'error',
-        phase == 'submitted'
-            ? '$name submitted to Relapse.'
-            : '$name failed: $detail',
-        executionId: 'relapse_$id',
-      );
+      // Submission acknowledges transport; actual output arrives separately.
+      if (phase == 'error') {
+        _emitLog('error', '$name failed: $detail', executionId: 'relapse_$id');
+      }
       return;
     }
     if (type == 'log') {
