@@ -7,14 +7,14 @@ class SemVer implements Comparable<SemVer> {
     required this.major,
     required this.minor,
     required this.patch,
-    this.build = 0,
+    this.build,
     this.preRelease,
   });
 
   final int major;
   final int minor;
   final int patch;
-  final int build;
+  final String? build;
   final String? preRelease;
 
   /// Parses version strings such as "v1.1.2", "1.0.6+6", "v1.12", "1.0.0-hotfix".
@@ -40,13 +40,12 @@ class SemVer implements Comparable<SemVer> {
     final major = segments.isNotEmpty ? int.tryParse(segments[0]) ?? 0 : 0;
     final minor = segments.length > 1 ? int.tryParse(segments[1]) ?? 0 : 0;
     final patch = segments.length > 2 ? int.tryParse(segments[2]) ?? 0 : 0;
-    final build = buildPart != null ? int.tryParse(buildPart) ?? 0 : 0;
 
     return SemVer(
       major: major,
       minor: minor,
       patch: patch,
-      build: build,
+      build: buildPart,
       preRelease: prePart,
     );
   }
@@ -63,7 +62,13 @@ class SemVer implements Comparable<SemVer> {
       final preComp = preRelease!.compareTo(other.preRelease!);
       if (preComp != 0) return preComp;
     }
-    return build.compareTo(other.build);
+    final b1 = int.tryParse(build ?? '');
+    final b2 = int.tryParse(other.build ?? '');
+    if (b1 != null && b2 != null) return b1.compareTo(b2);
+    if (build != null && other.build != null) return build!.compareTo(other.build!);
+    if (build == null && other.build != null) return -1;
+    if (build != null && other.build == null) return 1;
+    return 0;
   }
 
   bool operator >(SemVer other) => compareTo(other) > 0;
@@ -86,9 +91,9 @@ class SemVer implements Comparable<SemVer> {
 
   @override
   String toString() {
-    final buffer = StringBuffer('v$major.$minor.$patch');
+    final buffer = StringBuffer('$major.$minor.$patch');
     if (preRelease != null) buffer.write('-$preRelease');
-    if (build > 0) buffer.write('+$build');
+    if (build != null) buffer.write('+$build');
     return buffer.toString();
   }
 }

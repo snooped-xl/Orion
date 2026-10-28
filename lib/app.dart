@@ -160,6 +160,7 @@ class _OrionAppState extends State<OrionApp> {
 
   @override
   void dispose() {
+    _updateCheckTimer?.cancel();
     controller.removeListener(_studioSizeChanged);
     _studioResizeGeneration++;
     _editorService?.dispose();
@@ -176,9 +177,12 @@ class _OrionAppState extends State<OrionApp> {
     InterfacePreset.synapse2017,
   }.contains(controller.selectedInterface);
 
+  Timer? _updateCheckTimer;
+
   void _scheduleStartupUpdateCheck() {
-    if (!controller.autoUpdateEnabled) return;
-    Future<void>.delayed(const Duration(seconds: 3), () async {
+    if (!nativeWindow || !controller.autoUpdateEnabled) return;
+    _updateCheckTimer?.cancel();
+    _updateCheckTimer = Timer(const Duration(seconds: 3), () async {
       if (!mounted || !controller.autoUpdateEnabled) return;
       final release = await controller.checkForUpdates(manual: false);
       final navContext = _navigatorKey.currentContext;
