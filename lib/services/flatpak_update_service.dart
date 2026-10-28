@@ -25,8 +25,12 @@ class FlatpakUpdateService {
 
   // The launcher uses /app/orion, which exists only in the sandbox. A host
   // command must start in a directory present in the host namespace.
-  Future<ProcessResult> _host(List<String> arguments) =>
-      _run('flatpak-spawn', ['--host', '--directory=/', ...arguments]);
+  Future<ProcessResult> _host(List<String> arguments) => _run('flatpak-spawn', [
+    '--host',
+    '--directory=/',
+    '--env=LC_ALL=C',
+    ...arguments,
+  ]);
 
   Future<ProcessResult> _checked(List<String> arguments) async {
     final result = await _host(arguments);
@@ -43,7 +47,7 @@ class FlatpakUpdateService {
 
   Future<FlatpakUpdateInstallation> install(File bundle) async {
     // Match the running deployment, including user/system duplicates and named
-    // installations. Never create a second copy in a different installation.
+    // installations. Only fall back to a user copy for a denied system install.
     final info = await _infoFile.readAsLines();
     String value(String key) => info
         .firstWhere((line) => line.startsWith('$key='), orElse: () => '$key=')
@@ -100,17 +104,52 @@ class FlatpakUpdateService {
         'The running Flatpak deployment was not found on the host.',
       );
     }
-    await _checked([
+    Future<ProcessResult> installIn(String installation) => _host([
       'flatpak',
       'install',
-      scope,
+      installation,
       '--or-update',
       '--bundle',
       '--assumeyes',
       bundle.path,
     ]);
+    var effectiveScope = scope;
+    var result = await installIn(effectiveScope);
+    // System bundle installs can be denied by PolicyKit. Do not mask corrupt
+    // bundles, missing runtimes, disk errors, or other installer failures.
+    if (result.exitCode != 0 &&
+        scope != '--user' &&
+        result.stderr.toString().contains(
+          'Flatpak system operation InstallBundle not allowed for user',
+        )) {
+      effectiveScope = '--user';
+      result = await installIn(effectiveScope);
+    }
+    // Flatpak returns 1 for the exact same bundle, even with --or-update. This
+    // is a successful no-op: the requested version is already deployed. Keep
+    // the selected scope so restart uses that copy, not an older system copy.
+    final alreadyInstalled =
+        result.exitCode == 1 &&
+        result.stderr.toString().trim() ==
+            'error: Failed to install bundle $appId: '
+                'This version of $appId is already installed';
+    if (result.exitCode != 0 && !alreadyInstalled) {
+      throw ProcessException(
+        'flatpak',
+        [
+          'install',
+          effectiveScope,
+          '--or-update',
+          '--bundle',
+          '--assumeyes',
+          bundle.path,
+        ],
+        '${result.stderr}\n${result.stdout}'.trim(),
+        result.exitCode,
+      );
+    }
     return FlatpakUpdateInstallation(
-      scope: scope,
+      scope: effectiveScope,
       ref: ref,
       instanceId: instanceId,
     );

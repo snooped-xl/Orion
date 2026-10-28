@@ -32,8 +32,8 @@ instance-id=12345
         infoFile: info,
         run: (exe, args) async {
           expect(exe, 'flatpak-spawn');
-          expect(args.take(2), ['--host', '--directory=/']);
-          final cmd = args.skip(2).toList();
+          expect(args.take(3), ['--host', '--directory=/', '--env=LC_ALL=C']);
+          final cmd = args.skip(3).toList();
           commands.add(cmd);
           if (cmd.contains('list')) {
             return ProcessResult(0, 0, 'user\nsystem\n', '');
@@ -110,6 +110,194 @@ fi
       ]);
     },
   );
+
+  test(
+    'falls back to --user installation when system installation is not allowed for user',
+    () async {
+      final commands = <List<String>>[];
+      final updater = FlatpakUpdateService(
+        infoFile: info,
+        run: (exe, args) async {
+          final cmd = args.skip(3).toList();
+          commands.add(cmd);
+          if (cmd.contains('list')) {
+            return ProcessResult(0, 0, 'system\n', '');
+          }
+          if (cmd.contains('info')) {
+            return ProcessResult(
+              0,
+              0,
+              '/var/lib/flatpak/app/$ref/deployment\n',
+              '',
+            );
+          }
+          if (cmd.contains('install')) {
+            if (cmd.contains('--system')) {
+              return ProcessResult(
+                0,
+                1,
+                '',
+                'error: Failed to install bundle dev.snooped.orion: Flatpak system operation InstallBundle not allowed for user',
+              );
+            }
+            if (cmd.contains('--user')) {
+              return ProcessResult(0, 0, 'Installed successfully\n', '');
+            }
+          }
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+      final installation = await updater.install(
+        File('${temporary.path}/Orion.flatpak'),
+      );
+      expect(installation.scope, '--user');
+      expect(
+        commands.any((c) => c.contains('--system') && c.contains('install')),
+        isTrue,
+      );
+      expect(
+        commands.any((c) => c.contains('--user') && c.contains('install')),
+        isTrue,
+      );
+    },
+  );
+
+  for (final scope in ['--system', '--user', '--installation=custom']) {
+    test('identical bundle in $scope is a successful no-op', () async {
+      final commands = <List<String>>[];
+      final location = scope == '--user'
+          ? '/home/test/.local/share/flatpak'
+          : '/var/lib/flatpak';
+      await info.writeAsString('''[Instance]
+app-path=$location/app/$ref/old/files
+arch=x86_64
+branch=stable
+instance-id=12345
+''');
+      final updater = FlatpakUpdateService(
+        infoFile: info,
+        run: (exe, args) async {
+          commands.add(args);
+          if (args.contains('list')) {
+            return ProcessResult(
+              0,
+              0,
+              '${scope == '--installation=custom' ? 'custom' : scope.substring(2)}\n',
+              '',
+            );
+          }
+          if (args.contains('info')) {
+            return ProcessResult(0, 0, '$location/app/$ref/old', '');
+          }
+          return ProcessResult(
+            0,
+            1,
+            '',
+            'error: Failed to install bundle dev.snooped.orion: '
+                'This version of dev.snooped.orion is already installed\n',
+          );
+        },
+      );
+      final installation = await updater.install(File('Orion.flatpak'));
+      expect(installation.scope, scope);
+      expect(commands.where((c) => c.contains('install')), hasLength(1));
+    });
+  }
+
+  test('permission fallback restarts an already installed user bundle', () async {
+    final commands = <List<String>>[];
+    final updater = FlatpakUpdateService(
+      infoFile: info,
+      run: (exe, args) async {
+        commands.add(args);
+        if (args.contains('list')) return ProcessResult(0, 0, 'system\n', '');
+        if (args.contains('info')) {
+          return ProcessResult(0, 0, '/var/lib/flatpak/app/$ref/old', '');
+        }
+        if (args.contains('install')) {
+          return ProcessResult(
+            0,
+            1,
+            '',
+            args.contains('--system')
+                ? 'error: Failed to install bundle dev.snooped.orion: Flatpak system operation InstallBundle not allowed for user\n'
+                : 'error: Failed to install bundle dev.snooped.orion: This version of dev.snooped.orion is already installed\n',
+          );
+        }
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+    final installation = await updater.install(File('Orion.flatpak'));
+    expect(installation.scope, '--user');
+    await updater.scheduleRestart(installation, temporary);
+    final script = await File(
+      '${temporary.path}/restart_flatpak.sh',
+    ).readAsString();
+    expect(script, contains("'flatpak' 'run' '--user'"));
+    expect(commands.where((c) => c.contains('install')), hasLength(2));
+  });
+
+  for (final failure in [
+    'Permission denied',
+    'Not enough disk space',
+    'Invalid bundle: dependency already installed',
+    'error: Failed to install bundle dev.snooped.orion: This version of dev.snooped.orion is already installed\nerror: Deployment failed',
+  ]) {
+    test('unrelated system failure does not change scope: $failure', () async {
+      final commands = <List<String>>[];
+      final updater = FlatpakUpdateService(
+        infoFile: info,
+        run: (exe, args) async {
+          commands.add(args);
+          if (args.contains('list')) return ProcessResult(0, 0, 'system\n', '');
+          if (args.contains('info')) {
+            return ProcessResult(0, 0, '/var/lib/flatpak/app/$ref/old', '');
+          }
+          return ProcessResult(0, 1, '', failure);
+        },
+      );
+      await expectLater(
+        updater.install(File('Orion.flatpak')),
+        throwsA(isA<ProcessException>()),
+      );
+      expect(commands.where((c) => c.contains('install')), hasLength(1));
+      expect(commands.any((c) => c.contains('--user')), isFalse);
+    });
+  }
+
+  test('user fallback failure propagates without restarting', () async {
+    final updater = FlatpakUpdateService(
+      infoFile: info,
+      run: (exe, args) async {
+        if (args.contains('list')) return ProcessResult(0, 0, 'system\n', '');
+        if (args.contains('info')) {
+          return ProcessResult(0, 0, '/var/lib/flatpak/app/$ref/old', '');
+        }
+        return ProcessResult(
+          0,
+          1,
+          '',
+          args.contains('--system')
+              ? 'error: Failed to install bundle dev.snooped.orion: Flatpak system operation InstallBundle not allowed for user'
+              : 'Not enough disk space',
+        );
+      },
+    );
+    await expectLater(
+      updater.install(File('Orion.flatpak')),
+      throwsA(
+        isA<ProcessException>().having(
+          (e) => e.message,
+          'error',
+          contains('Not enough disk space'),
+        ),
+      ),
+    );
+    expect(
+      await File('${temporary.path}/restart_flatpak.sh').exists(),
+      isFalse,
+    );
+  });
 
   test('installer failure propagates without scheduling a restart', () async {
     final updater = FlatpakUpdateService(
