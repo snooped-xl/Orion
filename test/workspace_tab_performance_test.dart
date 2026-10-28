@@ -192,7 +192,7 @@ void main() {
       if (!c.usesNativeExecutor) {
         c.execute();
         await tester.pumpAndSettle();
-        expect(find.text('No clients connected'), findsOneWidget);
+        expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsOneWidget);
         expect(c.activityReads, 1);
       } else {
         expect(c.activityReads, 0);
@@ -215,17 +215,17 @@ void main() {
         c.activityReads = 0;
       }
       expect(c.activityReads, 0);
-      expect(find.text('No clients connected'), findsNothing);
+      expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsNothing);
 
       if (!c.usesNativeExecutor) {
         c.execute();
         await tester.pumpAndSettle();
-        expect(find.text('No clients connected'), findsWidgets);
+        expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsWidgets);
       }
       c.clearActivities();
       await tester.pumpAndSettle();
       expect(find.text('Client output appears here.'), findsOneWidget);
-      expect(find.text('No clients connected'), findsNothing);
+      expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

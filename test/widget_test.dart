@@ -453,7 +453,7 @@ void main() {
             .every((entry) => entry.severity != ActivitySeverity.success),
         isTrue,
       );
-      expect(find.text('No clients connected'), findsOneWidget);
+      expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsOneWidget);
       final content = app.controller.activeDocument.content;
       await tester.tap(find.byTooltip('UI Selection'));
       await tester.pumpAndSettle();
@@ -536,15 +536,15 @@ void main() {
 
       await tester.tap(find.text('Execute'));
       await tester.pumpAndSettle();
-      expect(find.text('No clients connected'), findsOneWidget);
+      expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsOneWidget);
       await tester.tap(find.text('Console'));
       await tester.pumpAndSettle();
-      expect(find.text('No clients connected'), findsNothing);
+      expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsNothing);
       await tester.tap(find.text('Console'));
       await tester.pump(const Duration(milliseconds: 60));
       expect(tester.takeException(), isNull);
       await tester.pumpAndSettle();
-      expect(find.text('No clients connected'), findsOneWidget);
+      expect(find.textContaining('Open Clients to copy Orion Bridge.lua.'), findsOneWidget);
     } finally {
       await app.dispose(tester);
     }
