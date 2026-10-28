@@ -39,7 +39,7 @@ class AutoUpdateService extends ChangeNotifier {
        _flatpakUpdater = flatpakUpdater ?? FlatpakUpdateService();
 
   /// Pinned application version reported by the desktop runtime.
-  static const String defaultCurrentVersion = '1.13.6';
+  static const String defaultCurrentVersion = '1.13.7';
 
   final HttpClient? _client;
   final String currentVersion;
