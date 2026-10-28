@@ -19,6 +19,7 @@ import 'widgets/ui_scale_viewport.dart';
 import 'widgets/orion_studio_layer.dart';
 import 'widgets/orion_glass.dart';
 import 'widgets/synapse_theme_surface.dart';
+import 'widgets/update_dialog.dart';
 import 'models/interface_preset.dart';
 import 'models/interface_window_profile.dart';
 import 'services/monaco_editor_service.dart';
@@ -105,6 +106,7 @@ class _OrionAppState extends State<OrionApp> {
     _orionStartupCompleted =
         controller.selectedInterface != InterfacePreset.orion;
     _studioSizeKey = _studioSizeSignature();
+    _scheduleStartupUpdateCheck();
     controller.addListener(_studioSizeChanged);
     final windows = controller.companionWindows;
     if (windows is CompanionWindowService) {
@@ -173,6 +175,18 @@ class _OrionAppState extends State<OrionApp> {
     InterfacePreset.synapseX,
     InterfacePreset.synapse2017,
   }.contains(controller.selectedInterface);
+
+  void _scheduleStartupUpdateCheck() {
+    if (!controller.autoUpdateEnabled) return;
+    Future<void>.delayed(const Duration(seconds: 3), () async {
+      if (!mounted || !controller.autoUpdateEnabled) return;
+      final release = await controller.checkForUpdates(manual: false);
+      final navContext = _navigatorKey.currentContext;
+      if (release != null && navContext != null && mounted) {
+        await UpdateDialog.show(navContext, controller: controller, release: release);
+      }
+    });
+  }
 
   void _openStudio() {
     if (controller.selectedInterface == InterfacePreset.orion &&

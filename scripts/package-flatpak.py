@@ -79,7 +79,9 @@ def main() -> None:
         # mounts, which left every profile invisible inside the Flatpak.
         "--filesystem=home", "--filesystem=/tmp",
         "--filesystem=/media", "--filesystem=/mnt",
-        "--filesystem=/run/media", "--env=GTK_USE_PORTAL=1", str(build))
+        "--filesystem=/run/media",
+        "--talk-name=org.freedesktop.Flatpak",
+        "--env=GTK_USE_PORTAL=1", str(build))
     run("flatpak", "build-export", "--arch=x86_64", "--subject=Orion desktop test build",
         str(repository), str(build), BRANCH)
     args.output.parent.mkdir(parents=True, exist_ok=True)

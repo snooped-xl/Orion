@@ -22,6 +22,8 @@ import '../services/desktop_launcher.dart';
 import '../services/workspace_paths.dart';
 import '../services/file_paths.dart';
 import '../synapse_v3/synapse_v3_preferences.dart';
+import '../models/auto_update_models.dart';
+import '../services/auto_update_service.dart';
 
 /// Shared workspace state and the application-owned, local Orion Bridge.
 class OrionController extends ChangeNotifier {
@@ -33,6 +35,7 @@ class OrionController extends ChangeNotifier {
     bool? useMacSploit,
     String nativeExecutorPreference = 'auto',
     int? nativePortPreference,
+    AutoUpdateService? autoUpdateService,
     bool persistChanges = true,
   }) : _storageDirectory = storageDirectory,
        _persistChanges = persistChanges,
@@ -46,7 +49,9 @@ class OrionController extends ChangeNotifier {
              nativeExecutorPreference: nativeExecutorPreference,
              nativePortPreference: nativePortPreference,
            ),
-       _relapse = relapseService ?? RelapseGtkService() {
+       _relapse = relapseService ?? RelapseGtkService(),
+       _autoUpdate = autoUpdateService ?? AutoUpdateService() {
+    _autoUpdate.addListener(_notify);
     _documents.add(
       const EditorDocument(
         id: 'welcome-constellation',
@@ -684,6 +689,36 @@ class OrionController extends ChangeNotifier {
       List.unmodifiable(_savedOrionThemes);
   Uint8List? get customLogoBytes => _customLogoBytes;
   static const maxCustomLogoBytes = 8 * 1024 * 1024;
+  final AutoUpdateService _autoUpdate;
+  AutoUpdateService get autoUpdate => _autoUpdate;
+  AutoUpdateStatus get updateStatus => _autoUpdate.status;
+
+  DateTime? _lastUpdateCheckTime;
+  DateTime? get lastUpdateCheckTime => _lastUpdateCheckTime;
+
+  bool get autoUpdateEnabled =>
+      getInterfacePreferences(InterfacePreset.orion)['autoUpdate'] != false;
+
+  void setAutoUpdateEnabled(bool value) {
+    if (autoUpdateEnabled == value) return;
+    setInterfacePreference(InterfacePreset.orion, 'autoUpdate', value);
+  }
+
+  Future<OrionRelease?> checkForUpdates({bool manual = false}) async {
+    final release = await _autoUpdate.checkForUpdates(
+      manual: manual,
+      lastCheckTime: _lastUpdateCheckTime,
+    );
+    if (manual || release != null || _autoUpdate.status.phase == AutoUpdatePhase.upToDate) {
+      _lastUpdateCheckTime = DateTime.now();
+      _changed();
+    }
+    return release;
+  }
+
+  Future<void> applyPendingUpdate(OrionRelease release) =>
+      _autoUpdate.downloadAndApply(release);
+
   bool get reducedMotion => _reducedMotion;
   double get editorFontSize => _editorFontSize;
   double get uiScale => _uiScale;
@@ -2015,6 +2050,8 @@ class OrionController extends ChangeNotifier {
     if (Platform.isLinux && _relapseLauncherPath != null) 'relapseLauncherPath': _relapseLauncherPath,
     if (Platform.isLinux && _selectedRelapseSocketPaths.isNotEmpty) 'selectedRelapseSocketPaths': _selectedRelapseSocketPaths.toList(),
     'introCompleted': _introCompleted,
+    if (_lastUpdateCheckTime != null)
+      'lastUpdateCheckTime': _lastUpdateCheckTime!.toIso8601String(),
   };
 
   /// Engine-to-engine state; only the primary controller writes recovery data.
@@ -2333,6 +2370,9 @@ class OrionController extends ChangeNotifier {
           ? (json['selectedRelapseSocketPaths'] as List? ?? const []).whereType<String>()
           : const <String>[]);
     _introCompleted = _readBool(json, 'introCompleted', false);
+    if (json['lastUpdateCheckTime'] is String) {
+      _lastUpdateCheckTime = DateTime.tryParse(json['lastUpdateCheckTime'] as String);
+    }
     final uiScale = json['uiScale'];
     _uiScale = uiScale is num ? _normalizeUiScale(uiScale.toDouble()) : 1.0;
     final fontSize = json['editorFontSize'];
@@ -2346,6 +2386,8 @@ class OrionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _autoUpdate.removeListener(_notify);
+    _autoUpdate.dispose();
     _saveDebounce?.cancel();
     _remoteSearchDebounce?.cancel();
     _remoteGeneration++;

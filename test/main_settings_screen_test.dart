@@ -74,6 +74,7 @@ void main() {
         ('autocomplete', () => controller.autocomplete),
         ('bracket-colors', () => controller.bracketPairColorization),
         ('whitespace', () => controller.renderWhitespace),
+        ('auto-update', () => controller.autoUpdateEnabled),
       ];
       for (final (key, value) in toggles) {
         final before = value();
@@ -100,6 +101,7 @@ void main() {
         controller.bracketPairColorization,
       );
       expect(restored.renderWhitespace, controller.renderWhitespace);
+      expect(restored.autoUpdateEnabled, controller.autoUpdateEnabled);
       expect(restored.editorFontSize, controller.editorFontSize);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
