@@ -19,6 +19,7 @@ import '../models/orion_theme_preferences.dart';
 import '../services/script_hub_service.dart';
 import '../services/script_library_service.dart';
 import '../services/desktop_launcher.dart';
+import '../services/companion_window_service.dart';
 import '../services/workspace_paths.dart';
 import '../services/file_paths.dart';
 import '../synapse_v3/synapse_v3_preferences.dart';
@@ -704,10 +705,10 @@ class OrionController extends ChangeNotifier {
     setInterfacePreference(InterfacePreset.orion, 'autoUpdate', value);
   }
 
-  Future<OrionRelease?> checkForUpdates({bool manual = false}) async {
+  Future<OrionRelease?> checkForUpdates({bool manual = false, bool startup = false}) async {
     final release = await _autoUpdate.checkForUpdates(
       manual: manual,
-      lastCheckTime: _lastUpdateCheckTime,
+      lastCheckTime: startup ? null : _lastUpdateCheckTime,
     );
     if (manual || release != null || _autoUpdate.status.phase == AutoUpdatePhase.upToDate) {
       _lastUpdateCheckTime = DateTime.now();
@@ -716,8 +717,26 @@ class OrionController extends ChangeNotifier {
     return release;
   }
 
-  Future<void> applyPendingUpdate(OrionRelease release) =>
-      _autoUpdate.downloadAndApply(release);
+  Future<void> Function()? flushEditorForUpdate;
+
+  Future<void> applyPendingUpdate(OrionRelease release) async {
+    final companions = companionWindows;
+    try {
+      await _autoUpdate.downloadAndApply(release, beforeRestart: () async {
+        await flushEditorForUpdate?.call();
+        if (companions is CompanionWindowService) {
+          await companions.shutdown();
+        }
+        await flushPersistence();
+        if (persistenceError != null) throw StateError(persistenceError!);
+      });
+    } catch (_) {
+      if (companions is CompanionWindowService) {
+        await companions.cancelShutdown();
+      }
+      rethrow;
+    }
+  }
 
   bool get reducedMotion => _reducedMotion;
   double get editorFontSize => _editorFontSize;

@@ -7,12 +7,14 @@ import 'package:flutter/foundation.dart';
 
 import '../models/auto_update_models.dart';
 import 'desktop_launcher.dart';
+import 'flatpak_update_service.dart';
 
-typedef ProcessStarter = Future<Process> Function(
-  String executable,
-  List<String> arguments, {
-  ProcessStartMode mode,
-});
+typedef ProcessStarter =
+    Future<Process> Function(
+      String executable,
+      List<String> arguments, {
+      ProcessStartMode mode,
+    });
 
 /// Service responsible for polling GitHub releases, verifying SHA-256 integrity,
 /// downloading platform binaries, and applying updates atomically.
@@ -28,11 +30,13 @@ class AutoUpdateService extends ChangeNotifier {
     this.isFlatpakOverride,
     ProcessStarter? processStarter,
     this.exitAppHandler,
-  })  : _client = client,
-        currentVersion = currentVersion ?? defaultCurrentVersion,
-        repoOwner = repoOwner ?? 'snooped-xl',
-        repoName = repoName ?? 'Orion',
-        _processStarter = processStarter ?? Process.start;
+    FlatpakUpdateService? flatpakUpdater,
+  }) : _client = client,
+       currentVersion = currentVersion ?? defaultCurrentVersion,
+       repoOwner = repoOwner ?? 'snooped-xl',
+       repoName = repoName ?? 'Orion',
+       _processStarter = processStarter ?? Process.start,
+       _flatpakUpdater = flatpakUpdater ?? FlatpakUpdateService();
 
   /// Pinned application version reported by the desktop runtime.
   static const String defaultCurrentVersion = '1.13.3';
@@ -47,6 +51,7 @@ class AutoUpdateService extends ChangeNotifier {
   final bool Function()? isFlatpakOverride;
   final ProcessStarter _processStarter;
   final void Function(int code)? exitAppHandler;
+  final FlatpakUpdateService _flatpakUpdater;
 
   AutoUpdateStatus _status = const AutoUpdateStatus.idle();
   AutoUpdateStatus get status => _status;
@@ -73,14 +78,24 @@ class AutoUpdateService extends ChangeNotifier {
     _status = AutoUpdateStatus.checking(lastChecked: lastCheckTime);
     notifyListeners();
 
-    final client = _client ?? (HttpClient()..connectionTimeout = const Duration(seconds: 15));
+    final client =
+        _client ??
+        (HttpClient()..connectionTimeout = const Duration(seconds: 15));
     try {
       final request = await client.getUrl(Uri.parse(releasesApiUrl));
-      request.headers.set(HttpHeaders.userAgentHeader, 'Orion-Desktop/$currentVersion');
-      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github.v3+json');
+      request.headers.set(
+        HttpHeaders.userAgentHeader,
+        'Orion-Desktop/$currentVersion',
+      );
+      request.headers.set(
+        HttpHeaders.acceptHeader,
+        'application/vnd.github.v3+json',
+      );
       request.headers.set(HttpHeaders.cacheControlHeader, 'no-cache');
 
-      final response = await request.close().timeout(const Duration(seconds: 15));
+      final response = await request.close().timeout(
+        const Duration(seconds: 15),
+      );
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException(
           'GitHub API returned ${response.statusCode}',
@@ -88,7 +103,9 @@ class AutoUpdateService extends ChangeNotifier {
         );
       }
 
-      final bodyString = await utf8.decodeStream(response).timeout(const Duration(seconds: 15));
+      final bodyString = await utf8
+          .decodeStream(response)
+          .timeout(const Duration(seconds: 15));
       final json = jsonDecode(bodyString) as Map<String, dynamic>;
       final release = OrionRelease.fromJson(json);
 
@@ -102,7 +119,10 @@ class AutoUpdateService extends ChangeNotifier {
         return null;
       }
     } catch (e) {
-      _status = AutoUpdateStatus.error(e.toString(), lastChecked: lastCheckTime);
+      _status = AutoUpdateStatus.error(
+        e.toString(),
+        lastChecked: lastCheckTime,
+      );
       notifyListeners();
       return null;
     } finally {
@@ -117,10 +137,15 @@ class AutoUpdateService extends ChangeNotifier {
     OrionRelease release, {
     void Function(double progress, int received, int total)? onProgress,
     bool restartImmediately = true,
+    Future<void> Function()? beforeRestart,
   }) async {
-    final platform = platformOverride ?? defaultTargetPlatform.name.toLowerCase();
+    final platform =
+        platformOverride ?? defaultTargetPlatform.name.toLowerCase();
     final asset = release.platformAsset(platform: platform, arch: archOverride);
-    final checksumAsset = release.platformSha256Asset(platform: platform, arch: archOverride);
+    final checksumAsset = release.platformSha256Asset(
+      platform: platform,
+      arch: archOverride,
+    );
 
     if (asset == null) {
       final message = 'No release asset available for platform: $platform';
@@ -130,12 +155,25 @@ class AutoUpdateService extends ChangeNotifier {
     }
 
     // Determine working download directory
-    final tempDir = Directory('${Directory.systemTemp.path}${Platform.pathSeparator}orion_update_${release.tagName}');
-    if (!tempDir.existsSync()) {
-      tempDir.createSync(recursive: true);
-    }
+    // Flatpak's /tmp is private and disappears with the sandbox. Its cache is
+    // visible at the same absolute path on the host, including on older builds
+    // without /tmp access. Unique directories also prevent concurrent writes.
+    final downloadRoot =
+        platform.contains('linux') &&
+            (isFlatpakOverride?.call() ?? File('/.flatpak-info').existsSync())
+        ? Directory(
+            '${Platform.environment['XDG_CACHE_HOME'] ?? '${Platform.environment['HOME']}/.var/app/dev.snooped.orion/cache'}/orion-updates',
+          )
+        : Directory.systemTemp;
+    await downloadRoot.create(recursive: true);
+    final tempDir = platform.contains('mac')
+        ? Directory('${Directory.systemTemp.path}${Platform.pathSeparator}orion_update_${release.tagName}')
+        : await downloadRoot.createTemp('orion-update-');
+    await tempDir.create(recursive: true);
 
-    final targetDownloadFile = File('${tempDir.path}${Platform.pathSeparator}${asset.name}');
+    final targetDownloadFile = File(
+      '${tempDir.path}${Platform.pathSeparator}${asset.name}',
+    );
 
     try {
       // 1. Download payload file
@@ -160,8 +198,14 @@ class AutoUpdateService extends ChangeNotifier {
         _status = AutoUpdateStatus.verifying(release: release);
         notifyListeners();
 
-        final checksumFile = File('${tempDir.path}${Platform.pathSeparator}${checksumAsset.name}');
-        await _downloadUrlToFile(checksumAsset.downloadUrl, checksumFile, checksumAsset.size);
+        final checksumFile = File(
+          '${tempDir.path}${Platform.pathSeparator}${checksumAsset.name}',
+        );
+        await _downloadUrlToFile(
+          checksumAsset.downloadUrl,
+          checksumFile,
+          checksumAsset.size,
+        );
 
         final checksumContent = await checksumFile.readAsString();
         final expectedHash = extractSha256(checksumContent);
@@ -179,11 +223,23 @@ class AutoUpdateService extends ChangeNotifier {
 
       // 3. Platform specific installer execution
       if (platform.contains('windows')) {
-        await _applyWindowsUpdate(targetDownloadFile, restartImmediately: restartImmediately);
+        await _applyWindowsUpdate(
+          targetDownloadFile,
+          restartImmediately: restartImmediately,
+          beforeRestart: beforeRestart,
+        );
       } else if (platform.contains('linux')) {
-        await _applyLinuxUpdate(targetDownloadFile, restartImmediately: restartImmediately);
+        await _applyLinuxUpdate(
+          targetDownloadFile,
+          restartImmediately: restartImmediately,
+          beforeRestart: beforeRestart,
+        );
       } else if (platform.contains('macos') || platform.contains('mac')) {
-        await _applyMacOsUpdate(targetDownloadFile, tempDir, restartImmediately: restartImmediately);
+        await _applyMacOsUpdate(
+          targetDownloadFile,
+          tempDir,
+          restartImmediately: restartImmediately,
+        );
       }
     } catch (e) {
       _status = AutoUpdateStatus.error(e.toString());
@@ -209,7 +265,9 @@ class AutoUpdateService extends ChangeNotifier {
     int expectedSize, [
     void Function(double progress, int received, int total)? onProgress,
   ]) async {
-    final client = _client ?? (HttpClient()..connectionTimeout = const Duration(seconds: 20));
+    final client =
+        _client ??
+        (HttpClient()..connectionTimeout = const Duration(seconds: 20));
     try {
       var currentUri = Uri.parse(url);
       HttpClientResponse? response;
@@ -217,7 +275,10 @@ class AutoUpdateService extends ChangeNotifier {
 
       while (redirects < 5) {
         final request = await client.getUrl(currentUri);
-        request.headers.set(HttpHeaders.userAgentHeader, 'Orion-Desktop/$currentVersion');
+        request.headers.set(
+          HttpHeaders.userAgentHeader,
+          'Orion-Desktop/$currentVersion',
+        );
         request.headers.set(HttpHeaders.acceptHeader, '*/*');
         request.followRedirects = false;
 
@@ -243,7 +304,9 @@ class AutoUpdateService extends ChangeNotifier {
         );
       }
 
-      final contentLength = response.contentLength > 0 ? response.contentLength : expectedSize;
+      final contentLength = response.contentLength > 0
+          ? response.contentLength
+          : expectedSize;
       final sink = destination.openWrite();
       var received = 0;
 
@@ -265,85 +328,117 @@ class AutoUpdateService extends ChangeNotifier {
     }
   }
 
+  /// PowerShell literals avoid cmd expansion of %, &, ! and Unicode paths.
   static String buildWindowsUpdateScript({
     required int pid,
     required String newExePath,
     required String targetExePath,
   }) {
-    return '''@echo off
-setlocal
-set "ORION_PID=$pid"
-set "NEW_EXE=$newExePath"
-set "TARGET_EXE=$targetExePath"
-
-:WAIT_LOOP
-powershell -NoProfile -NonInteractive -Command "if (Get-Process -Id %ORION_PID% -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
-if not errorlevel 1 (
-    timeout /t 1 /nobreak >nul
-    goto WAIT_LOOP
-)
-timeout /t 1 /nobreak >nul
-move /y "%NEW_EXE%" "%TARGET_EXE%" >nul
-start "" "%TARGET_EXE%"
-(goto) 2>nul & del "%~f0"
-''';
+    String literal(String value) => "'${value.replaceAll("'", "''")}'";
+    return r"""
+$ErrorActionPreference = 'Stop'
+$newExe = @NEW@
+$targetExe = @TARGET@
+$staged = $targetExe + '.orion-update'
+$backup = $targetExe + '.orion-previous'
+$log = Join-Path (Split-Path -Parent $newExe) 'apply_update.log'
+try {
+    $app = Get-Process -Id @PID@ -ErrorAction SilentlyContinue
+    if ($app -and -not $app.WaitForExit(120000)) { throw 'Orion did not exit in time.' }
+    Copy-Item -LiteralPath $newExe -Destination $staged -Force
+    $deadline = [DateTime]::UtcNow.AddSeconds(60)
+    while ($true) {
+        try {
+            # The portable NSIS parent can outlive the Flutter process briefly.
+            [IO.File]::Replace($staged, $targetExe, $backup)
+            break
+        } catch {
+            if ([DateTime]::UtcNow -ge $deadline) { throw }
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    Start-Process -FilePath $targetExe -WorkingDirectory (Split-Path -Parent $targetExe)
+    Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $newExe -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
+} catch {
+    $_ | Out-String | Set-Content -LiteralPath $log
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show("Orion could not apply the update. Your workspace is unchanged. Details: $log", 'Orion update failed') | Out-Null
+    exit 1
+}
+"""
+        .replaceAll('@NEW@', literal(newExePath))
+        .replaceAll('@TARGET@', literal(targetExePath))
+        .replaceAll('@PID@', '$pid');
   }
 
-  Future<void> _applyWindowsUpdate(File newExe, {required bool restartImmediately}) async {
-    final targetPath = targetExeOverride ??
-        Platform.environment['ORION_PORTABLE_EXE'] ??
-        Platform.resolvedExecutable;
+  /// Also accepts the malformed launcher hint produced by versions <= 1.13.3.
+  static String resolveWindowsUpdateTarget(String hint) {
+    final lower = hint.toLowerCase();
+    final nestedExe = lower.lastIndexOf('.exe\\');
+    if (nestedExe >= 0) return hint.substring(0, nestedExe + 4);
+    return hint;
+  }
 
-    final scriptFile = File('${newExe.parent.path}${Platform.pathSeparator}apply_update.cmd');
-    final batchContent = buildWindowsUpdateScript(
-      pid: pid,
-      newExePath: newExe.path,
-      targetExePath: targetPath,
+  Future<void> _applyWindowsUpdate(
+    File newExe, {
+    required bool restartImmediately,
+    Future<void> Function()? beforeRestart,
+  }) async {
+    final hint =
+        targetExeOverride ?? Platform.environment['ORION_PORTABLE_EXE'];
+    if (hint == null || hint.trim().isEmpty) {
+      throw StateError('Self-update requires the portable Orion.exe launcher.');
+    }
+    final targetPath = resolveWindowsUpdateTarget(hint);
+    if (!await File(targetPath).exists()) {
+      throw FileSystemException(
+        'The original Orion.exe could not be found',
+        targetPath,
+      );
+    }
+    final scriptFile = File(
+      '${newExe.parent.path}${Platform.pathSeparator}apply_update.ps1',
     );
-    await scriptFile.writeAsString(batchContent);
+    // Windows PowerShell 5 reads UTF-8 correctly only when it has a BOM.
+    await scriptFile.writeAsString(
+      '\ufeff${buildWindowsUpdateScript(pid: pid, newExePath: newExe.path, targetExePath: targetPath)}',
+      flush: true,
+    );
 
     if (restartImmediately) {
-      final comspec = Platform.environment['COMSPEC'] ?? 'cmd.exe';
-      await _processStarter(
-        comspec,
-        ['/d', '/c', scriptFile.path],
-        mode: ProcessStartMode.detached,
-      );
+      await beforeRestart?.call();
+      await _processStarter('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        scriptFile.path,
+      ], mode: ProcessStartMode.detached);
       _exitApp(0);
     }
   }
 
-  Future<void> _applyLinuxUpdate(File bundleFile, {required bool restartImmediately}) async {
-    final isFlatpak = isFlatpakOverride?.call() ?? File('/.flatpak-info').existsSync();
-
-    if (isFlatpak) {
-      final scriptFile = File('${bundleFile.parent.path}/apply_flatpak.sh');
-      final scriptContent = '''#!/bin/sh
-PID="\$1"
-BUNDLE="\$2"
-
-while kill -0 "\$PID" 2>/dev/null; do
-    sleep 0.5
-done
-
-flatpak-spawn --host flatpak install --user --bundle -y "\$BUNDLE"
-flatpak-spawn --host flatpak run dev.snooped.orion &
-rm -f "\$0"
-''';
-      await scriptFile.writeAsString(scriptContent);
-      await Process.run('chmod', ['+x', scriptFile.path]);
-
-      if (restartImmediately) {
-        await _processStarter(
-          '/bin/sh',
-          [scriptFile.path, '$pid', bundleFile.path],
-          mode: ProcessStartMode.detached,
-        );
-        _exitApp(0);
-      }
-    } else {
-      // Non-flatpak fallback: reveal downloaded flatpak bundle in directory
+  Future<void> _applyLinuxUpdate(
+    File bundleFile, {
+    required bool restartImmediately,
+    Future<void> Function()? beforeRestart,
+  }) async {
+    final isFlatpak =
+        isFlatpakOverride?.call() ?? File('/.flatpak-info').existsSync();
+    if (!isFlatpak) {
       await DesktopLauncher.revealFile(bundleFile);
+      return;
+    }
+    // Flatpak can deploy an update while the old sandbox is running. Await the
+    // real installer result so permission/install failures leave Orion open.
+    final installation = await _flatpakUpdater.install(bundleFile);
+    if (restartImmediately) {
+      await beforeRestart?.call();
+      await _flatpakUpdater.scheduleRestart(installation, bundleFile.parent);
+      _exitApp(0);
     }
   }
 
