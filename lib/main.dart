@@ -92,6 +92,7 @@ Future<OrionController?> runOrion(List<String> arguments) async {
     OrionApp(
       controller: controller,
       showcase: arguments.contains('--showcase'),
+      allowStartupUpdateCheck: !arguments.contains('--report'),
     ),
   );
   final notifications = BridgeNotificationService(controller);

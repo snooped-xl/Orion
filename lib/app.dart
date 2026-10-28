@@ -56,11 +56,13 @@ class OrionApp extends StatefulWidget {
   final OrionController controller;
   final bool nativeWindow;
   final bool showcase;
+  final bool allowStartupUpdateCheck;
   const OrionApp({
     super.key,
     required this.controller,
     this.nativeWindow = true,
     this.showcase = false,
+    this.allowStartupUpdateCheck = true,
   });
   @override
   State<OrionApp> createState() => _OrionAppState();
@@ -180,7 +182,7 @@ class _OrionAppState extends State<OrionApp> {
   Timer? _updateCheckTimer;
 
   void _scheduleStartupUpdateCheck() {
-    if (!nativeWindow || !controller.autoUpdateEnabled) return;
+    if (!widget.allowStartupUpdateCheck || !nativeWindow || !controller.autoUpdateEnabled) return;
     _updateCheckTimer?.cancel();
     _updateCheckTimer = Timer(const Duration(seconds: 3), () async {
       if (!mounted || !controller.autoUpdateEnabled) return;
