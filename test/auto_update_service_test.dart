@@ -214,20 +214,20 @@ void main() {
       expect(AutoUpdateService.extractSha256(hash.toUpperCase()), hash);
     });
 
-    test("builds robust Windows update batch script", () {
+    test('builds robust Windows update batch script', () {
       final script = AutoUpdateService.buildWindowsUpdateScript(
         pid: 20148,
-        newExePath: r"C:\Users\User\AppData\Local\Temp\orion_update_v1.13.1\Orion.exe",
-        targetExePath: r"C:\Users\User\Downloads\Orion.exe",
+        newExePath: r'C:\Users\User\AppData\Local\Temp\orion_update_v1.13.1\Orion.exe',
+        targetExePath: r'C:\Users\User\Downloads\Orion.exe',
       );
 
-      expect(script, contains("set \"ORION_PID=20148\""));
-      expect(script, contains(r"set \"NEW_EXE=C:\Users\User\AppData\Local\Temp\orion_update_v1.13.1\Orion.exe\""));
-      expect(script, contains(r"set \"TARGET_EXE=C:\Users\User\Downloads\Orion.exe\""));
-      expect(script, contains("powershell -NoProfile -NonInteractive -Command"));
-      expect(script, contains(r"move /y \"%NEW_EXE%\" \"%TARGET_EXE%\""));
-      expect(script, contains(r"start \"\" \"%TARGET_EXE%\""));
-      expect(script, contains(r"(goto) 2>nul & del \"%~f0\""));
+      expect(script, contains('set "ORION_PID=20148"'));
+      expect(script, contains(r'set "NEW_EXE=C:\Users\User\AppData\Local\Temp\orion_update_v1.13.1\Orion.exe"'));
+      expect(script, contains(r'set "TARGET_EXE=C:\Users\User\Downloads\Orion.exe"'));
+      expect(script, contains('powershell -NoProfile -NonInteractive -Command'));
+      expect(script, contains('move /y "%%NEW_EXE%%" "%%TARGET_EXE%%"'.replaceAll('%%', '%')));
+      expect(script, contains('start "" "%%TARGET_EXE%%"'.replaceAll('%%', '%')));
+      expect(script, contains('(goto) 2>nul & del "%%~f0"'.replaceAll('%%', '%')));
     });
   });
 }
