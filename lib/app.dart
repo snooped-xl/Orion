@@ -182,7 +182,7 @@ class _OrionAppState extends State<OrionApp> {
       if (!mounted || !controller.autoUpdateEnabled) return;
       final release = await controller.checkForUpdates(manual: false);
       final navContext = _navigatorKey.currentContext;
-      if (release != null && navContext != null && mounted) {
+      if (release != null && navContext != null && navContext.mounted) {
         await UpdateDialog.show(navContext, controller: controller, release: release);
       }
     });

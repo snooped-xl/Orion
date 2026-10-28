@@ -294,7 +294,7 @@ del "%~f0" >nul 2>&1
     if (restartImmediately) {
       await _processStarter(
         'cmd.exe',
-        ['/c', scriptFile.path, '${pid}', newExe.path, targetPath],
+        ['/c', scriptFile.path, '$pid', newExe.path, targetPath],
         mode: ProcessStartMode.detached,
       );
       _exitApp(0);
@@ -324,7 +324,7 @@ rm -f "\$0"
       if (restartImmediately) {
         await _processStarter(
           '/bin/sh',
-          [scriptFile.path, '${pid}', bundleFile.path],
+          [scriptFile.path, '$pid', bundleFile.path],
           mode: ProcessStartMode.detached,
         );
         _exitApp(0);
@@ -392,7 +392,7 @@ rm -f "\$0"
     if (restartImmediately) {
       await _processStarter(
         '/bin/sh',
-        [scriptFile.path, '${pid}', newAppPath, targetApp],
+        [scriptFile.path, '$pid', newAppPath, targetApp],
         mode: ProcessStartMode.detached,
       );
       _exitApp(0);
