@@ -23,8 +23,10 @@ class FlatpakUpdateService {
   final File _infoFile;
   static const appId = 'dev.snooped.orion';
 
+  // The launcher uses /app/orion, which exists only in the sandbox. A host
+  // command must start in a directory present in the host namespace.
   Future<ProcessResult> _host(List<String> arguments) =>
-      _run('flatpak-spawn', ['--host', ...arguments]);
+      _run('flatpak-spawn', ['--host', '--directory=/', ...arguments]);
 
   Future<ProcessResult> _checked(List<String> arguments) async {
     final result = await _host(arguments);

@@ -25,15 +25,15 @@ instance-id=12345
   tearDown(() => temporary.delete(recursive: true));
 
   test(
-    'updates the running system installation even with a user duplicate',
+    'all host update and restart commands use a host-visible working directory',
     () async {
       final commands = <List<String>>[];
       final updater = FlatpakUpdateService(
         infoFile: info,
         run: (exe, args) async {
           expect(exe, 'flatpak-spawn');
-          expect(args.first, '--host');
-          final cmd = args.skip(1).toList();
+          expect(args.take(2), ['--host', '--directory=/']);
+          final cmd = args.skip(2).toList();
           commands.add(cmd);
           if (cmd.contains('list')) {
             return ProcessResult(0, 0, 'user\nsystem\n', '');
