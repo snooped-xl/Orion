@@ -132,7 +132,7 @@ class AutoUpdateService extends ChangeNotifier {
     // Determine working download directory
     final tempDir = Directory('${Directory.systemTemp.path}${Platform.pathSeparator}orion_update_${release.tagName}');
     if (!tempDir.existsSync()) {
-      tempDir.createSync(parents: true);
+      tempDir.createSync(recursive: true);
     }
 
     final targetDownloadFile = File('${tempDir.path}${Platform.pathSeparator}${asset.name}');
@@ -342,7 +342,7 @@ rm -f "\$0"
   }) async {
     final extractDir = Directory('${tempDir.path}/extracted');
     if (!extractDir.existsSync()) {
-      extractDir.createSync(parents: true);
+      extractDir.createSync(recursive: true);
     }
 
     // Unzip the downloaded macOS .app bundle

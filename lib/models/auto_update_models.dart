@@ -143,6 +143,14 @@ class OrionRelease {
   final List<OrionReleaseAsset> assets;
   final SemVer semver;
 
+  String get versionTag => tagName.startsWith('v') || tagName.startsWith('V')
+      ? tagName.substring(1)
+      : tagName;
+
+  OrionReleaseAsset? sha256AssetFor(OrionReleaseAsset asset) => _findAsset(
+    (name) => name == '${asset.name.toLowerCase()}.sha256',
+  );
+
   factory OrionRelease.fromJson(Map<String, dynamic> json) {
     final tagName = json['tag_name'] as String? ?? '';
     final assetList = json['assets'] as List<dynamic>? ?? const [];

@@ -156,7 +156,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
                               Expanded(
                                 child: Text(
                                   item,
-                                  style: OrionType.metadata.copyWith(color: colors.onSurface),
+                                  style: OrionType.metadata.copyWith(color: colors.ink),
                                 ),
                               ),
                             ],
