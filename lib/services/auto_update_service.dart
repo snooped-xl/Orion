@@ -265,21 +265,19 @@ class AutoUpdateService extends ChangeNotifier {
     }
   }
 
-  Future<void> _applyWindowsUpdate(File newExe, {required bool restartImmediately}) async {
-    final targetPath = targetExeOverride ??
-        Platform.environment['ORION_PORTABLE_EXE'] ??
-        Platform.resolvedExecutable;
-
-    final scriptFile = File('${newExe.parent.path}${Platform.pathSeparator}apply_update.cmd');
-    final batchContent = '''
-@echo off
+  static String buildWindowsUpdateScript({
+    required int pid,
+    required String newExePath,
+    required String targetExePath,
+  }) {
+    return '''@echo off
 setlocal
-set "ORION_PID=%~1"
-set "NEW_EXE=%~2"
-set "TARGET_EXE=%~3"
+set "ORION_PID=${pid}"
+set "NEW_EXE=${newExePath}"
+set "TARGET_EXE=${targetExePath}"
 
 :WAIT_LOOP
-tasklist /fi "PID eq %ORION_PID%" 2>nul | find "%ORION_PID%" >nul
+powershell -NoProfile -NonInteractive -Command "if (Get-Process -Id %ORION_PID% -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
 if not errorlevel 1 (
     timeout /t 1 /nobreak >nul
     goto WAIT_LOOP
@@ -287,14 +285,28 @@ if not errorlevel 1 (
 timeout /t 1 /nobreak >nul
 move /y "%NEW_EXE%" "%TARGET_EXE%" >nul
 start "" "%TARGET_EXE%"
-del "%~f0" >nul 2>&1
+(goto) 2>nul & del "%~f0"
 ''';
+  }
+
+  Future<void> _applyWindowsUpdate(File newExe, {required bool restartImmediately}) async {
+    final targetPath = targetExeOverride ??
+        Platform.environment['ORION_PORTABLE_EXE'] ??
+        Platform.resolvedExecutable;
+
+    final scriptFile = File('${newExe.parent.path}${Platform.pathSeparator}apply_update.cmd');
+    final batchContent = buildWindowsUpdateScript(
+      pid: pid,
+      newExePath: newExe.path,
+      targetExePath: targetPath,
+    );
     await scriptFile.writeAsString(batchContent);
 
     if (restartImmediately) {
+      final comspec = Platform.environment['COMSPEC'] ?? 'cmd.exe';
       await _processStarter(
-        'cmd.exe',
-        ['/c', scriptFile.path, '$pid', newExe.path, targetPath],
+        comspec,
+        ['/d', '/c', scriptFile.path],
         mode: ProcessStartMode.detached,
       );
       _exitApp(0);
