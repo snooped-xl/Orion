@@ -68,9 +68,15 @@ void main() {
         'getgenv().__relapsegtk_session_v2.execute("print(\\"v2\\")","my script.lua")',
       );
 
+      server.sendExecutionResult(id, 'submitted');
       server.sendSessionOutput('from session v2');
       await _waitFor(() => logs.contains('from session v2'));
       expect(logs.where((message) => message == 'from session v2'), hasLength(1));
+      final failed = await service.execute('error("fixture")', name: 'broken.lua');
+      server.sendExecutionResult(failed, 'error', detail: 'fixture error');
+      await _waitFor(() => logs.contains('broken.lua failed: fixture error'));
+      expect(logs.any((message) => message.contains('submitted to Relapse')), isFalse);
+
     },
     skip: _linuxOnly,
   );
@@ -512,6 +518,19 @@ class _FakeRelapseServer {
       'version': 2.0,
       'redirect': stale ? !redirect : redirect,
     });
+  }
+
+  void sendExecutionResult(int id, String phase, {String? detail}) {
+    for (final peer in _peers.where(
+      (peer) => peer.channel == RelapseGtkService.mainChannel,
+    )) {
+      peer.send({
+        'type': 'exec_result',
+        'script_id': id,
+        'phase': phase,
+        'detail': ?detail,
+      });
+    }
   }
 
   void sendSessionOutput(String text, {double dropped = 0.0}) {

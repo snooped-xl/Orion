@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:orion/app.dart';
+import 'package:orion/models/interface_preset.dart';
+import 'package:orion/models/orion_models.dart';
 import 'package:orion/screens/workspace_screen.dart';
 import 'package:orion/state/orion_controller.dart';
 import 'package:orion/theme/orion_theme.dart';
@@ -65,6 +67,105 @@ void main() {
     expect(find.byTooltip('New script').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'console resizes, remembers its height, and clamps on small windows',
+    (tester) async {
+      await pumpApp(tester);
+      await tester.tap(find.text('Console'));
+      await tester.pumpAndSettle();
+      final output = find.byKey(const ValueKey('orion-console-output'));
+      final handle = find.byKey(const ValueKey('orion-console-resize'));
+      final initial = tester.getSize(output).height;
+      await tester.drag(handle, const Offset(0, -70));
+      await tester.pumpAndSettle();
+      final grown = tester.getSize(output).height;
+      expect(grown, greaterThan(initial + 30));
+      expect(
+        tester.getSize(find.byKey(const ValueKey('editor-body'))).height,
+        greaterThan(48),
+      );
+      expect(
+        controller.getInterfacePreferences(
+          InterfacePreset.orion,
+        )['consoleHeight'],
+        grown,
+      );
+      await tester.tap(find.text('Console'));
+      await tester.pumpAndSettle();
+      expect(output, findsNothing);
+      await tester.tap(find.text('Console'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(output).height, grown);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        OrionApp(controller: controller, nativeWindow: false),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Console'));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(output).height, grown);
+      await tester.drag(handle, const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(const ValueKey('editor-body'))).height,
+        greaterThan(48),
+      );
+      await tester.tap(find.byTooltip('Find · Ctrl F'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(find.byKey(const ValueKey('editor-body'))).height,
+        greaterThan(0),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byTooltip('Close find'));
+      await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(860, 360);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(output).height, lessThan(grown));
+      expect(
+        tester.getSize(find.byKey(const ValueKey('editor-body'))).height,
+        greaterThan(0),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'console shows chronological game output without per-line source headings',
+    (tester) async {
+      ActivityEntry log(String id, String message, ActivitySeverity severity) =>
+          ActivityEntry(
+            id: id,
+            title: 'Relapse · Default',
+            detail: message,
+            kind: ActivityKind.execution,
+            severity: severity,
+            timestamp: DateTime.utc(2026),
+          );
+      controller.applyWindowState({
+        ...controller.exportWindowState(),
+        'bridgeConsoleVersion': 2,
+        'activities': [
+          log('error', 'third: error', ActivitySeverity.error).toJson(),
+          log('warning', 'second: warning', ActivitySeverity.warning).toJson(),
+          log('print', 'first: hello', ActivitySeverity.info).toJson(),
+        ],
+      });
+      await pumpApp(tester);
+      expect(find.text('Relapse · Default'), findsNothing);
+      expect(
+        tester.getTopLeft(find.text('first: hello')).dy,
+        lessThan(tester.getTopLeft(find.text('second: warning')).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('second: warning')).dy,
+        lessThan(tester.getTopLeft(find.text('third: error')).dy),
+      );
+      expect(find.text('Script queued'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('script folder lists files independently from editor tabs', (
     tester,

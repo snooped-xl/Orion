@@ -78,8 +78,7 @@ void main() {
       await join('session-b', 'Bob', transport: 'stream');
       expect(c.bridgeClients.map((v) => v.identifier), ['User1', 'User2']);
       c.execute(source: 'print("hello 🌌")', name: 'hello.luau');
-      expect(c.activities.first.title, 'Script queued');
-      expect(c.activities.first.detail, contains('2 clients'));
+      expect(c.activities.where((e) => e.kind.name == 'execution'), isEmpty);
       final first = await request('session-a', 'next');
       final second = await request('session-b', 'next', transport: 'stream');
       expect(source(first), 'print("hello 🌌")');
@@ -159,7 +158,7 @@ void main() {
         body: 'print("exact hub source")',
       );
       await c.executeRemoteScript(script);
-      expect(c.activities.first.title, 'Script queued');
+      expect(c.activities.where((e) => e.kind.name == 'execution'), isEmpty);
       expect(source(await request('a', 'next')), script.body);
       expect(c.activeDocument.toJson(), before);
     },

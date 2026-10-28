@@ -1455,14 +1455,6 @@ class OrionController extends ChangeNotifier {
         ActivityKind.execution,
         ActivitySeverity.warning,
       );
-    } else {
-      final count = receipt.deliveredCount;
-      _addActivity(
-        'Script queued',
-        '$scriptName → $count ${count == 1 ? 'client' : 'clients'} · ${receipt.targetIdentifiers.join(', ')}',
-        ActivityKind.execution,
-        ActivitySeverity.info,
-      );
     }
     _changed();
   }
@@ -1492,17 +1484,11 @@ class OrionController extends ChangeNotifier {
       return;
     }
     try {
-      final results = await Future.wait(targets.map((path) => _relapse.execute(
+      await Future.wait(targets.map((path) => _relapse.execute(
         source,
         name: scriptName,
         targetSocketPath: path,
       )));
-      _addActivity(
-        'Script queued',
-        '$scriptName → ${targets.length} ${targets.length == 1 ? 'Relapse instance' : 'Relapse instances'} · requests ${results.join(', ')}',
-        ActivityKind.execution,
-        ActivitySeverity.info,
-      );
     } on Object catch (error) {
       _addActivity(
         'Script could not be executed',
@@ -1519,20 +1505,9 @@ class OrionController extends ChangeNotifier {
     String scriptName,
   ) async {
     try {
-      final receipt = await _bridge.executeNativeExecutor(
+      await _bridge.executeNativeExecutor(
         source,
         targetIdentifiers: _bridgeTargetAll ? null : _selectedBridgeClients,
-      );
-      final target = receipt.targetIdentifiers.single;
-      final executor = _bridge.nativeExecutorName ?? 'executor';
-      final client = _bridgeClients
-          .where((item) => item.identifier == target)
-          .firstOrNull;
-      _addActivity(
-        'Script sent',
-        '$scriptName → $executor on $target${client == null ? '' : ' (${client.username})'}',
-        ActivityKind.execution,
-        ActivitySeverity.success,
       );
     } on Object catch (error) {
       _addActivity(
@@ -2036,7 +2011,7 @@ class OrionController extends ChangeNotifier {
   Map<String, Object?> _toJson({bool includeBranding = true}) => {
     'version': 2,
     'appearanceVersion': 1,
-    'bridgeConsoleVersion': 1,
+    'bridgeConsoleVersion': 2,
     'selectedInterface': _selectedInterface.name,
     'selectedProvider': _selectedProvider?.name,
     'remoteFavorites': _remoteFavorites.values
@@ -2319,12 +2294,32 @@ class OrionController extends ChangeNotifier {
           : RegExp(
               r'^Execution exec_(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}) completed\.$',
             );
+      final removeSubmissionMessages =
+          consoleVersion is! num || consoleVersion < 2;
+      bool keepEntry(ActivityEntry entry) {
+        if (!removeSubmissionMessages || entry.kind != ActivityKind.execution) {
+          return true;
+        }
+        if (entry.title == 'Script queued' &&
+            entry.severity == ActivitySeverity.info) {
+          return false;
+        }
+        if (entry.title == 'Script sent' &&
+            entry.severity == ActivitySeverity.success) {
+          return false;
+        }
+        final relapse = entry.title == 'Relapse' ||
+            entry.title.startsWith('Relapse ·');
+        return !(relapse && entry.severity == ActivitySeverity.success &&
+            entry.detail.endsWith(' submitted to Relapse.'));
+      }
       _activities
         ..clear()
         ..addAll(
           rawActivities
               .map(ActivityEntry.fromJson)
               .whereType<ActivityEntry>()
+              .where(keepEntry)
               .where(
                 (entry) =>
                     legacyCompletion == null ||
