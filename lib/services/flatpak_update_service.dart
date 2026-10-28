@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 /// Run through flatpak-spawn so installation happens outside the app sandbox.
@@ -45,7 +46,10 @@ class FlatpakUpdateService {
     return result;
   }
 
-  Future<FlatpakUpdateInstallation> install(File bundle) async {
+  Future<FlatpakUpdateInstallation> install(
+    File bundle, {
+    String? expectedVersion,
+  }) async {
     // Match the running deployment, including user/system duplicates and named
     // installations. Only fall back to a user copy for a denied system install.
     final info = await _infoFile.readAsLines();
@@ -128,9 +132,16 @@ class FlatpakUpdateService {
     // Flatpak returns 1 for the exact same bundle, even with --or-update. This
     // is a successful no-op: the requested version is already deployed. Keep
     // the selected scope so restart uses that copy, not an older system copy.
+    final installErrors = result.stderr
+        .toString()
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.startsWith('error:'))
+        .toList();
     final alreadyInstalled =
         result.exitCode == 1 &&
-        result.stderr.toString().trim() ==
+        installErrors.length == 1 &&
+        installErrors.single ==
             'error: Failed to install bundle $appId: '
                 'This version of $appId is already installed';
     if (result.exitCode != 0 && !alreadyInstalled) {
@@ -147,6 +158,33 @@ class FlatpakUpdateService {
         '${result.stderr}\n${result.stdout}'.trim(),
         result.exitCode,
       );
+    }
+    if (expectedVersion != null) {
+      final location = await _checked([
+        'flatpak',
+        'info',
+        effectiveScope,
+        '--show-location',
+        ref,
+      ]);
+      final path = location.stdout.toString().trim();
+      if (!path.startsWith('/')) {
+        throw StateError(
+          'Flatpak did not report an installed application path.',
+        );
+      }
+      final metadata = await _checked([
+        '/bin/cat',
+        '$path/files/orion/data/flutter_assets/version.json',
+      ]);
+      final version =
+          (jsonDecode(metadata.stdout.toString()) as Map)['version'];
+      if (version is! String || version.split('+').first != expectedVersion) {
+        throw StateError(
+          'Flatpak installed version $version; expected $expectedVersion. '
+          'Orion will stay open so you can retry.',
+        );
+      }
     }
     return FlatpakUpdateInstallation(
       scope: effectiveScope,
@@ -171,8 +209,8 @@ class FlatpakUpdateService {
       '/bin/sh',
       '-c',
       r'nohup /bin/sh "$1" >"$1.log" 2>&1 </dev/null & '
-          r'for i in 1 2 3 4 5 6 7 8 9 10; do '
-          r'if test -f "$1.started"; then exit 0; fi; sleep 0.1; done; exit 1',
+          r'i=0; while [ "$i" -lt 100 ]; do '
+          r'if test -f "$1.started"; then exit 0; fi; i=$((i + 1)); sleep 0.1; done; exit 1',
       'orion-restart',
       script.path,
     ]);

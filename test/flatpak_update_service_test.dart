@@ -265,6 +265,61 @@ instance-id=12345
     });
   }
 
+  for (final exitCode in [0, 1]) {
+    for (final deployedVersion in ['1.13.7', '1.13.8']) {
+      test(
+        'installer exit $exitCode verifies deployed $deployedVersion before restart',
+        () async {
+          final updater = FlatpakUpdateService(
+            infoFile: info,
+            run: (exe, args) async {
+              if (args.contains('list')) {
+                return ProcessResult(0, 0, 'system\n', '');
+              }
+              if (args.contains('info')) {
+                return ProcessResult(0, 0, '/var/lib/flatpak/app/$ref/old', '');
+              }
+              if (args.contains('/bin/cat')) {
+                return ProcessResult(
+                  0,
+                  0,
+                  jsonEncode({'version': deployedVersion}),
+                  '',
+                );
+              }
+              return ProcessResult(
+                0,
+                exitCode,
+                '',
+                exitCode == 1
+                    ? 'warning: runtime information\nerror: Failed to install bundle dev.snooped.orion: This version of dev.snooped.orion is already installed\n'
+                    : '',
+              );
+            },
+          );
+          final install = updater.install(
+            File('Orion.flatpak'),
+            expectedVersion: '1.13.8',
+          );
+          if (deployedVersion == '1.13.8') {
+            expect((await install).scope, '--system');
+          } else {
+            await expectLater(
+              install,
+              throwsA(
+                isA<StateError>().having(
+                  (e) => e.message,
+                  'message',
+                  contains('expected 1.13.8'),
+                ),
+              ),
+            );
+          }
+        },
+      );
+    }
+  }
+
   test('user fallback failure propagates without restarting', () async {
     final updater = FlatpakUpdateService(
       infoFile: info,
@@ -347,6 +402,9 @@ instance-id=12345
           if (args.contains('list')) return ProcessResult(0, 0, 'system\n', '');
           if (args.contains('info')) {
             return ProcessResult(0, 0, '/var/lib/flatpak/app/$ref/old', '');
+          }
+          if (args.contains('/bin/cat')) {
+            return ProcessResult(0, 0, '{"version":"99.0.0"}', '');
           }
           if (args.contains('install')) {
             final bundle = File(args.last);
