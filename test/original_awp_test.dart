@@ -257,13 +257,13 @@ void main() {
       await tester.pump();
       await tester.runAsync(() async {
         await tester.tap(find.text('Save'));
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
       expect(c.savedBody, 'print("draft")');
       await tester.runAsync(() async {
         await tester.tap(find.text('Open'));
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
       expect(c.opened, 1);
@@ -387,7 +387,7 @@ void main() {
       expect(find.text('local-script.lua'), findsOneWidget);
       await tester.runAsync(() async {
         await tester.tap(find.text('local-script.lua'));
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await Future<void>.delayed(const Duration(milliseconds: 200));
       });
       await tester.pumpAndSettle();
       expect(c.activeDocument.content, 'print("local disk")');
@@ -421,7 +421,7 @@ void main() {
       Future<void> import() async {
         await tester.runAsync(() async {
           await tester.tap(find.text('loaded.LUA'));
-          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
         });
         await tester.pumpAndSettle();
       }
@@ -531,7 +531,7 @@ void main() {
       for (var i = 0; i < 2; i++) {
         await tester.runAsync(() async {
           await tester.tap(find.text('Save'));
-          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await Future<void>.delayed(const Duration(milliseconds: 200));
         });
         await tester.pumpAndSettle();
       }

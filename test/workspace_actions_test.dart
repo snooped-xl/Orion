@@ -112,7 +112,8 @@ void main() {
     expect(explorerLabel('alpha.luau'), findsOneWidget);
 
     await tester.tap(find.byTooltip('New script'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(controller.documents, hasLength(3));
     expect(controller.activeDocument.content, isEmpty);
     expect(find.byKey(const ValueKey('code-editor')), findsOneWidget);
