@@ -345,10 +345,13 @@ $targetExe = @TARGET@
 $staged = $targetExe + '.orion-update'
 $backup = $targetExe + '.orion-previous'
 $log = Join-Path (Split-Path -Parent $newExe) 'apply_update.log'
+$ready = $PSCommandPath + '.ready'
 try {
+    # Confirm the helper can run and stage the payload before Orion exits.
+    Copy-Item -LiteralPath $newExe -Destination $staged -Force
+    Set-Content -LiteralPath $ready -Value 'ready' -Encoding ASCII
     $app = Get-Process -Id @PID@ -ErrorAction SilentlyContinue
     if ($app -and -not $app.WaitForExit(120000)) { throw 'Orion did not exit in time.' }
-    Copy-Item -LiteralPath $newExe -Destination $staged -Force
     $deadline = [DateTime]::UtcNow.AddSeconds(60)
     while ($true) {
         try {
@@ -363,6 +366,7 @@ try {
     Start-Process -FilePath $targetExe -WorkingDirectory (Split-Path -Parent $targetExe)
     Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $newExe -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $ready -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 } catch {
     $_ | Out-String | Set-Content -LiteralPath $log
@@ -374,6 +378,63 @@ try {
         .replaceAll('@NEW@', literal(newExePath))
         .replaceAll('@TARGET@', literal(targetExePath))
         .replaceAll('@PID@', '$pid');
+  }
+
+  /// PowerShell 5 can exit successfully without executing its script when
+  /// launched with DETACHED_PROCESS. Normal mode uses CREATE_NO_WINDOW on
+  /// Windows; explicit exit(0) still leaves the child running independently.
+  /// Wait for the helper to stage the payload before closing the workspace.
+  @visibleForTesting
+  static Future<Process> startWindowsUpdateHelper(
+    File script, {
+    ProcessStarter? processStarter,
+    Duration startupTimeout = const Duration(seconds: 30),
+  }) async {
+    final ready = File('${script.path}.ready');
+    final process = await (processStarter ?? Process.start)('powershell.exe', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      script.path,
+    ], mode: ProcessStartMode.normal);
+    final errors = StringBuffer();
+    unawaited(process.stdout.drain<void>());
+    unawaited(
+      process.stderr.transform(const Utf8Decoder(allowMalformed: true)).forEach(
+        (chunk) {
+          if (errors.length < 4096) {
+            errors.write(
+              chunk.substring(0, (4096 - errors.length).clamp(0, chunk.length)),
+            );
+          }
+        },
+      ),
+    );
+    int? exitCode;
+    unawaited(
+      process.exitCode.then((code) {
+        exitCode = code;
+      }),
+    );
+    final elapsed = Stopwatch()..start();
+    try {
+      while (!await ready.exists()) {
+        if (exitCode != null || elapsed.elapsed >= startupTimeout) {
+          throw StateError(
+            'The Windows updater did not start. Orion has stayed open. '
+            '${exitCode == null ? 'Startup timed out.' : 'Exit code: $exitCode.'} '
+            '${errors.toString().trim()}',
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      return process;
+    } on Object {
+      process.kill();
+      rethrow;
+    }
   }
 
   /// Also accepts the malformed launcher hint produced by versions <= 1.13.3.
@@ -412,14 +473,10 @@ try {
 
     if (restartImmediately) {
       await beforeRestart?.call();
-      await _processStarter('powershell.exe', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        scriptFile.path,
-      ], mode: ProcessStartMode.detached);
+      await startWindowsUpdateHelper(
+        scriptFile,
+        processStarter: _processStarter,
+      );
       _exitApp(0);
     }
   }
@@ -504,11 +561,12 @@ rm -f "\$0"
     await Process.run('chmod', ['+x', scriptFile.path]);
 
     if (restartImmediately) {
-      await _processStarter(
-        '/bin/sh',
-        [scriptFile.path, '$pid', newAppPath, targetApp],
-        mode: ProcessStartMode.detached,
-      );
+      await _processStarter('/bin/sh', [
+        scriptFile.path,
+        '$pid',
+        newAppPath,
+        targetApp,
+      ], mode: ProcessStartMode.detached);
       _exitApp(0);
     }
   }
