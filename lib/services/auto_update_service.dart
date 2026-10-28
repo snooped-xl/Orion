@@ -167,7 +167,9 @@ class AutoUpdateService extends ChangeNotifier {
         : Directory.systemTemp;
     await downloadRoot.create(recursive: true);
     final tempDir = platform.contains('mac')
-        ? Directory('${Directory.systemTemp.path}${Platform.pathSeparator}orion_update_${release.tagName}')
+        ? Directory(
+            '${Directory.systemTemp.path}${Platform.pathSeparator}orion_update_${release.tagName}',
+          )
         : await downloadRoot.createTemp('orion-update-');
     await tempDir.create(recursive: true);
 
@@ -231,6 +233,7 @@ class AutoUpdateService extends ChangeNotifier {
       } else if (platform.contains('linux')) {
         await _applyLinuxUpdate(
           targetDownloadFile,
+          expectedVersion: release.versionTag,
           restartImmediately: restartImmediately,
           beforeRestart: beforeRestart,
         );
@@ -423,6 +426,7 @@ try {
 
   Future<void> _applyLinuxUpdate(
     File bundleFile, {
+    required String expectedVersion,
     required bool restartImmediately,
     Future<void> Function()? beforeRestart,
   }) async {
@@ -434,7 +438,10 @@ try {
     }
     // Flatpak can deploy an update while the old sandbox is running. Await the
     // real installer result so permission/install failures leave Orion open.
-    final installation = await _flatpakUpdater.install(bundleFile);
+    final installation = await _flatpakUpdater.install(
+      bundleFile,
+      expectedVersion: expectedVersion,
+    );
     if (restartImmediately) {
       await beforeRestart?.call();
       await _flatpakUpdater.scheduleRestart(installation, bundleFile.parent);
