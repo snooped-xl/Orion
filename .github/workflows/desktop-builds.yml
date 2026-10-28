@@ -9,6 +9,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      windows_updater_source_version:
+        description: Optional local Windows source version for a GUI update test against a newer published release (Windows job only)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -92,6 +97,7 @@ jobs:
             --notes-file release-notes.md
 
   macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.windows_updater_source_version == ''
     name: macOS ${{ matrix.arch }} app bundle
     strategy:
       fail-fast: false
@@ -178,13 +184,31 @@ jobs:
         run: |
           flutter config --enable-windows-desktop
           flutter pub get
+      - name: Test Windows updater startup
+        shell: pwsh
+        run: |
+          flutter test test/auto_update_service_test.dart --reporter expanded
+          if ($LASTEXITCODE -ne 0) { throw 'Updater startup tests failed' }
+      - name: Set local updater source version
+        if: github.event_name == 'workflow_dispatch' && inputs.windows_updater_source_version != ''
+        shell: pwsh
+        env:
+          SOURCE_VERSION: ${{ inputs.windows_updater_source_version }}
+        run: |
+          if ($env:SOURCE_VERSION -notmatch '^\d+\.\d+\.\d+$') { throw 'Expected a numeric semantic version' }
+          $path = 'lib/services/auto_update_service.dart'
+          (Get-Content $path -Raw) -replace "defaultCurrentVersion = '[^']+'", "defaultCurrentVersion = '$env:SOURCE_VERSION'" | Set-Content $path -NoNewline
+          (Get-Content pubspec.yaml -Raw) -replace '(?m)^version: .*$', "version: $env:SOURCE_VERSION+1" | Set-Content pubspec.yaml -NoNewline
       - name: Build native Windows smoke application
+        if: inputs.windows_updater_source_version == ''
         shell: pwsh
         run: ./scripts/build-windows-ci.ps1 -Target tool/desktop_smoke.dart -LogName windows-smoke-build
       - name: Prepare offline WebView2 and Visual C++ runtime for smoke
+        if: inputs.windows_updater_source_version == ''
         shell: pwsh
         run: ./scripts/prepare-windows-runtime.ps1
       - name: Exercise real Monaco, bridge and native companion windows
+        if: inputs.windows_updater_source_version == ''
         shell: pwsh
         run: ./scripts/test-desktop-smoke.ps1
       - name: Build normal release entry point
@@ -226,6 +250,14 @@ jobs:
             dist/Orion.exe.sha256
           if-no-files-found: error
           retention-days: 7
+      - name: Retain local updater source runtime
+        if: github.event_name == 'workflow_dispatch' && inputs.windows_updater_source_version != ''
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: Windows-updater-source-runtime
+          path: build/windows/x64/runner/Release/data/app.so
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain Windows smoke diagnostics
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -239,6 +271,7 @@ jobs:
           retention-days: 7
 
   linux:
+    if: github.event_name != 'workflow_dispatch' || inputs.windows_updater_source_version == ''
     name: Linux x64 Flatpak
     runs-on: ubuntu-24.04
     timeout-minutes: 60

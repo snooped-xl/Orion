@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -260,4 +261,128 @@ void main() {
       },
     );
   });
+
+  group('Windows updater startup acknowledgement', () {
+    late Directory directory;
+    late File script;
+    setUp(() async {
+      directory = await Directory.systemTemp.createTemp('orion-updater-start-');
+      script = File('${directory.path}/apply_update.ps1');
+    });
+    tearDown(() async => directory.delete(recursive: true));
+
+    test(
+      'Windows PowerShell actually executes and acknowledges the script',
+      () async {
+        await script.writeAsString(
+          "\ufeffSet-Content -LiteralPath (\$PSCommandPath + '.ready') -Value ready\n"
+          'Start-Sleep -Milliseconds 200\n',
+        );
+        final process = await AutoUpdateService.startWindowsUpdateHelper(
+          script,
+        );
+        expect(
+          await File('${script.path}.ready').readAsString(),
+          contains('ready'),
+        );
+        expect(await process.exitCode, 0);
+      },
+      skip: !Platform.isWindows
+          ? 'Requires native Windows PowerShell 5'
+          : false,
+    );
+
+    test(
+      'uses a hidden attached process and waits for payload staging',
+      () async {
+        final process = _UpdaterProcess();
+        var acknowledged = false;
+        final started =
+            AutoUpdateService.startWindowsUpdateHelper(
+              script,
+              processStarter:
+                  (
+                    executable,
+                    arguments, {
+                    mode = ProcessStartMode.normal,
+                  }) async {
+                    expect(executable, 'powershell.exe');
+                    expect(mode, ProcessStartMode.normal);
+                    expect(arguments.last, script.path);
+                    return process;
+                  },
+            ).then((value) {
+              acknowledged = true;
+              return value;
+            });
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        expect(acknowledged, isFalse);
+        await File('${script.path}.ready').writeAsString('ready');
+        expect(await started, same(process));
+        expect(process.killed, isFalse);
+        process.completed.complete(0);
+      },
+    );
+
+    test('rejects a successful exit that never executes the script', () async {
+      final process = _UpdaterProcess()..completed.complete(0);
+      await expectLater(
+        AutoUpdateService.startWindowsUpdateHelper(
+          script,
+          processStarter: (_, _, {mode = ProcessStartMode.normal}) async =>
+              process,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Orion has stayed open'),
+          ),
+        ),
+      );
+    });
+
+    test(
+      'terminates a helper that times out before acknowledging startup',
+      () async {
+        final process = _UpdaterProcess();
+        await expectLater(
+          AutoUpdateService.startWindowsUpdateHelper(
+            script,
+            startupTimeout: const Duration(milliseconds: 100),
+            processStarter: (_, _, {mode = ProcessStartMode.normal}) async =>
+                process,
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Startup timed out'),
+            ),
+          ),
+        );
+        expect(process.killed, isTrue);
+      },
+    );
+  });
+}
+
+class _UpdaterProcess implements Process {
+  final completed = Completer<int>();
+  var killed = false;
+  @override
+  Future<int> get exitCode => completed.future;
+  @override
+  Stream<List<int>> get stdout => const Stream.empty();
+  @override
+  Stream<List<int>> get stderr => const Stream.empty();
+  @override
+  bool kill([ProcessSignal signal = ProcessSignal.sigterm]) {
+    killed = true;
+    if (!completed.isCompleted) completed.complete(-1);
+    return true;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
