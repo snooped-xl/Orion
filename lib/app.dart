@@ -108,6 +108,9 @@ class _OrionAppState extends State<OrionApp> {
     _orionStartupCompleted =
         controller.selectedInterface != InterfacePreset.orion;
     _studioSizeKey = _studioSizeSignature();
+    controller.flushEditorForUpdate = () async {
+      await _editorService?.flush();
+    };
     _scheduleStartupUpdateCheck();
     controller.addListener(_studioSizeChanged);
     final windows = controller.companionWindows;
@@ -163,6 +166,7 @@ class _OrionAppState extends State<OrionApp> {
   @override
   void dispose() {
     _updateCheckTimer?.cancel();
+    controller.flushEditorForUpdate = null;
     controller.removeListener(_studioSizeChanged);
     _studioResizeGeneration++;
     _editorService?.dispose();
@@ -185,13 +189,22 @@ class _OrionAppState extends State<OrionApp> {
     if (!widget.allowStartupUpdateCheck || !nativeWindow || !controller.autoUpdateEnabled) return;
     _updateCheckTimer?.cancel();
     _updateCheckTimer = Timer(const Duration(seconds: 3), () async {
-      if (!mounted || !controller.autoUpdateEnabled) return;
-      final release = await controller.checkForUpdates(manual: false);
-      final navContext = _navigatorKey.currentContext;
-      if (release != null && navContext != null && navContext.mounted) {
-        await UpdateDialog.show(navContext, controller: controller, release: release);
-      }
+      await _checkForUpdates(startup: true);
+      if (!mounted) return;
+      _updateCheckTimer = Timer.periodic(const Duration(hours: 4), (_) {
+        unawaited(_checkForUpdates());
+      });
     });
+  }
+
+  Future<void> _checkForUpdates({bool startup = false}) async {
+    if (!mounted || !controller.autoUpdateEnabled) return;
+    final release = await controller.checkForUpdates(startup: startup);
+    if (!mounted || !controller.autoUpdateEnabled) return;
+    final navContext = _navigatorKey.currentContext;
+    if (release != null && navContext != null && navContext.mounted) {
+      await UpdateDialog.show(navContext, controller: controller, release: release);
+    }
   }
 
   void _openStudio() {

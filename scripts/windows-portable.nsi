@@ -71,7 +71,9 @@ Section
   System::Call 'kernel32::CloseHandle(p $Lock)'
   SetOutPath "$INSTDIR"
   ClearErrors
-  System::Call 'kernel32::SetEnvironmentVariableW(w "ORION_PORTABLE_EXE", w "$EXEPATH\$EXEFILE")'
+  ; EXEPATH already includes EXEFILE. The updater must replace this launcher,
+  ; never the extracted Flutter executable in the runtime cache.
+  System::Call 'kernel32::SetEnvironmentVariableW(w "ORION_PORTABLE_EXE", w "$EXEPATH")'
   ExecWait '"$INSTDIR\orion.exe" $Arguments' $Result
   ${If} ${Errors}
     MessageBox MB_ICONSTOP "Orion could not start. The portable runtime may be blocked by Windows security or missing files."

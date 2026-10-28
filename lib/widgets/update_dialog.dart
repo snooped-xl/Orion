@@ -47,6 +47,22 @@ class _UpdateDialogState extends State<UpdateDialog> {
   OrionController get c => widget.controller;
   OrionRelease get release => widget.release;
 
+  @override
+  void initState() {
+    super.initState();
+    c.addListener(_updateChanged);
+  }
+
+  void _updateChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    c.removeListener(_updateChanged);
+    super.dispose();
+  }
+
   Future<void> _startUpdate() async {
     setState(() {
       _updating = true;

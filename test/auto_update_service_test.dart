@@ -67,49 +67,57 @@ void main() {
       'assets': [
         {
           'name': 'Orion.exe',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/Orion.exe',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/Orion.exe',
           'size': 15000000,
           'content_type': 'application/vnd.microsoft.portable-executable',
         },
         {
           'name': 'Orion.exe.sha256',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/Orion.exe.sha256',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/Orion.exe.sha256',
           'size': 64,
           'content_type': 'text/plain',
         },
         {
           'name': 'dev.snooped.orion.flatpak',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/dev.snooped.orion.flatpak',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/dev.snooped.orion.flatpak',
           'size': 35000000,
           'content_type': 'application/octet-stream',
         },
         {
           'name': 'dev.snooped.orion.flatpak.sha256',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/dev.snooped.orion.flatpak.sha256',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/dev.snooped.orion.flatpak.sha256',
           'size': 64,
           'content_type': 'text/plain',
         },
         {
           'name': 'Orion-macOS-arm64.zip',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/Orion-macOS-arm64.zip',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/Orion-macOS-arm64.zip',
           'size': 25000000,
           'content_type': 'application/zip',
         },
         {
           'name': 'Orion-macOS-arm64.zip.sha256',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/Orion-macOS-arm64.zip.sha256',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/Orion-macOS-arm64.zip.sha256',
           'size': 64,
           'content_type': 'text/plain',
         },
         {
           'name': 'Orion-macOS-x86_64.zip',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/Orion-macOS-x86_64.zip',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/Orion-macOS-x86_64.zip',
           'size': 27000000,
           'content_type': 'application/zip',
         },
         {
           'name': 'Orion-macOS-x86_64.zip.sha256',
-          'browser_download_url': 'https://github.com/releases/download/v1.2.0/Orion-macOS-x86_64.zip.sha256',
+          'browser_download_url':
+              'https://github.com/releases/download/v1.2.0/Orion-macOS-x86_64.zip.sha256',
           'size': 64,
           'content_type': 'text/plain',
         },
@@ -161,9 +169,7 @@ void main() {
 
   group('AutoUpdateService check and debouncing', () {
     test('detects available update when remote version is higher', () {
-      final service = AutoUpdateService(
-        currentVersion: '1.1.1',
-      );
+      final service = AutoUpdateService(currentVersion: '1.1.1');
 
       final release = OrionRelease.fromJson({
         'tag_name': 'v1.2.0',
@@ -175,9 +181,7 @@ void main() {
     });
 
     test('debounces automatic checks within 4 hours', () async {
-      final service = AutoUpdateService(
-        currentVersion: '1.1.1',
-      );
+      final service = AutoUpdateService(currentVersion: '1.1.1');
 
       final recent = DateTime.now().subtract(const Duration(hours: 1));
       final result = await service.checkForUpdates(
@@ -206,7 +210,8 @@ void main() {
     });
 
     test('extracts SHA-256 hash string from sha256sum format output', () {
-      const hash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+      const hash =
+          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
       const outputLine = '$hash  Orion.exe\n';
 
       expect(AutoUpdateService.extractSha256(hash), hash);
@@ -214,20 +219,45 @@ void main() {
       expect(AutoUpdateService.extractSha256(hash.toUpperCase()), hash);
     });
 
-    test('builds robust Windows update batch script', () {
-      final script = AutoUpdateService.buildWindowsUpdateScript(
-        pid: 20148,
-        newExePath: r'C:\Users\User\AppData\Local\Temp\orion_update_v1.13.1\Orion.exe',
-        targetExePath: r'C:\Users\User\Downloads\Orion.exe',
-      );
-
-      expect(script, contains('set "ORION_PID=20148"'));
-      expect(script, contains(r'set "NEW_EXE=C:\Users\User\AppData\Local\Temp\orion_update_v1.13.1\Orion.exe"'));
-      expect(script, contains(r'set "TARGET_EXE=C:\Users\User\Downloads\Orion.exe"'));
-      expect(script, contains('powershell -NoProfile -NonInteractive -Command'));
-      expect(script, contains('move /y "%%NEW_EXE%%" "%%TARGET_EXE%%"'.replaceAll('%%', '%')));
-      expect(script, contains('start "" "%%TARGET_EXE%%"'.replaceAll('%%', '%')));
-      expect(script, contains('(goto) 2>nul & del "%%~f0"'.replaceAll('%%', '%')));
-    });
+    test(
+      'Windows replacement targets the portable file and retries launcher locks',
+      () {
+        final script = AutoUpdateService.buildWindowsUpdateScript(
+          pid: 20148,
+          newExePath: r"C:\Temp\Orion.exe",
+          targetExePath: r"C:\Users\O'Brien & 100% !\Downloads\Orion.exe",
+        );
+        expect(script, contains('Get-Process -Id 20148'));
+        expect(
+          script,
+          contains(r"C:\Users\O''Brien & 100% !\Downloads\Orion.exe"),
+        );
+        expect(
+          script,
+          contains(r'[IO.File]::Replace($staged, $targetExe, $backup)'),
+        );
+        expect(
+          script.indexOf('WaitForExit'),
+          lessThan(script.indexOf('[IO.File]::Replace')),
+        );
+        expect(
+          script.indexOf('[IO.File]::Replace'),
+          lessThan(script.indexOf('Start-Process')),
+        );
+        expect(script, contains('AddSeconds(60)'));
+        expect(
+          AutoUpdateService.resolveWindowsUpdateTarget(
+            r'C:\Downloads\Orion.exe\Orion.exe',
+          ),
+          r'C:\Downloads\Orion.exe',
+        );
+        expect(
+          AutoUpdateService.resolveWindowsUpdateTarget(
+            r'C:\Downloads\Renamed.exe',
+          ),
+          r'C:\Downloads\Renamed.exe',
+        );
+      },
+    );
   });
 }

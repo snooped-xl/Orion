@@ -596,7 +596,7 @@ class _Updates extends StatelessWidget {
   }
 
   static String _statusMessage(AutoUpdateStatus status) => switch (status.phase) {
-    AutoUpdatePhase.idle => 'Checks every 4 hours while running.',
+    AutoUpdatePhase.idle => 'Checks on startup and every 4 hours.',
     AutoUpdatePhase.checking => 'Checking GitHub for updates...',
     AutoUpdatePhase.upToDate => 'Orion is up to date.',
     AutoUpdatePhase.updateAvailable =>
