@@ -14,6 +14,14 @@ on:
         description: Optional local Windows source version for a GUI update test against a newer published release (Windows job only)
         type: string
         default: ''
+      release_tag:
+        description: Optional release tag to publish from this commit (for example v1.14.4)
+        type: string
+        default: ''
+      reuse_macos_from:
+        description: Optional published release whose macOS archives should be reused unchanged
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -27,7 +35,7 @@ env:
 
 jobs:
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     needs: [macos, windows, linux]
     runs-on: ubuntu-24.04
     permissions:
@@ -42,8 +50,12 @@ jobs:
       - name: Create detailed release notes
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+          REUSE_MACOS_FROM: ${{ inputs.reuse_macos_from }}
         run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo 'Expected a numeric release tag' >&2; exit 1
+          fi
           cat > release-notes.md <<'EOF'
           # Orion release
 
@@ -80,6 +92,9 @@ jobs:
           Verify a downloaded file with `shasum -a 256 -c <artifact>.sha256`
           (macOS/Linux), or `Get-FileHash <artifact> -Algorithm SHA256` (PowerShell).
           EOF
+          if [[ -n "$REUSE_MACOS_FROM" ]]; then
+            printf '\n## macOS packages\n\nThe macOS archives and checksums are reused unchanged from %s; their internal version remains that release. Windows and Linux are new builds for %s.\n' "$REUSE_MACOS_FROM" "$TAG" >> release-notes.md
+          fi
           gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
             -f tag_name="$TAG" > generated-notes.json
           python3 - <<'PY'
@@ -93,6 +108,7 @@ jobs:
           sed -i "s/^# Orion release$/# Orion $TAG/" release-notes.md
           gh release create "$TAG" release-assets/* \
             --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
             --title "Orion $TAG" \
             --notes-file release-notes.md
 
@@ -107,31 +123,35 @@ jobs:
             runner: macos-15
           - arch: x86_64
             runner: macos-15-intel
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ inputs.reuse_macos_from != '' && 'ubuntu-24.04' || matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        if: inputs.reuse_macos_from == ''
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - name: Set release version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != '') && inputs.reuse_macos_from == ''
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           version="${TAG#v}"
           sed -i '' "s/^version: .*/version: ${version}+${GITHUB_RUN_NUMBER}/" pubspec.yaml
       - name: Enable macOS desktop and restore dependencies
+        if: inputs.reuse_macos_from == ''
         run: |
           flutter config --enable-macos-desktop
           flutter pub get
       - name: Analyze and run Flutter tests
+        if: inputs.reuse_macos_from == ''
         run: |
           flutter analyze
           flutter test --reporter compact
       - name: Confirm native runner architecture
+        if: inputs.reuse_macos_from == ''
         run: |
           actual_arch="$(uname -m)"
           expected_arch="${{ matrix.arch }}"
@@ -140,17 +160,29 @@ jobs:
             exit 1
           fi
       - name: Build macOS release on native ${{ matrix.arch }} runner
+        if: inputs.reuse_macos_from == ''
         run: flutter build macos --release --no-tree-shake-icons --target lib/main.dart
       - name: Package app and checksum
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: (startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != '') && inputs.reuse_macos_from == ''
         run: |
           set -euo pipefail
           mkdir -p dist
           artifact="Orion-macOS-${{ matrix.arch }}.zip"
           ditto -c -k --sequesterRsrc --keepParent build/macos/Build/Products/Release/orion.app "dist/$artifact"
           shasum -a 256 "dist/$artifact" > "dist/$artifact.sha256"
+      - name: Reuse published macOS archive and verify checksum
+        if: inputs.reuse_macos_from != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RELEASE: ${{ inputs.reuse_macos_from }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p dist
+          gh release download "$SOURCE_RELEASE" --repo "$GITHUB_REPOSITORY" --pattern "Orion-macOS-$ARCH.zip*" --dir dist
+          expected="$(awk '{print $1}' "dist/Orion-macOS-$ARCH.zip.sha256")"
+          printf '%s  %s\n' "$expected" "dist/Orion-macOS-$ARCH.zip" | sha256sum -c -
       - name: Upload macOS release package
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Release-macOS-${{ matrix.arch }}
@@ -175,7 +207,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           $version = $env:TAG.Substring(1)
@@ -231,7 +263,7 @@ jobs:
         shell: pwsh
         run: ./scripts/test-windows-package.ps1
       - name: Upload runnable Windows test build
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.release_tag == '' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Windows-x64
@@ -241,7 +273,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Upload Windows release package
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Release-Windows-x64
@@ -282,7 +314,7 @@ jobs:
       - name: Set release version from tag
         if: startsWith(github.ref, 'refs/tags/v')
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           version="${TAG#v}"
@@ -317,7 +349,7 @@ jobs:
       - name: Validate and launch Flatpak
         run: xvfb-run -a dbus-run-session -- python3 scripts/test-flatpak.py
       - name: Upload Linux Flatpak test build
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') && inputs.release_tag == '' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Flatpak-x86_64
@@ -327,7 +359,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Upload Linux release package
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: Orion-Release-Linux-x86_64
