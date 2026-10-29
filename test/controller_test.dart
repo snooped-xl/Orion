@@ -175,6 +175,53 @@ void main() {
   );
 
   test(
+    'the managed bridge script stays locked until edits are allowed',
+    () async {
+      final controller = OrionController(
+        storageDirectory: temporaryDirectory,
+        useMacSploit: false,
+      );
+      await controller.initialize();
+      // Seed the managed bridge as provisioning would on a desktop launch.
+      final bridge = File(
+        '${controller.scriptsDirectory.path}/Special/Orion Bridge.lua',
+      );
+      await bridge.parent.create(recursive: true);
+      const original = '-- managed bridge\n';
+      await bridge.writeAsString(original);
+
+      final document = await controller.openFileAtPath(bridge.path);
+      expect(document, isNotNull);
+      expect(controller.activeDocumentIsBridgeScriptLocked, isTrue);
+      controller.updateDocumentContent(document!.id, '-- tampered');
+      expect(await controller.saveDocument(document.id), isFalse);
+      expect(await bridge.readAsString(), original);
+      expect(controller.activities.first.title, 'Orion Bridge.lua is protected');
+
+      // Save as to the managed path is refused from any document.
+      final other = controller.newDocument(content: 'print("other")');
+      expect(await controller.saveDocumentToPath(other.id, bridge.path), isFalse);
+      expect(await bridge.readAsString(), original);
+
+      controller.setBridgeScriptEditsAllowed(true);
+      expect(controller.activeDocumentIsBridgeScriptLocked, isFalse);
+      controller.selectDocument(document.id);
+      expect(await controller.saveDocument(document.id), isTrue);
+      expect(await bridge.readAsString(), '-- tampered');
+
+      await controller.flushPersistence();
+      controller.dispose();
+      await controller.flushPersistence();
+
+      final restored = OrionController(storageDirectory: temporaryDirectory);
+      await restored.initialize();
+      expect(restored.bridgeScriptEditsAllowed, isTrue);
+      restored.dispose();
+      await restored.flushPersistence();
+    },
+  );
+
+  test(
     'renamed file tabs keep their label through Save and recovery',
     () async {
       final controller = OrionController(

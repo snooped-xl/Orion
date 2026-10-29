@@ -264,6 +264,9 @@ First launch creates these folders and imports a previous hidden Orion workspace
 when available. Existing personal scripts and preferences are preserved. Orion
 refreshes its managed bridge on initial provisioning or a bundled update and
 backs up a differing previous copy. Normal launches keep user changes to it.
+Inside the app the managed bridge script is read-only so it cannot be changed
+or removed by accident; enable **Allow modifying the Orion Bridge script** in
+Settings if you want to edit or delete it yourself.
 
 For an isolated development profile, set `ORION_WORKSPACE` to an absolute folder.
 Automated tests use isolated profiles and do not need your personal workspace.

@@ -33,6 +33,7 @@ class SettingsScreen extends StatelessWidget {
       controller.relapseLauncherError,
       controller.relapseOutputRedirect,
       controller.autosave,
+      controller.bridgeScriptEditsAllowed,
       controller.persistenceError,
       controller.editorFontSize,
       controller.showMinimap,
@@ -119,6 +120,14 @@ class SettingsScreen extends StatelessWidget {
                     description: 'Restore unsaved scripts when Orion opens.',
                     value: controller.autosave,
                     onChanged: controller.setAutosave,
+                  ),
+                  _PreferenceSwitch(
+                    preferenceKey: 'bridge-script-edits',
+                    title: 'Allow modifying the Orion Bridge script',
+                    description:
+                        'The managed bridge script in Scripts › Special is read-only. Enable this if you want to edit or delete Orion Bridge.lua yourself.',
+                    value: controller.bridgeScriptEditsAllowed,
+                    onChanged: controller.setBridgeScriptEditsAllowed,
                   ),
                 ],
               ),

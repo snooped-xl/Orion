@@ -557,6 +557,7 @@
       renderWhitespace:mainOrion?(options.renderWhitespace===true?'all':'none'):synapse?'none':'selection',
       bracketPairColorization:{enabled:mainOrion?options.bracketPairColorization!==false:!synapse},
       wordWrap:options.wordWrap===true||options.wordWrap==='on'?'on':'off',
+      readOnly:options.readOnly===true,
       lineNumbers:options.lineNumbers===false||options.lineNumbers==='off'?'off':'on',
       minimap:{enabled:options.minimap===true,scale:Math.max(1,Math.min(3,Number(options.minimapScale)||1))},
       renderLineHighlight:synapse?(v3||og?'line':'all'):'line',

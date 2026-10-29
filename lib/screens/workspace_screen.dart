@@ -405,6 +405,9 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
             'activeId': c.activeDocumentId,
             'options': {
               'fontSize': c.editorFontSize,
+              // The managed bridge script cannot be modified while its guard
+              // is enabled; the native editor mirrors that lock.
+              'readOnly': c.activeDocumentIsBridgeScriptLocked,
               'uiScale': c.uiScale,
               'wordWrap': c.wordWrap,
               'lineNumbers': c.showLineNumbers,
@@ -1764,7 +1767,10 @@ class WorkspaceScreenState extends State<WorkspaceScreen>
         ),
       );
     }
-    return _flutterCodeArea(colors);
+    return _flutterCodeArea(
+      colors,
+      readOnly: c.activeDocumentIsBridgeScriptLocked,
+    );
   }
 
   Widget _flutterCodeArea(OrionColors colors, {bool readOnly = false}) {

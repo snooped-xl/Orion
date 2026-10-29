@@ -639,6 +639,8 @@ class OrionController extends ChangeNotifier {
   bool _wordWrap = false;
   bool _showLineNumbers = true;
   bool _autosave = true;
+  // The managed bridge script is protected unless edits are explicitly enabled.
+  bool _bridgeScriptEditsAllowed = false;
   bool _introCompleted = false;
   bool _initialized = false;
   bool _disposed = false;
@@ -1865,6 +1867,34 @@ class OrionController extends ChangeNotifier {
     _changed();
   }
 
+  /// Whether the managed Orion Bridge script may be modified or deleted.
+  bool get bridgeScriptEditsAllowed => _bridgeScriptEditsAllowed;
+
+  void setBridgeScriptEditsAllowed(bool value) {
+    if (_bridgeScriptEditsAllowed == value) return;
+    _bridgeScriptEditsAllowed = value;
+    _changed();
+  }
+
+  /// The managed bridge file inside the scripts library stays locked until
+  /// modifications are enabled in Settings.
+  bool isBridgeScriptLocked(EditorDocument document) {
+    final path = document.filePath;
+    return path != null && _isProtectedBridgePath(path);
+  }
+
+  bool _isProtectedBridgePath(String path) {
+    if (_bridgeScriptEditsAllowed) return false;
+    return FilePaths.same(
+      path,
+      '${scriptsDirectory.path}${Platform.pathSeparator}Special'
+      '${Platform.pathSeparator}Orion Bridge.lua',
+    );
+  }
+
+  bool get activeDocumentIsBridgeScriptLocked =>
+      isBridgeScriptLocked(activeDocument);
+
   void completeIntro() {
     if (_introCompleted) return;
     _introCompleted = true;
@@ -1901,6 +1931,17 @@ class OrionController extends ChangeNotifier {
   Future<bool> _writeDocument(String id, String path) async {
     final document = _documentById(id);
     if (document == null || _disposed) return false;
+    if (_isProtectedBridgePath(path)) {
+      _addActivity(
+        'Orion Bridge.lua is protected',
+        'The managed bridge script cannot be modified. Allow modifications '
+            'in Settings to edit or delete it.',
+        ActivityKind.file,
+        ActivitySeverity.warning,
+        persist: false,
+      );
+      return false;
+    }
     final savedContent = document.content;
     try {
       await File(path).writeAsString(savedContent, flush: true);
@@ -2039,6 +2080,7 @@ class OrionController extends ChangeNotifier {
     'wordWrap': _wordWrap,
     'showLineNumbers': _showLineNumbers,
     'autosave': _autosave,
+    'bridgeScriptEdits': _bridgeScriptEditsAllowed,
     'relapseSupport': Platform.isLinux && _relapseSupportEnabled,
     'relapseOutputRedirect': _relapseOutputRedirect,
     if (Platform.isLinux && _relapseLauncherPath != null) 'relapseLauncherPath': _relapseLauncherPath,
@@ -2373,6 +2415,7 @@ class OrionController extends ChangeNotifier {
     _wordWrap = _readBool(json, 'wordWrap', false);
     _showLineNumbers = _readBool(json, 'showLineNumbers', true);
     _autosave = _readBool(json, 'autosave', true);
+    _bridgeScriptEditsAllowed = _readBool(json, 'bridgeScriptEdits', false);
     _relapseSupportEnabled = _readBool(json, 'relapseSupport', false);
     _relapseOutputRedirect = _readBool(json, 'relapseOutputRedirect', true);
     _relapseLauncherPath = Platform.isLinux && json['relapseLauncherPath'] is String
