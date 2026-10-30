@@ -169,7 +169,7 @@ jobs:
         if: inputs.reuse_macos_from == ''
         run: |
           executable="build/macos/Build/Products/Release/orion.app/Contents/MacOS/orion"
-          lipo -verify_arch "${{ matrix.arch }}" "$executable"
+          lipo "$executable" -verify_arch "${{ matrix.arch }}"
       - name: Package app and checksum
         if: (startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != '') && inputs.reuse_macos_from == ''
         run: |
