@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import '../models/remote_script.dart';
+import 'api_proxy_pool.dart';
 
 typedef ScriptHttpTransport =
     Future<ScriptHttpResponse> Function(Uri uri, Map<String, String> headers);
@@ -36,20 +37,34 @@ class ScriptHubService {
   ScriptHubService({
     ScriptHttpTransport? transport,
     HttpClient? client,
+    Iterable<String>? proxyEndpoints,
+    Future<String> Function(Uri source)? proxyListLoader,
     this.timeout = const Duration(seconds: 18),
     this.maximumResponseBytes = 4 * 1024 * 1024,
   }) : _transport = transport,
+       _proxyPool = ApiProxyPool(
+         endpoints: proxyEndpoints,
+         endpointLoader: proxyListLoader,
+       ),
+       _useProxyPool = proxyEndpoints != null || proxyListLoader != null,
        _client = transport == null ? (client ?? HttpClient()) : null {
     if (maximumResponseBytes < 1) {
       throw ArgumentError.value(maximumResponseBytes, 'maximumResponseBytes');
     }
     if (timeout <= Duration.zero) throw ArgumentError.value(timeout, 'timeout');
     _client?.connectionTimeout = timeout;
+    final httpClient = _client;
+    if (httpClient != null && _useProxyPool) {
+      httpClient.findProxy = (_) => 'DIRECT';
+      httpClient.connectionFactory = (uri, _, _) => _openProxyConnection(uri);
+    }
   }
 
   final Duration timeout;
   final int maximumResponseBytes;
   final ScriptHttpTransport? _transport;
+  final ApiProxyPool _proxyPool;
+  final bool _useProxyPool;
   final HttpClient? _client;
   final Set<_RequestContext> _requests = {};
   bool _closed = false;
@@ -308,6 +323,9 @@ class ScriptHubService {
     }
   }
 
+  Future<ConnectionTask<Socket>> _openProxyConnection(Uri uri) =>
+      _proxyPool.connect(uri, timeout: timeout);
+
   Future<ScriptHttpResponse> _nativeRequest(
     Uri uri,
     Map<String, String> headers,
@@ -455,6 +473,7 @@ class ScriptHubService {
       request.cancel();
     }
     _client?.close(force: true);
+    _proxyPool.close();
   }
 
   static Map<String, dynamic> _map(Object? value) =>

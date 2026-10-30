@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/file_paths.dart';
+import '../services/crash_reporter.dart';
 import '../state/orion_controller.dart';
 import '../theme/orion_theme.dart';
 import '../widgets/common.dart';
@@ -109,6 +110,10 @@ class SettingsScreen extends StatelessWidget {
               ],
               const SizedBox(height: 12),
               _Editor(controller: controller),
+              if (CrashReporter().supported) ...[
+                const SizedBox(height: 12),
+                const _CrashReporting(),
+              ],
               const SizedBox(height: 12),
               _SettingsSection(
                 title: 'Workspace',
@@ -305,6 +310,111 @@ class _RelapseLauncherRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CrashReporting extends StatefulWidget {
+  const _CrashReporting();
+
+  @override
+  State<_CrashReporting> createState() => _CrashReportingState();
+}
+
+class _CrashReportingState extends State<_CrashReporting> {
+  final _reporter = CrashReporter();
+  bool _enabled = false;
+  String? _pendingReport;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final enabled = await _reporter.isEnabled;
+    final report = await _reporter.readPending();
+    if (!mounted) return;
+    setState(() {
+      _enabled = enabled;
+      _pendingReport = report;
+    });
+  }
+
+  Future<void> _setEnabled(bool enabled) async {
+    await _reporter.setEnabled(enabled);
+    await _refresh();
+  }
+
+  Future<void> _report() async {
+    final report = _pendingReport;
+    if (report == null) return;
+    var attachMedia = false;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Review crash report'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Nothing is sent automatically. This opens a GitHub draft for you to review and submit. GitHub may associate it with your signed-in account.'),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: attachMedia,
+                onChanged: (value) => setDialogState(() {
+                  attachMedia = value ?? false;
+                }),
+                title: const Text('I may manually attach a screenshot or screen recording'),
+                subtitle: const Text('Review it for names, messages, and other private information first. Orion will not capture your screen.'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Review on GitHub'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (accepted != true || !mounted) return;
+    final opened = await _reporter.openIssue(
+      _reporter.issueUri(report, mentionAttachment: attachMedia),
+    );
+    if (opened && mounted) {
+      await _refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _SettingsSection(
+    title: 'Crash reports',
+    icon: Icons.health_and_safety_rounded,
+    children: [
+      _PreferenceSwitch(
+        preferenceKey: 'crash-capture',
+        title: 'Capture crash details locally',
+        description:
+            'Off by default. When enabled, sanitized error details stay on this device; nothing is uploaded automatically.',
+        value: _enabled,
+        onChanged: _setEnabled,
+      ),
+      if (_pendingReport != null)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('A local crash report is ready'),
+          subtitle: const Text('Review it before opening a GitHub draft.'),
+          trailing: TextButton(onPressed: _report, child: const Text('Review')),
+        ),
+    ],
+  );
 }
 
 class _Editor extends StatelessWidget {

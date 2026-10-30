@@ -104,10 +104,15 @@ class OrionController extends ChangeNotifier {
   bool _bridgeListening = false;
   String? _bridgeError;
   int _bridgePort = 31337;
-  bool get usesNativeExecutor => _bridge.usesNativeExecutor;
+  bool get usesNativeExecutor =>
+      _bridge.usesNativeExecutor ||
+      (Platform.isMacOS && _bridge.nativeExecutorPreference == 'helios');
   bool get usesMacSploit =>
       _bridge.usesNativeExecutor &&
-      (_bridge.nativeExecutorPreference != 'opiumware');
+      (_bridge.nativeExecutorPreference != 'opiumware' &&
+          _bridge.nativeExecutorPreference != 'helios');
+  bool get usesHelios =>
+      Platform.isMacOS && _bridge.nativeExecutorPreference == 'helios';
   String get nativeExecutorPreference => _bridge.nativeExecutorPreference;
   String? get detectedNativeExecutor => _bridge.nativeExecutorName;
   int? get nativePortPreference => _bridge.nativePortPreference;

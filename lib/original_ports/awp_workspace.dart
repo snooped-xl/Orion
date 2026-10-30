@@ -263,10 +263,12 @@ abstract class AwpWorkspaceState<T extends AwpWorkspaceHost> extends State<T>
   }
 
   Future<void> importScript(String path) async {
-    await c.importDocumentFromPath(
-      path,
-      replaceId: replaceActiveOnOpen ? c.activeDocumentId : null,
-    );
+    final replaceId = replaceActiveOnOpen ? c.activeDocumentId : null;
+    final document = await c.importDocumentFromPath(path, replaceId: replaceId);
+    if (document != null && mounted && replaceId != null) {
+      synchronizeNative();
+      await Future<void>.delayed(Duration.zero);
+    }
   }
 
   Future<bool> savePickedScript() async {

@@ -146,7 +146,9 @@ void main() {
       final file = File('${directory.path}/loaded.lua')
         ..writeAsStringSync('print("first")');
       final c = OriginalPortController();
+      final originalId = c.activeDocumentId;
       final id = c.activeDocumentId;
+      c.updateDocumentContent(id, 'print("initial")');
       var savedPickers = 0;
       await mount(
         tester,
@@ -168,12 +170,14 @@ void main() {
       await openFile();
       expect(c.activeDocumentId, id);
       expect(c.documents, hasLength(1));
+      expect(c.activeDocumentId, originalId);
       expect(c.activeDocument.content, 'print("first")');
       expect(c.activeDocument.filePath, file.path);
       expect(c.activeDocument.isDirty, false);
       file.writeAsStringSync('print("changed on disk")');
       await openFile();
       expect(c.activeDocumentId, id);
+      expect(c.documents, hasLength(1));
       expect(c.activeDocument.content, 'print("changed on disk")');
       for (var i = 0; i < 2; i++) {
         await tester.runAsync(() async {

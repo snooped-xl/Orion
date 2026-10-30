@@ -31,7 +31,11 @@ class OrionBridgeService extends ChangeNotifier {
     this.maximumQueuedBytes = 32 * 1024 * 1024,
     this.maximumRequestBytes = 128 * 1024,
     Iterable<int>? opiumwarePorts,
-  }) : _macSploitPorts = List.unmodifiable(
+    Iterable<int>? heliosPorts,
+  }) : _heliosPorts = List.unmodifiable(
+         heliosPorts ?? List.generate(10, (index) => 5553 + index),
+       ),
+       _macSploitPorts = List.unmodifiable(
          macSploitPorts ??
              List.generate(
                macSploitPortRangeEnd - macSploitPortRangeStart + 1,
@@ -64,6 +68,7 @@ class OrionBridgeService extends ChangeNotifier {
   final Duration nativeScanInterval;
   final List<int> _macSploitPorts;
   final List<int> _opiumwarePorts;
+  final List<int> _heliosPorts;
   Timer? _macSploitScanner;
   String? _detectedNativeExecutor;
   String? get nativeExecutorName => _detectedNativeExecutor;
@@ -71,16 +76,32 @@ class OrionBridgeService extends ChangeNotifier {
   int? _nativePortPreference;
   String get nativeExecutorPreference => _nativeExecutorPreference;
   int? get nativePortPreference => _nativePortPreference;
-  List<int> get availableNativePorts => switch (_nativeExecutorPreference) {
-    'macsploit' => _macSploitPorts,
-    'opiumware' => _opiumwarePorts,
-    _ => [..._macSploitPorts, ..._opiumwarePorts],
-  };
+  List<int> get availableNativePorts {
+    if (Platform.isMacOS && macSploitMode) {
+      return {..._heliosPorts, ..._macSploitPorts, ..._opiumwarePorts}.toList()
+        ..sort();
+    }
+    return switch (_nativeExecutorPreference) {
+      'macsploit' => _macSploitPorts,
+      'opiumware' => _opiumwarePorts,
+      'helios' => _heliosPorts,
+      _ => [..._macSploitPorts, ..._heliosPorts, ..._opiumwarePorts],
+    };
+  }
+
   bool _isKnownNativePort(int port) =>
-      _macSploitPorts.contains(port) || _opiumwarePorts.contains(port);
+      _macSploitPorts.contains(port) ||
+      _opiumwarePorts.contains(port) ||
+      _heliosPorts.contains(port);
 
   void setNativeExecutorPreference(String preference) {
-    if (!const {'auto', 'macsploit', 'opiumware'}.contains(preference)) {
+    if (!const {
+          'auto',
+          'macsploit',
+          'opiumware',
+          'helios',
+        }.contains(preference) ||
+        (preference == 'helios' && !Platform.isMacOS)) {
       throw ArgumentError.value(preference, 'preference');
     }
     if (_nativeExecutorPreference == preference) return;
@@ -140,9 +161,11 @@ class OrionBridgeService extends ChangeNotifier {
   String? _script;
   bool get listening => _server != null || _macSploitRunning;
   bool get usesMacSploit => macSploitMode;
-  bool get usesNativeExecutor => macSploitMode;
+  bool get usesNativeExecutor =>
+      macSploitMode || _nativeExecutorPreference != 'auto';
   List<int> get macSploitPorts => List.unmodifiable(_macSploitPorts);
   List<int> get opiumwarePorts => List.unmodifiable(_opiumwarePorts);
+  List<int> get heliosPorts => List.unmodifiable(_heliosPorts);
   bool get isConnected => _sessions.isNotEmpty;
   String? get error => _error;
   int get port =>
@@ -322,8 +345,35 @@ class OrionBridgeService extends ChangeNotifier {
     _macSploitScanning = true;
     _Session? activeSession;
     try {
-      for (final (executor, port, index) in _nativeProbeOrder()) {
+      final candidates = _nativeProbeOrder().toList();
+      for (
+        var candidateIndex = 0;
+        candidateIndex < candidates.length;
+        candidateIndex++
+      ) {
         if (!_macSploitRunning || _disposed) return;
+        var (executor, port, index) = candidates[candidateIndex];
+        if (executor == 'Helios') {
+          final name = await _probeHelios(port);
+          if (name != null) {
+            activeSession = _nativeExecutorSession(port, index + 1, name);
+            break;
+          }
+          if (((!Platform.isMacOS || !macSploitMode) &&
+                  _nativeExecutorPreference == 'helios') ||
+              !_macSploitPorts.contains(port)) {
+            continue;
+          }
+          // Probe MacSploit only after Helios has failed its identity check
+          // on this overlapping port.
+          if (candidateIndex + 1 >= candidates.length ||
+              candidates[candidateIndex + 1].$1 != 'MacSploit' ||
+              candidates[candidateIndex + 1].$2 != port) {
+            continue;
+          }
+          candidateIndex++;
+          (executor, port, index) = candidates[candidateIndex];
+        }
         Socket? probe;
         try {
           probe = await Socket.connect(
@@ -331,7 +381,14 @@ class OrionBridgeService extends ChangeNotifier {
             port,
             timeout: const Duration(milliseconds: 500),
           );
-          activeSession = _nativeExecutorSession(port, index + 1, executor);
+          activeSession = _nativeExecutorSession(
+            port,
+            index + 1,
+            executor == 'MacSploit' ||
+                    (_heliosPorts.contains(port) && executor != 'Helios')
+                ? 'Unknown'
+                : executor,
+          );
           // A peer may reset its accepted probe socket as soon as it closes;
           // connection acceptance already confirms the executor is running.
           try {
@@ -353,28 +410,64 @@ class OrionBridgeService extends ChangeNotifier {
 
   Iterable<(String, int, int)> _nativeProbeOrder() sync* {
     final selectedPort = _nativePortPreference;
+    final preference =
+        Platform.isMacOS &&
+            macSploitMode &&
+            _nativeExecutorPreference == 'macsploit'
+        ? 'auto'
+        : _nativeExecutorPreference;
     if (selectedPort != null) {
-      final executor = _macSploitPorts.contains(selectedPort)
-          ? 'MacSploit'
-          : 'Opiumware';
-      if ((_nativeExecutorPreference == 'auto' ||
-              _nativeExecutorPreference == executor.toLowerCase()) &&
-          availableNativePorts.contains(selectedPort)) {
-        final ports = executor == 'MacSploit'
-            ? _macSploitPorts
-            : _opiumwarePorts;
+      final overlapsHelios = _heliosPorts.contains(selectedPort);
+      final executor = preference == 'helios'
+          ? 'Helios'
+          : preference == 'auto' && overlapsHelios
+          ? 'Helios'
+          : preference == 'opiumware' ||
+                (_opiumwarePorts.contains(selectedPort) &&
+                    !_macSploitPorts.contains(selectedPort) &&
+                    !overlapsHelios)
+          ? 'Opiumware'
+          : 'MacSploit';
+      final ports = switch (executor) {
+        'MacSploit' => _macSploitPorts,
+        'Opiumware' => _opiumwarePorts,
+        _ => _heliosPorts,
+      };
+      if (availableNativePorts.contains(selectedPort)) {
+        if (overlapsHelios && executor == 'MacSploit') {
+          yield ('Helios', selectedPort, _heliosPorts.indexOf(selectedPort));
+        }
         yield (executor, selectedPort, ports.indexOf(selectedPort));
+        if (Platform.isMacOS &&
+            macSploitMode &&
+            preference == 'auto' &&
+            executor == 'Helios' &&
+            _macSploitPorts.contains(selectedPort)) {
+          yield (
+            'MacSploit',
+            selectedPort,
+            _macSploitPorts.indexOf(selectedPort),
+          );
+        }
       }
       return;
     }
-    final preferredExecutor = _nativeExecutorPreference;
+    final preferredExecutor = preference;
     final executors = switch (preferredExecutor) {
       'macsploit' => ['MacSploit'],
       'opiumware' => ['Opiumware'],
-      _ => ['MacSploit', 'Opiumware'],
+      'helios' => ['Helios'],
+      _ =>
+        Platform.isMacOS
+            ? ['Helios', 'MacSploit', 'Opiumware']
+            : ['MacSploit', 'Opiumware'],
     };
     for (final executor in executors) {
-      final ports = executor == 'MacSploit' ? _macSploitPorts : _opiumwarePorts;
+      final ports = switch (executor) {
+        'MacSploit' => _macSploitPorts,
+        'Opiumware' => _opiumwarePorts,
+        _ => _heliosPorts,
+      };
       for (var index = 0; index < ports.length; index++) {
         yield (executor, ports[index], index);
       }
@@ -386,7 +479,11 @@ class OrionBridgeService extends ChangeNotifier {
 
   _Session _nativeExecutorSession(int port, int number, String executor) =>
       _Session(
-        executor == 'MacSploit' ? _macSploitSessionId(port) : 'opiumware:$port',
+        executor == 'MacSploit' || executor == 'Unknown'
+            ? _macSploitSessionId(port)
+            : executor == 'Helios' || executor == 'Helios Mac'
+            ? 'helios:$port'
+            : 'opiumware:$port',
         'User$number',
         'User$number',
         executor,
@@ -414,7 +511,9 @@ class OrionBridgeService extends ChangeNotifier {
   /// Checks the configured localhost ports in ascending order, matching the
   /// executor status probe exposed by the native MacSploit bridge API.
   Future<bool> isMacSploitRunning() async {
-    if (_nativeExecutorPreference == 'opiumware' ||
+    if (((!Platform.isMacOS || !macSploitMode) &&
+            (_nativeExecutorPreference == 'opiumware' ||
+                _nativeExecutorPreference == 'helios')) ||
         (_nativePortPreference != null &&
             !_macSploitPorts.contains(_nativePortPreference))) {
       return false;
@@ -466,14 +565,44 @@ class OrionBridgeService extends ChangeNotifier {
         targetIdentifiers: targetIdentifiers,
         port: _nativePortPreference,
       ),
+      'Helios' ||
+      'Helios Mac' => executeHelios(source, port: _nativePortPreference),
+      'Unknown' when Platform.isMacOS => executeMacSploit(
+        source,
+        targetIdentifiers: targetIdentifiers,
+        port: _nativePortPreference,
+      ),
       _ => throw StateError(
-        'No executor detected. Start MacSploit (5553–5563) or Opiumware (8392–8397).',
+        'No executor detected. Start Helios (5553–5562), MacSploit (5553–5563), or Opiumware (8392–8397).',
       ),
     };
   }
 
   Future<String?> detectNativeExecutor() async {
-    for (final (executor, port, _) in _nativeProbeOrder()) {
+    final candidates = _nativeProbeOrder().toList();
+    for (
+      var candidateIndex = 0;
+      candidateIndex < candidates.length;
+      candidateIndex++
+    ) {
+      final (executor, port, index) = candidates[candidateIndex];
+      if (executor == 'Helios') {
+        try {
+          final executorName = await _probeHelios(port);
+          if (executorName != null) {
+            _detectedNativeExecutor = executorName;
+            _publishMacSploitClient(
+              _nativeExecutorSession(port, index + 1, executorName),
+            );
+            return executorName;
+          }
+        } on Object {
+          // Fall through to the legacy TCP protocol when this port is shared.
+        }
+        // Do not classify this TCP port unless it is positively confirmed as
+        // Helios. The next MacSploit candidate may legitimately share it.
+        continue;
+      }
       Socket? socket;
       try {
         socket = await Socket.connect(
@@ -486,7 +615,30 @@ class OrionBridgeService extends ChangeNotifier {
         } on Object {
           socket.destroy();
         }
+        // MacSploit's native TCP ports overlap Helios. A TCP accept cannot
+        // positively identify which executor owns the port, so do not report
+        // MacSploit without its executor name from the Lua bridge.
+        if (executor == 'MacSploit' && _heliosPorts.contains(port)) {
+          // TCP success isn't enough to classify the shared Helios port.
+          final identifiedName = _probeLuaExecutorName();
+          if (identifiedName != null &&
+              identifiedName.toLowerCase().contains('macsploit')) {
+            _detectedNativeExecutor = identifiedName;
+            _publishMacSploitClient(
+              _nativeExecutorSession(port, index + 1, identifiedName),
+            );
+            return identifiedName;
+          }
+          _detectedNativeExecutor = 'Unknown';
+          _publishMacSploitClient(
+            _nativeExecutorSession(port, index + 1, 'Unknown'),
+          );
+          return 'Unknown';
+        }
         _detectedNativeExecutor = executor;
+        _publishMacSploitClient(
+          _nativeExecutorSession(port, index + 1, executor),
+        );
         return executor;
       } on Object {
         socket?.destroy();
@@ -496,8 +648,98 @@ class OrionBridgeService extends ChangeNotifier {
     return null;
   }
 
+  String? _probeLuaExecutorName() {
+    final name = _sessions.values
+        .map((session) => session.executorName.trim())
+        .where((value) => value.isNotEmpty && value != 'Unknown')
+        .firstOrNull;
+    return name;
+  }
+
+  Future<String?> _probeHelios(int port) async {
+    WebSocket? websocket;
+    try {
+      websocket = await WebSocket.connect(
+        'ws://127.0.0.1:$port',
+      ).timeout(const Duration(milliseconds: 500));
+      return await _identifyHeliosExecutor(websocket);
+    } on Object {
+      websocket?.close();
+      return null;
+    } finally {
+      websocket?.close();
+    }
+  }
+
+  Future<String?> _identifyHeliosExecutor(WebSocket socket) async {
+    try {
+      final message = await socket
+          .timeout(const Duration(milliseconds: 250))
+          .first;
+      if (message is! String) return null;
+      final decoded = jsonDecode(message);
+      if (decoded is! Map<String, dynamic> || decoded['op'] != 'status') {
+        return null;
+      }
+      final name = decoded['name'];
+      if (name is! String || !name.toLowerCase().contains('helios')) {
+        return null;
+      }
+      final cleanedName = name.trim();
+      return cleanedName.toLowerCase().contains('mac')
+          ? 'Helios Mac'
+          : 'Helios';
+    } on Object {
+      // On shared ports, require an explicit Helios status frame. A successful
+      // WebSocket upgrade alone is not enough to distinguish executors.
+      return null;
+    }
+  }
+
+  Future<BridgeExecutionReceipt> executeHelios(
+    String source, {
+    int? port,
+  }) async {
+    final bytes = utf8.encode(source);
+    if (bytes.length > maximumScriptBytes) {
+      throw ArgumentError('Script exceeds the $maximumScriptBytes byte limit.');
+    }
+    final ports = port == null
+        ? _heliosPorts
+        : _heliosPorts.where((candidate) => candidate == port);
+    for (final candidatePort in ports) {
+      WebSocket? socket;
+      try {
+        socket = await WebSocket.connect(
+          'ws://127.0.0.1:$candidatePort',
+        ).timeout(const Duration(milliseconds: 500));
+        socket.add(jsonEncode({'op': 'execute', 'id': 1, 'script': source}));
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        await socket.close().timeout(const Duration(milliseconds: 500));
+        final number = _heliosPorts.indexOf(candidatePort) + 1;
+        final executorName = await _probeHelios(candidatePort) ?? 'Helios';
+        _detectedNativeExecutor = executorName;
+        _publishMacSploitClient(
+          _nativeExecutorSession(candidatePort, number, executorName),
+        );
+        return BridgeExecutionReceipt(
+          id: 'helios_${DateTime.now().microsecondsSinceEpoch}',
+          targets: ['User$number'],
+        );
+      } on Object {
+        socket?.close();
+      }
+    }
+    _publishMacSploitClient(null);
+    _detectedNativeExecutor = null;
+    throw StateError(
+      'Helios: no WebSocket instance found on ${port ?? 'ports 5553–5562'}.',
+    );
+  }
+
   Future<bool> isOpiumwareRunning() async {
-    if (_nativeExecutorPreference == 'macsploit' ||
+    if (((!Platform.isMacOS || !macSploitMode) &&
+            _nativeExecutorPreference == 'macsploit') ||
         (_nativePortPreference != null &&
             !_opiumwarePorts.contains(_nativePortPreference))) {
       return false;

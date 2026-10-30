@@ -25,7 +25,9 @@ class OriginalPortController extends OrionController {
   @override
   Future<EditorDocument?> openFile() async {
     opened++;
-    return newDocument(name: 'disk.lua', content: 'print("disk")');
+    final document = newDocument(name: 'disk.lua', content: 'print("disk")');
+    selectDocument(document.id);
+    return document;
   }
 
   @override
@@ -426,17 +428,24 @@ void main() {
         await tester.pumpAndSettle();
       }
 
+      final originalId = c.activeDocumentId;
       await import();
       final first = c.activeDocumentId;
+      expect(first, isNot(originalId));
       expect(find.text('loaded'), findsOneWidget);
       script.writeAsStringSync('print("second")');
       await import();
       expect(c.documents, hasLength(3));
       expect(c.activeDocumentId, isNot(first));
+      expect(c.activeDocumentId, isNot(originalId));
       expect(c.activeDocument.content, 'print("second")');
       expect(
         c.documents.firstWhere((d) => d.id == first).content,
         'print("first")',
+      );
+      expect(
+        c.documents.firstWhere((d) => d.id == originalId).name,
+        'constellation.lua',
       );
       expect(FilePaths.same(c.activeDocument.filePath!, script.path), isTrue);
       await cleanup(tester, c);

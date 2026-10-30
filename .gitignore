@@ -1,3 +1,8 @@
+# Local release credentials and crash diagnostics
+/webhook.txt
+/crash-reports-enabled
+/orion-crash-report.txt
+
 # Miscellaneous
 *.class
 *.log

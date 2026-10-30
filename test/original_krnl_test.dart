@@ -16,6 +16,7 @@ import 'package:orion/widgets/monaco_editor.dart';
 import 'package:orion/widgets/ui_scale_viewport.dart';
 
 class _Controller extends OrionController {
+  _Controller() : super(persistChanges: false);
   int opened = 0;
   String? saved, persisted;
   @override

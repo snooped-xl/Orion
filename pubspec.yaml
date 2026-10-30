@@ -20,6 +20,7 @@ dependencies:
     path: packages/desktop_multi_window
   liquid_glass_easy:
     path: packages/liquid_glass_easy
+  socks_socket: ^2.1.0
 
 dev_dependencies:
   flutter_test:

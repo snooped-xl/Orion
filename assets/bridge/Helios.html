@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Helios Mini UI</title>
+<style>
+  body { margin: 0; font: 13px system-ui, sans-serif; background: #16161a; color: #ddd; display: flex; flex-direction: column; height: 100vh; }
+  header { display: flex; gap: 8px; align-items: center; padding: 8px; background: #1f1f25; }
+  #status { margin-left: auto; opacity: .8; }
+  #editor { flex: 1; resize: none; background: #111; color: #eee; border: 0; padding: 10px; font: 13px ui-monospace, monospace; }
+  #log { height: 35%; overflow: auto; margin: 0; padding: 8px; background: #0c0c0f; font: 12px ui-monospace, monospace; white-space: pre-wrap; }
+  .warn { color: #e5c07b; } .error { color: #e06c75; } .info { color: #61afef; }
+  #input { display: none; gap: 6px; padding: 6px; background: #1f1f25; }
+  #input input { flex: 1; }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <button id="run">Execute</button>
+  <button id="clear">Clear</button>
+  <label><input type="checkbox" id="redirect"> Hide output from Roblox console</label>
+  <span id="status">Connecting…</span>
+</header>
+<textarea id="editor" spellcheck="false">print("Hello from a custom UI!")</textarea>
+<form id="input"><input placeholder="rconsoleinput answer…"><button>Send</button></form>
+<pre id="log"></pre>
+<script>
+const FIRST_PORT = 5553, PORT_COUNT = 10;
+const $ = id => document.getElementById(id);
+let ws = null;
+let nextId = 1;
+const pending = new Map();
+const seen = new Set();
+function connect(port = FIRST_PORT) {
+  const sock = new WebSocket(`ws://127.0.0.1:${port}`);
+  let opened = false;
+  sock.onopen = () => { opened = true; ws = sock; };
+  sock.onmessage = e => handle(JSON.parse(e.data));
+  sock.onclose = () => {
+    if (ws === sock) ws = null;
+    $('status').textContent = 'Disconnected';
+    const next = opened ? FIRST_PORT : (port + 1 - FIRST_PORT) % PORT_COUNT + FIRST_PORT;
+    setTimeout(() => connect(next), opened || next === FIRST_PORT ? 1000 : 0);
+  };
+}
+function send(op, fields = {}) {
+  return new Promise((resolve, reject) => {
+    if (!ws) return reject(new Error('not connected'));
+    const id = nextId++;
+    pending.set(id, resolve);
+    ws.send(JSON.stringify({ op, id, ...fields }));
+  });
+}
+function log(text, level = 'output') {
+  const span = document.createElement('span');
+  span.className = level;
+  span.textContent = text.endsWith('\n') ? text : text + '\n';
+  const box = $('log');
+  const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 4;
+  box.appendChild(span);
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function handle(msg) {
+  switch (msg.op) {
+    case 'status':
+      $('status').textContent = msg.attached
+        ? `${msg.name} ${msg.version} · attached · place ${msg.placeId}`
+        : `${msg.name} ${msg.version} · waiting for game…`;
+      break;
+    case 'result': {
+      const cb = pending.get(msg.id);
+      pending.delete(msg.id);
+      if (cb) cb(msg);
+      break;
+    }
+    case 'output':
+    case 'rconsole': {
+      if (msg.action === 'clear') { $('log').textContent = ''; break; }
+      if (msg.action === 'input') { $('input').style.display = 'flex'; $('input').querySelector('input').focus(); break; }
+      if (msg.action === 'state') { $('input').style.display = msg.waiting > 0 ? 'flex' : 'none'; break; }
+      if (msg.action !== 'write') break;
+      const key = `${msg.op}:${msg.session}:${msg.seq}`;
+      if (seen.has(key)) break;
+      seen.add(key);
+      log(msg.text, msg.level);
+      break;
+    }
+  }
+}
+$('run').onclick = async () => {
+  try {
+    const res = await send('execute', { script: $('editor').value });
+    if (!res.ok) log(res.error, 'error');
+  } catch (e) { log(e.message, 'error'); }
+};
+$('clear').onclick = () => { $('log').textContent = ''; };
+$('redirect').onchange = e => send('redirectoutput', { text: e.target.checked ? '1' : '0' }).catch(() => {});
+$('input').onsubmit = e => {
+  e.preventDefault();
+  const box = $('input').querySelector('input');
+  send('rconsoleinput', { text: box.value }).catch(() => {});
+  box.value = '';
+};
+$('editor').onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('run').click(); };
+connect();
+</script>
+</body>
+</html>

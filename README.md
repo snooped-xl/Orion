@@ -10,6 +10,7 @@
 <p align="center">
   <a href="https://github.com/snooped-xl/Orion/releases/latest">Download Orion</a> ·
   <a href="docs/BUILDING.md">Build from source</a> ·
+  <a href="docs/PRIVACY.md">Privacy</a> ·
   <a href="https://github.com/snooped-xl/Orion/tree/Orion-Legacy">Orion Legacy</a>
 </p>
 
