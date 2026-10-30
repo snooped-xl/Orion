@@ -162,61 +162,65 @@ void main() {
       nativeExecutorPreference: 'opiumware',
     );
     await _mount(tester, c);
-    expect(
-      find.byKey(const ValueKey('native-executor-selector')),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('native-port-selector')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('native-executor-selector')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Opiumware').last);
-    await tester.pumpAndSettle();
-    expect(c.nativeExecutorPreference, 'opiumware');
-    expect(
-      tester
-          .widget<Text>(
-            find.descendant(
-              of: find.byKey(const ValueKey('native-port-description-auto')),
-              matching: find.byType(Text),
-            ),
-          )
-          .data,
-      'Available ports: 8392, 8393, 8394, 8395, 8396, 8397',
-    );
-    await tester.tap(find.byKey(const ValueKey('native-port-selector')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('8395').last);
-    await tester.pumpAndSettle();
-    expect(c.nativePortPreference, 8395);
     if (Platform.isMacOS) {
+      expect(find.text('macOS Bridge'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('native-executor-selector')),
+        findsNothing,
+      );
+    } else {
+      expect(
+        find.byKey(const ValueKey('native-executor-selector')),
+        findsOneWidget,
+      );
+    }
+    if (!Platform.isMacOS) {
+      expect(
+        find.byKey(const ValueKey('native-port-selector')),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const ValueKey('native-executor-selector')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Helios').last);
+      await tester.tap(find.text('Opiumware').last);
       await tester.pumpAndSettle();
-      expect(c.nativeExecutorPreference, 'helios');
+      expect(c.nativeExecutorPreference, 'opiumware');
       expect(
-        c.availableNativePorts,
-        List.generate(10, (index) => 5553 + index),
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('native-port-description-auto')),
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        'Available ports: 8392, 8393, 8394, 8395, 8396, 8397',
       );
+    }
+    if (!Platform.isMacOS) {
       await tester.tap(find.byKey(const ValueKey('native-port-selector')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('5558').last);
+      await tester.tap(find.text('8395').last);
       await tester.pumpAndSettle();
-      expect(c.nativePortPreference, 5558);
+      const expectedPort = 8395;
+      expect(c.nativePortPreference, expectedPort);
+      final pinnedDescription = find.byKey(
+        ValueKey('native-port-description-${c.nativePortPreference ?? 'auto'}'),
+      );
+      expect(pinnedDescription, findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: pinnedDescription,
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        'Pinned to localhost:$expectedPort',
+      );
+    } else {
+      expect(find.byKey(const ValueKey('native-port-selector')), findsNothing);
     }
-    final expectedPort = Platform.isMacOS ? 5558 : 8395;
-    final pinnedDescription = find.byKey(
-      ValueKey('native-port-description-${c.nativePortPreference ?? 'auto'}'),
-    );
-    expect(pinnedDescription, findsOneWidget);
-    expect(
-      tester
-          .widget<Text>(
-            find.descendant(of: pinnedDescription, matching: find.byType(Text)),
-          )
-          .data,
-      'Pinned to localhost:$expectedPort',
-    );
     await tester.pumpWidget(const SizedBox());
     c.dispose();
   });

@@ -2,7 +2,7 @@ name: Desktop test builds
 
 on:
   push:
-    branches: [main, master]
+    branches: ['**']
     paths-ignore:
       - README.md
       - docs/**
@@ -125,6 +125,8 @@ jobs:
         run: |
           flutter analyze
           flutter test --reporter compact
+      - name: Verify Helios native bridge support
+        run: flutter test --reporter compact test/orion_bridge_service_test.dart test/bridge_client_manager_test.dart
       - name: Confirm native runner architecture
         run: |
           actual_arch="$(uname -m)"
@@ -135,6 +137,10 @@ jobs:
           fi
       - name: Build macOS release on native ${{ matrix.arch }} runner
         run: flutter build macos --release --no-tree-shake-icons --target lib/main.dart
+      - name: Verify app binary architecture
+        run: |
+          executable="build/macos/Build/Products/Release/orion.app/Contents/MacOS/orion"
+          lipo -verify_arch "${{ matrix.arch }}" "$executable"
       - name: Package app and checksum
         if: startsWith(github.ref, 'refs/tags/v')
         run: |

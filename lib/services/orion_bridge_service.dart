@@ -76,12 +76,19 @@ class OrionBridgeService extends ChangeNotifier {
   int? _nativePortPreference;
   String get nativeExecutorPreference => _nativeExecutorPreference;
   int? get nativePortPreference => _nativePortPreference;
-  List<int> get availableNativePorts => switch (_nativeExecutorPreference) {
-    'macsploit' => _macSploitPorts,
-    'opiumware' => _opiumwarePorts,
-    'helios' => _heliosPorts,
-    _ => [..._macSploitPorts, ..._heliosPorts, ..._opiumwarePorts],
-  };
+  List<int> get availableNativePorts {
+    if (Platform.isMacOS && macSploitMode) {
+      return {..._heliosPorts, ..._macSploitPorts, ..._opiumwarePorts}.toList()
+        ..sort();
+    }
+    return switch (_nativeExecutorPreference) {
+      'macsploit' => _macSploitPorts,
+      'opiumware' => _opiumwarePorts,
+      'helios' => _heliosPorts,
+      _ => [..._macSploitPorts, ..._heliosPorts, ..._opiumwarePorts],
+    };
+  }
+
   bool _isKnownNativePort(int port) =>
       _macSploitPorts.contains(port) ||
       _opiumwarePorts.contains(port) ||
@@ -155,8 +162,7 @@ class OrionBridgeService extends ChangeNotifier {
   bool get listening => _server != null || _macSploitRunning;
   bool get usesMacSploit => macSploitMode;
   bool get usesNativeExecutor =>
-      macSploitMode ||
-      (Platform.isMacOS && _nativeExecutorPreference == 'helios');
+      macSploitMode || _nativeExecutorPreference != 'auto';
   List<int> get macSploitPorts => List.unmodifiable(_macSploitPorts);
   List<int> get opiumwarePorts => List.unmodifiable(_opiumwarePorts);
   List<int> get heliosPorts => List.unmodifiable(_heliosPorts);
@@ -353,7 +359,8 @@ class OrionBridgeService extends ChangeNotifier {
             activeSession = _nativeExecutorSession(port, index + 1, name);
             break;
           }
-          if (_nativeExecutorPreference == 'helios' ||
+          if (((!Platform.isMacOS || !macSploitMode) &&
+                  _nativeExecutorPreference == 'helios') ||
               !_macSploitPorts.contains(port)) {
             continue;
           }
@@ -403,13 +410,19 @@ class OrionBridgeService extends ChangeNotifier {
 
   Iterable<(String, int, int)> _nativeProbeOrder() sync* {
     final selectedPort = _nativePortPreference;
+    final preference =
+        Platform.isMacOS &&
+            macSploitMode &&
+            _nativeExecutorPreference == 'macsploit'
+        ? 'auto'
+        : _nativeExecutorPreference;
     if (selectedPort != null) {
       final overlapsHelios = _heliosPorts.contains(selectedPort);
-      final executor = _nativeExecutorPreference == 'helios'
+      final executor = preference == 'helios'
           ? 'Helios'
-          : _nativeExecutorPreference == 'auto' && overlapsHelios
+          : preference == 'auto' && overlapsHelios
           ? 'Helios'
-          : _nativeExecutorPreference == 'opiumware' ||
+          : preference == 'opiumware' ||
                 (_opiumwarePorts.contains(selectedPort) &&
                     !_macSploitPorts.contains(selectedPort) &&
                     !overlapsHelios)
@@ -425,10 +438,21 @@ class OrionBridgeService extends ChangeNotifier {
           yield ('Helios', selectedPort, _heliosPorts.indexOf(selectedPort));
         }
         yield (executor, selectedPort, ports.indexOf(selectedPort));
+        if (Platform.isMacOS &&
+            macSploitMode &&
+            preference == 'auto' &&
+            executor == 'Helios' &&
+            _macSploitPorts.contains(selectedPort)) {
+          yield (
+            'MacSploit',
+            selectedPort,
+            _macSploitPorts.indexOf(selectedPort),
+          );
+        }
       }
       return;
     }
-    final preferredExecutor = _nativeExecutorPreference;
+    final preferredExecutor = preference;
     final executors = switch (preferredExecutor) {
       'macsploit' => ['MacSploit'],
       'opiumware' => ['Opiumware'],
@@ -487,8 +511,9 @@ class OrionBridgeService extends ChangeNotifier {
   /// Checks the configured localhost ports in ascending order, matching the
   /// executor status probe exposed by the native MacSploit bridge API.
   Future<bool> isMacSploitRunning() async {
-    if (_nativeExecutorPreference == 'opiumware' ||
-        _nativeExecutorPreference == 'helios' ||
+    if (((!Platform.isMacOS || !macSploitMode) &&
+            (_nativeExecutorPreference == 'opiumware' ||
+                _nativeExecutorPreference == 'helios')) ||
         (_nativePortPreference != null &&
             !_macSploitPorts.contains(_nativePortPreference))) {
       return false;
@@ -542,6 +567,11 @@ class OrionBridgeService extends ChangeNotifier {
       ),
       'Helios' ||
       'Helios Mac' => executeHelios(source, port: _nativePortPreference),
+      'Unknown' when Platform.isMacOS => executeMacSploit(
+        source,
+        targetIdentifiers: targetIdentifiers,
+        port: _nativePortPreference,
+      ),
       _ => throw StateError(
         'No executor detected. Start Helios (5553–5562), MacSploit (5553–5563), or Opiumware (8392–8397).',
       ),
@@ -708,7 +738,8 @@ class OrionBridgeService extends ChangeNotifier {
   }
 
   Future<bool> isOpiumwareRunning() async {
-    if (_nativeExecutorPreference == 'macsploit' ||
+    if (((!Platform.isMacOS || !macSploitMode) &&
+            _nativeExecutorPreference == 'macsploit') ||
         (_nativePortPreference != null &&
             !_opiumwarePorts.contains(_nativePortPreference))) {
       return false;

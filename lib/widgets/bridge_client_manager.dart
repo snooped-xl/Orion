@@ -247,12 +247,14 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                   c.usesRelapseSupport
                       ? 'Relapse support'
                       : c.usesNativeExecutor
-                      ? (c.detectedNativeExecutor ??
-                            (c.nativeExecutorPreference == 'auto'
-                                ? 'Auto executor'
-                                : c.nativeExecutorPreference == 'macsploit'
-                                ? 'MacSploit'
-                                : 'Opiumware'))
+                      ? (Platform.isMacOS
+                            ? 'macOS Bridge'
+                            : c.detectedNativeExecutor ??
+                                  (c.nativeExecutorPreference == 'auto'
+                                      ? 'Auto executor'
+                                      : c.nativeExecutorPreference == 'macsploit'
+                                      ? 'MacSploit'
+                                      : 'Opiumware'))
                       : 'Orion Bridge',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: scheme.onSurfaceVariant,
@@ -267,7 +269,7 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                 style: theme.textTheme.bodySmall?.copyWith(color: scheme.error),
               ),
             ],
-            if (c.usesNativeExecutor) ...[
+            if (c.usesNativeExecutor && !Platform.isMacOS) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 key: const ValueKey('native-executor-selector'),
@@ -452,8 +454,8 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                 ),
                 child: Text(
                   c.detectedNativeExecutor == null
-                      ? c.usesHelios
-                            ? 'Waiting for Helios on localhost ports 5553–5562.'
+                      ? Platform.isMacOS
+                            ? 'Waiting for Helios, MacSploit, or Opiumware on their localhost bridge ports.'
                             : c.nativeExecutorPreference == 'opiumware'
                             ? 'Waiting for Opiumware on localhost ports 8392–8397.'
                             : 'Waiting for MacSploit (5553–5563) or Opiumware (8392–8397).'
@@ -589,7 +591,9 @@ class _BridgeClientManagerPanelState extends State<BridgeClientManagerPanel> {
                     c.usesRelapseSupport
                         ? 'Orion connects to Relapse through its local Unix socket, sends scripts, and forwards captured output. Turn off Relapse support to use Orion Bridge again.'
                         : c.usesNativeExecutor
-                        ? 'Native executor mode detects MacSploit (5553–5563) or Opiumware (8392–8397), then sends scripts to the selected or first responsive port. No Orion Bridge script is needed.'
+                        ? Platform.isMacOS
+                              ? 'macOS Bridge detects Helios, MacSploit, or Opiumware and sends scripts through the matching local protocol. No separate Helios UI is used.'
+                              : 'Native executor mode detects MacSploit (5553–5563) or Opiumware (8392–8397), then sends scripts to the selected or first responsive port. No Orion Bridge script is needed.'
                         : 'Copy the loader or full script and run it in each executor. Clients appear here automatically.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,

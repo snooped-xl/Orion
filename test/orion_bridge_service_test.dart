@@ -192,6 +192,7 @@ void main() {
         }
       });
 
+      service.setNativeExecutorPreference('macsploit');
       expect(await service.detectNativeExecutor(), 'MacSploit');
       service.setNativeExecutorPreference('opiumware');
       expect(await service.detectNativeExecutor(), 'Opiumware');
@@ -201,6 +202,40 @@ void main() {
       service.setNativePortPreference(mac.port);
       expect(await service.detectNativeExecutor(), 'MacSploit');
       service.dispose();
+    },
+  );
+
+  test(
+    'macOS auto mode detects and executes Helios without a separate selector',
+    () async {
+      await bridge.close();
+      bridge.dispose();
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final received = <Map<String, dynamic>>[];
+      final subscription = server.listen((request) async {
+        final socket = await WebSocketTransformer.upgrade(request);
+        socket.add(jsonEncode({'op': 'status', 'name': 'Helios'}));
+        socket.listen((message) {
+          received.add(jsonDecode(message as String) as Map<String, dynamic>);
+        });
+      });
+      final service = OrionBridgeService(
+        macSploitMode: true,
+        nativeExecutorPreference: 'auto',
+        nativePortPreference: server.port,
+        heliosPorts: [server.port],
+        macSploitPorts: [server.port],
+        opiumwarePorts: const [],
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(server.close);
+      addTearDown(service.dispose);
+
+      expect(await service.detectNativeExecutor(), 'Helios');
+      expect(service.clients.single.executorName, 'Helios');
+      await service.executeNativeExecutor('print("auto helios")');
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(received.single['script'], 'print("auto helios")');
     },
   );
 

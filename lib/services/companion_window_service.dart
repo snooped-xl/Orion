@@ -14,11 +14,15 @@ import 'native_window_service.dart';
 /// The primary engine owns documents, preferences and disk persistence. Native
 /// companion engines receive snapshots and send ordered, acknowledged commands.
 class CompanionWindowService implements CompanionWindowHost {
-  CompanionWindowService(this.controller, this.window)
-    : _commands = CompanionCommands(controller);
+  CompanionWindowService(
+    this.controller,
+    this.window, {
+    this.closeTimeout = const Duration(seconds: 20),
+  }) : _commands = CompanionCommands(controller);
 
   final OrionController controller;
   final WindowController window;
+  final Duration closeTimeout;
   final CompanionCommands _commands;
   final _entries = <String, _CompanionEntry>{};
   StreamSubscription<void>? _windowsSubscription;
@@ -290,8 +294,10 @@ class CompanionWindowService implements CompanionWindowHost {
 
   Future<void> _closeEntry(_CompanionEntry entry) async {
     try {
-      await entry.ready.future.timeout(const Duration(seconds: 20));
-      await entry.window?.invokeMethod<void>('closeFromOwner');
+      await entry.ready.future.timeout(closeTimeout);
+      await entry.window
+          ?.invokeMethod<void>('closeFromOwner')
+          .timeout(closeTimeout);
     } on PlatformException {
       if (await _stillExists(entry)) rethrow;
     } on MissingPluginException {

@@ -21,11 +21,18 @@ class _Desktop {
   static const native = MethodChannel('orion/window');
   static const codec = StandardMethodCodec();
 
+  _Desktop({this.closeTimeout = const Duration(seconds: 20)});
+
+  final Duration closeTimeout;
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
   final parent = WindowController.fromWindowId('main');
   final owner = OrionController(persistChanges: false, useMacSploit: false);
-  late final service = CompanionWindowService(owner, parent);
+  late final service = CompanionWindowService(
+    owner,
+    parent,
+    closeTimeout: closeTimeout,
+  );
   final allocated = <String>{'main'};
   final creations = <Map<String, Object?>>[];
   final calls = <(String, String)>[];
@@ -390,6 +397,33 @@ void main() {
       expect(desktop.owner.detachedDocumentIds, isEmpty);
       expect(desktop.allocated, {'main'});
       expect(desktop.calls, isNot(contains(('manager', 'destroy'))));
+    },
+  );
+
+  test(
+    'closeAll bounds a child close that never acknowledges and can retry',
+    () async {
+      await desktop.dispose();
+      desktop = _Desktop(closeTimeout: const Duration(milliseconds: 10));
+      await desktop.initialize();
+      await desktop.service.open(CompanionWindowKind.synapseXOptions);
+      desktop.childHandler = (_, method, _) async {
+        if (method == 'closeFromOwner') return Completer<void>().future;
+        return;
+      };
+
+      await expectLater(
+        desktop.service.closeAll(),
+        throwsA(isA<TimeoutException>()),
+      );
+      expect(desktop.allocated, {'main', 'child-1'});
+
+      desktop.childHandler = (child, method, _) async {
+        if (method == 'closeFromOwner') await desktop.closeChild(child);
+        return null;
+      };
+      await desktop.service.closeAll();
+      expect(desktop.allocated, {'main'});
     },
   );
 
